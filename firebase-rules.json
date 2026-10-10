@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "players": {
+      ".read": true,
+      ".indexOn": ["rating"],
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['name', 'rating', 'games', 'wins', 'draws', 'losses', 'updated']) && newData.child('games').val() === newData.child('wins').val() + newData.child('draws').val() + newData.child('losses').val() && (!data.exists() ? newData.child('games').val() === 0 && newData.child('rating').val() === 1200 : (newData.child('games').val() === data.child('games').val() ? newData.child('rating').val() === data.child('rating').val() : newData.child('games').val() === data.child('games').val() + 1 && newData.child('wins').val() >= data.child('wins').val() && newData.child('draws').val() >= data.child('draws').val() && newData.child('losses').val() >= data.child('losses').val() && newData.child('rating').val() - data.child('rating').val() <= 40 && data.child('rating').val() - newData.child('rating').val() <= 40 && now - data.child('updated').val() > 10000))",
+        "name": { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 20" },
+        "rating": { ".validate": "newData.isNumber() && newData.val() >= 100 && newData.val() <= 3000" },
+        "games": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "wins": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "draws": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "losses": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "updated": { ".validate": "newData.val() === now" },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
