@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Royal Gambit</title>
+  <meta name="description" content="Royal Gambit – chơi cờ vua ngay trên trình duyệt: đấu với máy, 2 người, tìm trận online, contest, học đánh cờ và leo rank.">
+  <meta name="theme-color" content="#262421">
+  <link rel="icon" href="img/favicon.svg?v=2" type="image/svg+xml">
+  <link rel="icon" href="img/favicon.png?v=2" type="image/png" sizes="64x64">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=2">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap">
+  <link rel="stylesheet" href="style.css?v=26">
+</head>
+<body data-mode="play" data-board="green" data-pieces="default">
+  <!-- Bộ biểu tượng dùng chung -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z"/><path d="m10 8 6 4-6 4V8Z"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2V4ZM22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8V4Z"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 5a9 9 0 0 1 0 14"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6M16 9l6 6"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M12 22a9 9 0 1 1 0-18 9 9 0 0 1 0 18Z"/><path d="m12 12 4-5"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V16h8v-1.3A7 7 0 0 0 12 2Z"/></symbol>
+    <symbol id="i-flip" viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 22V3M5 4h12l-2 4 2 4H5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+    <symbol id="i-handshake" viewBox="0 0 24 24"><path d="M3 12h4l3-3 4 4M21 12h-4l-5 5-2-2M7 12l3 3"/></symbol>
+    <symbol id="i-exit" viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3 6.5 7 .9-5.1 4.8 1.3 7-6.2-3.4-6.2 3.4 1.3-7L2 9.4l7-.9L12 2Z"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3v13H4V7Z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+    <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 22c4 0 7-2.7 7-6.8 0-3.2-2-5.6-3.6-7.4-.4 1.8-1.4 3-2.6 3.6C13 7.6 11.6 4.6 9 2c.2 3.4-1.4 5.5-3 7.6C4.8 11.2 5 13.6 5 15.2 5 19.3 8 22 12 22Z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="m3 7 4.5 4L12 4l4.5 7L21 7l-2 12H5L3 7Z"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8-5.2-8-11.4A4.6 4.6 0 0 1 12 6.7a4.6 4.6 0 0 1 8 2.9C20 15.8 12 21 12 21Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M10 2h4M12 2v3"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a2 2 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4"/></symbol>
+    <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1ZM17 9a3 3 0 0 1 0 6M20 6.5a7 7 0 0 1 0 11"/></symbol>
+    <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M6 2h12M6 22h12M7 2v3.5c0 2 1.5 3.5 5 6.5 3.5-3 5-4.5 5-6.5V2M7 22v-3.5c0-2 1.5-3.5 5-6.5 3.5 3 5 4.5 5 6.5V22"/><path d="M9.5 19.5h5" /></symbol>
+    <symbol id="i-bullet" viewBox="0 0 24 24"><path d="M14.5 3.5c2.6-1 5-1.1 6-.1s.9 3.4-.1 6L12 18l-6-6 8.5-8.5Z"/><path d="m9 9 6 6M6 12l-1.5 1.5L10.5 19.5 12 18M3 21l2.5-2.5M6.5 21.5l1.5-1.5M2.5 17.5 4 16"/></symbol>
+    <symbol id="i-stopwatch" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.8 1.8M9.5 2.5h5M12 2.5V6M18.5 6.5l1.5-1.5"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2 9.5 12 5l10 4.5-10 4.5L2 9.5Z"/><path d="M6 11.3V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.7M22 9.5V15"/></symbol>
+    <symbol id="i-library" viewBox="0 0 24 24"><path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="m15.5 5.2 3.6-.9 3.4 14.6-3.6.9z"/></symbol>
+    <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M4 8h3.5a2 2 0 1 1 4 0H15v3.5a2 2 0 1 0 0 4V19H4v-3.5a2 2 0 1 0 0-4V8Z"/><path d="M15 8h5v11h-5"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+    <symbol id="i-podium" viewBox="0 0 24 24"><path d="M9 21V9h6v12M3 21v-7h6M15 21v-9h6v9M2 21h20"/><path d="m12 2 .9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3L12 2Z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 6.5 18 3h3v3l-3.5 8.5M5 14l-2 2 4 4 2-2M7 17l-3 3"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v12h5v-6h4v6h5V9"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8.5V20l-4-2v-4.5L3 5Z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <a class="brand" href="./">
+      <img src="img/logo.svg?v=2" alt="Royal Gambit">
+      <span class="wordmark">Royal Gambit</span>
+    </a>
+    <nav class="tabs" role="tablist">
+      <button class="tab" id="homeTab" type="button" aria-selected="false"><svg class="ic"><use href="#i-home"/></svg><span>Trang chủ</span></button>
+      <button class="tab" role="tab" data-mode="play" aria-selected="true"><svg class="ic"><use href="#i-play"/></svg><span>Chơi</span></button>
+      <button class="tab" role="tab" data-mode="online" aria-selected="false"><svg class="ic"><use href="#i-globe"/></svg><span>Online</span></button>
+      <button class="tab" id="contestTab" type="button"><svg class="ic"><use href="#i-trophy"/></svg><span>Contest</span></button>
+      <button class="tab" id="adminTab" type="button" hidden><svg class="ic"><use href="#i-shield"/></svg><span>Admin</span></button>
+      <button class="tab" role="tab" data-mode="learn" aria-selected="false"><svg class="ic"><use href="#i-cap"/></svg><span>Học cờ</span></button>
+      <button class="tab" id="libTab" type="button"><svg class="ic"><use href="#i-library"/></svg><span>Thư viện</span></button>
+      <button class="tab" id="puzzleTab" type="button"><svg class="ic"><use href="#i-puzzle"/></svg><span>Câu đố</span><b id="puzzleBadge" class="nav-badge" title="Thế cờ trong Sổ luyện lỗi đến hạn ôn" hidden></b></button>
+      <button class="tab" id="histTab" type="button"><svg class="ic"><use href="#i-history"/></svg><span>Nhật ký</span></button>
+      <button class="tab" id="lbTab" type="button"><svg class="ic"><use href="#i-podium"/></svg><span>Xếp hạng</span></button>
+    </nav>
+    <div class="topbar-right">
+      <button id="langBtn" class="icon-btn lang-btn" type="button" title="Ngôn ngữ / Language"><svg class="ic"><use href="#i-globe"/></svg><span id="langLabel">Tiếng Việt</span></button>
+      <button id="rankBtn" class="icon-btn header-rank-btn" title="Rank và Elo của bạn">
+        <span id="meRankIcon" class="header-rank-icon" aria-hidden="true"><svg class="ic rank-star-ic" viewBox="0 0 24 24"><path fill="currentColor" d="m12 2 3 6.5 7 .9-5.1 4.8 1.3 7-6.2-3.4-6.2 3.4 1.3-7L2 9.4l7-.9L12 2Z"/></svg></span>
+        <span>Rank</span>
+      </button>
+      <button id="profileBtn" class="profile-chip" title="Trang hồ sơ của bạn">
+        <span id="meRankBadge" class="header-rank-badge" aria-hidden="true"></span>
+        <span class="avatar" id="meAvatar"></span>
+        <span class="profile-text"><b id="meName"></b><small id="meRating"></small></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Thông báo contest đã đăng ký (sắp / đang diễn ra) -->
+  <div id="contestBanner" class="contest-banner" hidden>
+    <svg class="ic"><use href="#i-trophy"/></svg>
+    <span id="cbText"></span>
+    <button id="cbAction" type="button" class="primary"></button>
+    <button id="cbOpen" type="button">Bảng điểm</button>
+  </div>
+  <div id="announceBar" class="announce-bar" hidden>
+    <svg class="ic"><use href="#i-megaphone"/></svg>
+    <span id="announceText"></span>
+    <button id="announceClose" type="button" class="icon-btn" title="Ẩn thông báo này"><svg class="ic"><use href="#i-close"/></svg></button>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <main class="layout">
+    <!-- Học cờ: lộ trình bài học kiểu Duolingo -->
+    <section id="learnHome" class="learn-home">
+      <div class="lh-main">
+        <header id="lhHero" class="lh-hero">
+          <div class="lhh-top">
+            <span class="lhh-icon"><img id="lhHeroIcon" src="pieces/wK.svg" alt=""></span>
+            <div class="lhh-text">
+              <small id="lhHeroUnit"></small>
+              <h2 id="lhHeroTitle"></h2>
+              <p id="lhNextText" class="lhh-next"></p>
+            </div>
+            <div class="lhh-ring" title="Tiến độ khoá học"><span id="lhRing"></span><small id="lhCourseText"></small></div>
+          </div>
+          <div class="lhh-stats">
+            <span class="lh-stat streak" title="Chuỗi ngày học liên tiếp"><svg class="ic"><use href="#i-flame"/></svg><b id="lhStreak">0</b><small>ngày liên tiếp</small></span>
+            <span class="lh-stat xp" title="Tổng điểm kinh nghiệm"><svg class="ic"><use href="#i-bolt"/></svg><b id="lhXp">0</b><small>XP</small></span>
+            <span class="lh-stat crowns" title="Số bài đã xong"><svg class="ic"><use href="#i-crown"/></svg><b id="lhDone">0</b><small>bài xong</small></span>
+            <span class="lh-stat stars" title="Tổng số sao đã đạt"><svg class="ic"><use href="#i-star"/></svg><b id="lhStars">0</b><small>sao</small></span>
+          </div>
+          <div class="lhh-goal">
+            <div class="lh-card-head"><b><svg class="ic"><use href="#i-target"/></svg>Mục tiêu hôm nay</b><small id="lhGoalText"></small></div>
+            <div class="lh-meter"><div id="lhGoalBar"></div></div>
+          </div>
+          <div class="lhh-actions">
+            <button id="lhContinue" type="button" class="ls-main"><svg class="ic"><use href="#i-play"/></svg>Học tiếp</button>
+            <button id="lhPractice" type="button" class="lh-ghost"><svg class="ic"><use href="#i-dumbbell"/></svg>Luyện tập</button>
+          </div>
+          <p class="lh-tip lhh-tip" id="lhPracticeText"></p>
+        </header>
+        <div class="lh-path" id="lhUnits"></div>
+      </div>
+      <aside class="lh-side">
+        <p class="lang-note">Nội dung các bài Học cờ hiện chỉ có tiếng Việt. Giao diện vẫn hiển thị tiếng Anh.</p>
+        <div class="lh-card">
+          <div class="lh-card-head"><b>Hoạt động 7 ngày</b><small id="lhWeek"></small></div>
+          <div class="lh-chart" id="lhChart"></div>
+        </div>
+        <div class="lh-card">
+          <div class="lh-card-head"><b>Thành tích</b><small id="lhBadgeCount"></small></div>
+          <div class="lh-badges" id="lhBadges"></div>
+        </div>
+        <div class="lh-card">
+          <div class="lh-card-head"><b>Mục lục</b></div>
+          <div class="lh-toc" id="lhToc"></div>
+        </div>
+        <div class="lh-card lh-legend">
+          <b>Cách học</b>
+          <p>Mỗi bài có 3 tim, đi sai mất 1 tim. Không sai và không dùng gợi ý thì được 3 sao. Học mỗi ngày để giữ chuỗi ngày học. Đã biết chơi? Bấm <b>Nhảy cóc</b> ở một phần để làm bài kiểm tra và mở khoá luôn phần đó.</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="board-area">
+      <div class="player" id="topPlayer">
+        <span class="avatar" id="topAvatar"></span>
+        <div class="player-info">
+          <div class="player-line"><span class="player-name" id="topName"></span><span class="player-rating" id="topRating"></span></div>
+          <div class="captured" id="topCaptured"></div>
+        </div>
+        <span class="clock" id="topClock" hidden></span>
+        <span class="turn-dot"></span>
+      </div>
+      <div class="board-wrap">
+        <div id="evalBar" class="eval-bar" title="Đánh giá thế cờ (ước lượng)">
+          <div id="evalWhite" class="eval-white" style="flex:50"></div>
+          <div id="evalBlack" class="eval-black" style="flex:50"></div>
+          <span id="evalLabel" class="eval-label">0.0</span>
+        </div>
+        <div id="board" class="board" aria-label="Bàn cờ"></div>
+      </div>
+      <div class="player" id="bottomPlayer">
+        <span class="avatar" id="bottomAvatar"></span>
+        <div class="player-info">
+          <div class="player-line"><span class="player-name" id="bottomName"></span><span class="player-rating" id="bottomRating"></span></div>
+          <div class="captured" id="bottomCaptured"></div>
+        </div>
+        <span class="clock" id="bottomClock" hidden></span>
+        <span class="turn-dot"></span>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div id="status" class="status"></div>
+      <div id="openingName" class="opening-name" hidden></div>
+
+      <div class="controls" id="playPanel">
+        <!-- Cài đặt ván (hiện khi chưa đánh / ván đã xong) -->
+        <div id="botSetup" class="setup">
+          <div class="seg" id="oppSeg" role="tablist">
+            <button type="button" data-opp="bot" class="on"><svg class="ic"><use href="#i-cpu"/></svg>Đấu với máy</button>
+            <button type="button" data-opp="human"><svg class="ic"><use href="#i-users"/></svg>2 người cùng máy</button>
+          </div>
+          <div id="botCards" class="bot-cards"></div>
+          <div class="setup-row" id="colorRow">
+            <span class="setup-label">Bạn cầm</span>
+            <div class="seg small" id="colorSeg">
+              <button type="button" data-c="w"><span class="pz-side w"></span>Trắng</button>
+              <button type="button" data-c="r"><span class="pz-side r"></span>Ngẫu nhiên</button>
+              <button type="button" data-c="b"><span class="pz-side b"></span>Đen</button>
+            </div>
+          </div>
+          <div class="setup-row">
+            <span class="setup-label">Thời gian</span>
+            <div class="tc-grid" id="tcGrid"></div>
+          </div>
+          <div class="setup-hidden" aria-hidden="true">
+            <select id="mode" tabindex="-1">
+              <option value="b">Đấu với máy – cầm Trắng</option>
+              <option value="w">Đấu với máy – cầm Đen</option>
+              <option value="none">2 người cùng máy</option>
+            </select>
+            <select id="level" tabindex="-1">
+              <option value="1">Dễ · 800</option>
+              <option value="2" selected>Trung bình · 1200</option>
+              <option value="3">Khó · 1600</option>
+            </select>
+            <select id="clockSel" tabindex="-1">
+              <option value="none">Không giới hạn</option>
+              <option value="60+0">1 phút</option>
+              <option value="180+2">3 + 2</option>
+              <option value="300+0">5 phút</option>
+              <option value="600+0">10 phút</option>
+              <option value="900+10">15 + 10</option>
+            </select>
+          </div>
+        </div>
+        <!-- Tóm tắt ván đang đánh -->
+        <div id="botLive" class="live-card" hidden>
+          <span class="avatar live-av" id="liveAvatar"></span>
+          <div class="live-main"><b id="liveTitle"></b><small id="liveSub"></small></div>
+        </div>
+        <button id="newGame" class="primary big"><svg class="ic"><use href="#i-play"/></svg><span id="newGameText">Bắt đầu ván</span></button>
+        <div class="tool-row">
+          <button id="undo" title="Đi lại (Z)"><svg class="ic"><use href="#i-undo"/></svg><span>Đi lại</span></button>
+          <button id="redo" title="Đi tiếp (Y)"><svg class="ic"><use href="#i-redo"/></svg><span>Đi tiếp</span></button>
+          <button id="hint" title="Gợi ý (H)"><svg class="ic"><use href="#i-bulb"/></svg><span>Gợi ý</span></button>
+          <button id="flip" title="Xoay bàn (F)"><svg class="ic"><use href="#i-flip"/></svg><span>Xoay</span></button>
+        </div>
+        <div class="tool-row">
+          <button id="playResign" title="Xin thua"><svg class="ic"><use href="#i-flag"/></svg><span>Xin thua</span></button>
+          <button id="toolSound" title="Bật/tắt âm thanh"><svg class="ic"><use href="#i-volume"/></svg><span>Âm</span></button>
+          <button id="toolEval" title="Bật/tắt thanh đánh giá" class="on"><svg class="ic"><use href="#i-gauge"/></svg><span>Đánh giá</span></button>
+          <button id="toolPgn" title="Sao chép PGN"><svg class="ic"><use href="#i-book"/></svg><span>PGN</span></button>
+        </div>
+        <p id="ratedNote" class="rated-note"></p>
+      </div>
+
+      <div class="controls" id="onlinePanel" hidden>
+        <div id="onlineLobby" class="controls">
+          <div class="ol-hero">
+            <div class="ol-hero-head">
+              <span class="ol-live"><i></i>Online</span>
+              <div id="olMe" class="ol-me"></div>
+            </div>
+            <b class="ol-title">Tìm trận nhanh</b>
+            <p class="ol-sub">Tự ghép với người đang tìm trận · màu quân ngẫu nhiên · tính rank và Elo</p>
+            <button id="findMatch" class="primary big"><svg class="ic"><use href="#i-search"/></svg>Tìm trận</button>
+          </div>
+          <div class="ol-card">
+            <div class="ol-card-head"><svg class="ic"><use href="#i-users"/></svg><b>Chơi với bạn bè</b></div>
+            <div class="setup-row">
+              <span class="setup-label">Bạn cầm</span>
+              <div class="seg small" id="hostSeg">
+                <button type="button" data-c="w" class="on"><span class="pz-side w"></span>Trắng</button>
+                <button type="button" data-c="r"><span class="pz-side r"></span>Ngẫu nhiên</button>
+                <button type="button" data-c="b"><span class="pz-side b"></span>Đen</button>
+              </div>
+            </div>
+            <select id="hostColor" hidden>
+              <option value="w">Trắng</option>
+              <option value="b">Đen</option>
+              <option value="r">Ngẫu nhiên</option>
+            </select>
+            <button id="createRoom" class="big"><svg class="ic"><use href="#i-link"/></svg>Tạo phòng &amp; lấy link mời</button>
+            <div class="divider"><span>hoặc vào phòng của bạn bè</span></div>
+            <div class="join-row">
+              <input id="roomCode" placeholder="Mã phòng" maxlength="6" autocomplete="off" autocapitalize="characters" aria-label="Mã phòng">
+              <button id="joinRoom">Vào phòng</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="onlineSearching" class="controls" hidden>
+          <div class="radar" aria-hidden="true"><span></span><span></span><span></span><img src="pieces/wN.svg" alt=""></div>
+          <div class="searching"><b id="searchLabel">Đang tìm đối thủ…</b><span id="searchTime" class="search-time">0:00</span></div>
+          <p class="muted center">Bạn sẽ vào ván ngay khi có người khác bấm Tìm trận. Rủ bạn bè cùng bấm để gặp nhau nhanh hơn.</p>
+          <button id="cancelSearch" class="big">Hủy tìm trận</button>
+        </div>
+
+        <div id="onlineWaiting" class="controls" hidden>
+          <div class="ol-card ol-room">
+            <span class="setup-label">Mã phòng của bạn</span>
+            <div id="roomCodeShow" class="room-code"></div>
+            <p class="muted center">Gửi mã hoặc link cho bạn bè. Ván bắt đầu ngay khi họ vào phòng.</p>
+            <input id="inviteLink" readonly aria-label="Link mời">
+            <div class="buttons two">
+              <button id="copyLink" class="primary"><svg class="ic"><use href="#i-copy"/></svg>Sao chép link</button>
+              <button id="cancelRoom">Hủy phòng</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="onlineGame" class="controls" hidden>
+          <div id="onlineOffer" class="offer" hidden>
+            <span id="offerText"></span>
+            <div class="buttons two">
+              <button id="offerYes" class="primary">Đồng ý</button>
+              <button id="offerNo">Từ chối</button>
+            </div>
+          </div>
+          <div class="tool-row three" id="onlineTools">
+            <button id="offerDraw"><svg class="ic"><use href="#i-handshake"/></svg><span>Xin hòa</span></button>
+            <button id="resign"><svg class="ic"><use href="#i-flag"/></svg><span>Xin thua</span></button>
+            <button id="rematch"><svg class="ic"><use href="#i-refresh"/></svg><span>Ván mới</span></button>
+            <button id="onlineFlip" title="Xoay bàn"><svg class="ic"><use href="#i-flip"/></svg><span>Xoay</span></button>
+            <button id="onlineHint" title="Gợi ý (chỉ Admin)" hidden><svg class="ic"><use href="#i-bulb"/></svg><span>Gợi ý</span></button>
+          </div>
+          <div id="chatLog" class="chat-log"></div>
+          <form id="chatForm" class="chat-form">
+            <input id="chatInput" maxlength="200" placeholder="Nhắn tin cho đối thủ…" autocomplete="off" aria-label="Tin nhắn">
+            <button title="Gửi"><svg class="ic"><use href="#i-send"/></svg></button>
+          </form>
+          <button id="muteOpp" type="button" class="ghost mute-opp" hidden title="Tắt chat đối thủ (chỉ Admin)">Mute chat đối thủ</button>
+          <button id="leaveRoom" class="ghost"><svg class="ic"><use href="#i-exit"/></svg>Rời phòng</button>
+        </div>
+        <p id="onlineInfo" class="muted"></p>
+      </div>
+
+      <div class="controls" id="learnPanel" hidden>
+        <div class="ls-top">
+          <button id="lsClose" type="button" class="ls-x" title="Thoát bài học"><svg class="ic"><use href="#i-close"/></svg></button>
+          <div class="ls-bar"><div id="lsBar"></div></div>
+          <span id="lsStep" class="ls-step" title="Thử thách hiện tại"></span>
+          <span class="ls-hearts" title="Số tim còn lại"><svg class="ic heart"><use href="#i-heart"/></svg><b id="lsHearts">3</b></span>
+        </div>
+        <div id="lsUnit" class="ls-unit"></div>
+        <div class="ls-coach">
+          <img id="lsMascot" src="pieces/wN.svg" class="ls-mascot" alt="">
+          <div class="ls-bubble"><b id="lsTitle"></b><p id="lsText"></p></div>
+        </div>
+        <div id="lsQuiz" class="ls-quiz" hidden></div>
+        <div class="ls-tools">
+          <button id="lsHint" type="button"><svg class="ic"><use href="#i-bulb"/></svg><span>Gợi ý</span></button>
+          <button id="lsRetry" type="button"><svg class="ic"><use href="#i-refresh"/></svg><span>Làm lại</span></button>
+        </div>
+        <div id="lsFeedback" class="ls-feedback" hidden>
+          <div class="lf-head"><span id="lfIcon" class="lf-icon"></span><b id="lfTitle"></b></div>
+          <p id="lfText"></p>
+        </div>
+        <button id="lsMain" type="button" class="ls-main">Kiểm tra</button>
+      </div>
+
+      <div class="record">
+        <div class="record-head">
+          <h2>Biên bản</h2>
+          <div class="record-actions">
+            <button type="button" id="copyPgn" class="ghost tiny" title="Sao chép PGN để phân tích ở web khác">PGN</button>
+            <button type="button" id="copyFen" class="ghost tiny" title="Sao chép FEN thế cờ hiện tại">FEN</button>
+          </div>
+        </div>
+        <div id="moves" class="moves"></div>
+        <p id="viewHint" class="view-hint" hidden>Đang xem lại · bấm «Live» hoặc đi nước mới để về ván hiện tại</p>
+        <div class="nav-row" id="moveNav">
+          <button type="button" id="navStart" title="Đầu ván">⏮</button>
+          <button type="button" id="navPrev" title="Nước trước">◀</button>
+          <button type="button" id="navLive" title="Về hiện tại">Live</button>
+          <button type="button" id="navNext" title="Nước sau">▶</button>
+          <button type="button" id="navEnd" title="Cuối ván">⏭</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Trang hồ sơ (#profile hoặc #profile/<uid>) -->
+  <!-- Trang chủ -->
+  <section id="homePage" class="home-page" hidden aria-label="Trang chủ">
+    <header class="hm-hero">
+      <div class="hm-hero-main">
+        <span class="avatar hm-avatar" id="hmAvatar"></span>
+        <div class="hm-hello">
+          <small id="hmGreet" class="hm-greet"></small>
+          <h1 id="hmName" class="hm-name"></h1>
+          <div id="hmRank" class="hm-rank"></div>
+        </div>
+      </div>
+      <div id="hmStats" class="hm-stats"></div>
+    </header>
+
+    <div id="hmResume" class="hm-resume" hidden></div>
+
+    <nav class="hm-quick" aria-label="Bắt đầu nhanh">
+      <button type="button" class="hm-act play" data-go="play">
+        <span class="hm-act-ic"><svg class="ic"><use href="#i-cpu"/></svg></span>
+        <span class="hm-act-text"><b>Chơi với máy</b><small>Chọn nhân vật bot · có tính Elo</small></span>
+      </button>
+      <button type="button" class="hm-act online" data-go="online">
+        <span class="hm-act-ic"><svg class="ic"><use href="#i-globe"/></svg></span>
+        <span class="hm-act-text"><b>Đấu Online</b><small>Tìm trận nhanh hoặc mời bạn bè</small></span>
+      </button>
+      <button type="button" class="hm-act puzzle" data-go="puzzle">
+        <span class="hm-act-ic"><svg class="ic"><use href="#i-puzzle"/></svg></span>
+        <span class="hm-act-text"><b>Câu đố</b><small>Luyện chiến thuật mỗi ngày</small></span>
+      </button>
+      <button type="button" class="hm-act learn" data-go="learn">
+        <span class="hm-act-ic"><svg class="ic"><use href="#i-cap"/></svg></span>
+        <span class="hm-act-text"><b>Học cờ</b><small>Lộ trình từ cơ bản đến nâng cao</small></span>
+      </button>
+    </nav>
+
+    <div class="hm-grid">
+      <div class="hm-col">
+        <article id="hmDaily" class="hm-card hm-daily"></article>
+        <article class="hm-card">
+          <header class="hm-card-head"><h2><svg class="ic"><use href="#i-check"/></svg>Việc hôm nay</h2><small id="hmTodoCount"></small></header>
+          <div id="hmTodo" class="hm-todo"></div>
+        </article>
+        <article class="hm-card">
+          <header class="hm-card-head"><h2><svg class="ic"><use href="#i-history"/></svg>Ván gần đây</h2><button type="button" class="hm-link" data-go="history">Xem nhật ký<svg class="ic"><use href="#i-chevron-right"/></svg></button></header>
+          <div id="hmRecent" class="hm-recent"></div>
+        </article>
+      </div>
+      <div class="hm-col">
+        <article class="hm-card">
+          <header class="hm-card-head"><h2><svg class="ic"><use href="#i-trophy"/></svg>Contest</h2><button type="button" class="hm-link" data-go="contest">Tất cả<svg class="ic"><use href="#i-chevron-right"/></svg></button></header>
+          <div id="hmContest" class="hm-contest"></div>
+        </article>
+        <article class="hm-card">
+          <header class="hm-card-head"><h2><svg class="ic"><use href="#i-podium"/></svg>Top kỳ thủ</h2><button type="button" class="hm-link" data-go="leaderboard">Bảng xếp hạng<svg class="ic"><use href="#i-chevron-right"/></svg></button></header>
+          <div id="hmTop" class="hm-top"></div>
+        </article>
+        <article id="hmOpening" class="hm-card hm-opening"></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="profilePage" class="pf-page" hidden aria-label="Hồ sơ người chơi">
+    <div class="pf-bar">
+      <button id="pfBack" type="button" class="ghost pf-back"><svg class="ic"><use href="#i-chevron-left"/></svg>Quay lại</button>
+      <button id="pfRefresh" type="button" class="icon-btn" title="Tải lại"><svg class="ic"><use href="#i-refresh"/></svg></button>
+    </div>
+
+    <header id="pfHero" class="pf-hero">
+      <div class="pf-hero-main">
+        <span class="pf-avatar-wrap">
+          <span class="avatar pf-avatar" id="profileAvatar"></span>
+          <button id="pfAvatarEdit" type="button" class="pf-avatar-edit" title="Đổi ảnh đại diện" hidden><svg class="ic"><use href="#i-camera"/></svg></button>
+        </span>
+        <div class="pf-ident">
+          <div class="pf-name-line"><h1 id="pfName" class="pf-name"></h1><span id="pfChips" class="pf-chips"></span></div>
+          <div id="pfRankLine" class="pf-rank-line"></div>
+          <div id="pfMedalStrip" class="pf-medal-strip"></div>
+        </div>
+      </div>
+      <div class="pf-elo-block">
+        <span class="pf-elo-label">Elo</span>
+        <b id="pfElo" class="pf-elo"></b>
+        <span id="pfEloClass" class="pf-elo-class"></span>
+      </div>
+    </header>
+
+    <p id="pfError" class="pf-error" hidden></p>
+
+    <div id="pfBody" class="pf-grid">
+      <div class="pf-col">
+        <div id="pfTiles" class="pf-tiles"></div>
+
+        <section class="pf-card">
+          <div class="pf-card-head"><h2>Thành tích Online</h2><small id="pfWdlNote"></small></div>
+          <div id="pfWdl" class="pf-wdl"></div>
+        </section>
+
+        <section class="pf-card" id="pfEloCard">
+          <div class="pf-card-head"><h2>Diễn biến Elo</h2><small id="pfEloNote"></small></div>
+          <div id="pfEloChart" class="pf-chart"></div>
+        </section>
+
+        <section class="pf-card">
+          <div class="pf-card-head"><h2>Tủ huy chương Contest</h2><small>Bấm vào huy chương để xem contest</small></div>
+          <div id="pfMedalCounts" class="pf-medal-counts"></div>
+          <div id="pfMedals" class="pf-medals"></div>
+        </section>
+
+        <section class="pf-card">
+          <div class="pf-card-head"><h2>Lịch sử Contest</h2><small id="pfContestNote"></small></div>
+          <div id="pfContests" class="pf-contests"></div>
+        </section>
+      </div>
+
+      <aside class="pf-col pf-side">
+        <section class="pf-card pf-rank-card" id="pfRankCard"></section>
+        <section class="pf-card" id="pfVsCard" hidden></section>
+        <section class="pf-card" id="pfLearnCard" hidden></section>
+        <section class="pf-card" id="pfGamesCard" hidden>
+          <div class="pf-card-head"><h2>Ván gần đây</h2><button id="pfGamesAll" type="button" class="ghost tiny">Xem nhật ký</button></div>
+          <div id="pfGames" class="pf-games"></div>
+        </section>
+
+        <section class="pf-card pf-settings" id="pfSettings" hidden>
+          <div class="pf-card-head"><h2>Cài đặt</h2></div>
+          <div class="avatar-actions">
+            <button id="avatarUpload" type="button"><svg class="ic"><use href="#i-camera"/></svg>Tải ảnh lên</button>
+            <button id="avatarRemove" type="button" class="ghost" hidden>Xóa ảnh</button>
+            <input id="avatarFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+          </div>
+          <p id="profileMsg" class="pf-msg" role="status"></p>
+          <div id="themeChoices"></div>
+          <label class="lang-row"><span>Ngôn ngữ / Language</span>
+            <select id="langSel"><option value="vi">Tiếng Việt</option><option value="en">English</option></select>
+          </label>
+          <div class="skin-section"><h4>Tuỳ chọn</h4></div>
+          <div class="pf-switches">
+            <label class="switch"><input type="checkbox" id="soundToggle"><span>Âm thanh nước đi</span></label>
+            <label class="switch"><input type="checkbox" data-pref="coords"><span>Hiện toạ độ (a–h, 1–8)</span></label>
+            <label class="switch"><input type="checkbox" data-pref="dots"><span>Chấm các nước đi hợp lệ</span></label>
+            <label class="switch"><input type="checkbox" data-pref="anim"><span>Hiệu ứng trượt quân</span></label>
+            <label class="switch"><input type="checkbox" data-pref="autoQueen"><span>Tự phong Hậu (không hỏi)</span></label>
+            <label class="switch"><input type="checkbox" id="notifyToggle"><span>Thông báo khi contest đã đăng ký sắp bắt đầu</span></label>
+          </div>
+          <button id="keysBtn" type="button" class="pf-link"><svg class="ic"><use href="#i-keyboard"/></svg>Phím tắt</button>
+          <button id="logoutBtn" type="button" class="pf-logout"><svg class="ic"><use href="#i-exit"/></svg>Đăng xuất</button>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+
+  <!-- Học cờ: hoàn thành bài / hết tim -->
+  <div id="learnDone" class="modal auth-gate" hidden>
+    <div class="modal-box ld-box">
+      <div class="ld-burst"><img id="ldMascot" src="pieces/wN.svg" class="ld-mascot" alt=""></div>
+      <h2 id="ldTitle" class="ld-title"></h2>
+      <div id="ldStars" class="ld-stars"></div>
+      <div id="ldCards" class="ld-cards">
+        <div class="ld-card xp"><span>Tổng XP</span><b id="ldXp"></b></div>
+        <div class="ld-card acc"><span>Chính xác</span><b id="ldAcc"></b></div>
+        <div class="ld-card time"><span>Thời gian</span><b id="ldTime"></b></div>
+      </div>
+      <div id="ldUnit" class="ld-unit" hidden>
+        <div class="ld-unit-head"><span id="ldUnitName"></span><b id="ldUnitCount"></b></div>
+        <div class="lh-meter blue"><div id="ldUnitBar"></div></div>
+      </div>
+      <p id="ldNote" class="ld-note"></p>
+      <button id="ldNext" type="button" class="ls-main">Tiếp tục</button>
+      <button id="ldBack" type="button" class="ghost">Về lộ trình</button>
+    </div>
+  </div>
+
+  <!-- Phong cấp -->
+  <div id="promo" class="modal" hidden>
+    <div class="modal-box small">
+      <p class="modal-title">Phong cấp tốt thành</p>
+      <div id="promoChoices" class="promo-choices"></div>
+    </div>
+  </div>
+
+  <!-- Kết thúc ván -->
+  <div id="resultModal" class="modal" hidden>
+    <div class="modal-box result-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div id="resultIcon" class="result-icon"></div>
+      <h2 id="resultTitle" class="result-title"></h2>
+      <p id="resultReason" class="result-reason"></p>
+      <div id="resultRating" class="result-rating"></div>
+      <div id="resultCoach" class="result-coach" hidden></div>
+      <div id="resultReview" class="result-review" hidden>
+        <h3>Nhận xét ván đấu</h3>
+        <div id="resultReviewBody"></div>
+      </div>
+      <div class="buttons two">
+        <button id="resultAgain" class="primary">Ván mới</button>
+        <button data-close>Xem bàn cờ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Đăng nhập / đăng ký (bắt buộc) -->
+  <div id="authModal" class="modal auth-gate">
+    <div class="modal-box auth-box">
+      <div class="auth-lang" role="group" aria-label="Ngôn ngữ / Language"><button type="button" data-lang="vi">Tiếng Việt</button><button type="button" data-lang="en">English</button></div>
+      <div class="auth-brand"><img src="img/logo.svg?v=2" alt=""><h1 class="wordmark">Royal Gambit</h1></div>
+      <div class="auth-tabs">
+        <button id="authTabLogin" class="on" type="button">Đăng nhập</button>
+        <button id="authTabRegister" type="button">Đăng ký</button>
+      </div>
+      <form id="authForm" class="auth-form">
+        <label>Tên đăng nhập
+          <input id="authUser" maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+        </label>
+        <label>Mật khẩu
+          <input id="authPass" type="password" autocomplete="current-password" required>
+        </label>
+        <label id="authPass2Wrap" hidden>Nhập lại mật khẩu
+          <input id="authPass2" type="password" autocomplete="new-password">
+        </label>
+        <p id="authMsg" class="auth-msg" role="alert"></p>
+        <button id="authSubmit" class="primary big" type="submit">Đăng nhập</button>
+      </form>
+      <p id="authNote" class="muted"></p>
+    </div>
+  </div>
+
+  <!-- Chọn trình độ lần đầu (bắt buộc) -->
+  <div id="placeModal" class="modal auth-gate" hidden>
+    <div class="modal-box place-box">
+      <div class="auth-brand"><img src="img/logo.svg?v=2" alt=""><h1>Bạn là ai?</h1></div>
+      <p class="place-sub">Chọn trình độ cờ của bạn để có Elo khởi điểm. Sau đó Elo tăng giảm theo kết quả từng ván, nên hãy chọn đúng sức nhé!</p>
+      <div id="placeChoices" class="place-choices"></div>
+    </div>
+  </div>
+
+  <!-- Thư viện khai cuộc & tàn cuộc -->
+  <div id="libModal" class="modal" hidden>
+    <div class="modal-box lib-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-library"/></svg>
+        <div>
+          <h2>Thư viện khai cuộc</h2>
+          <p id="libNote" class="muted"></p>
+        </div>
+      </div>
+      <label id="libSearchWrap" class="lib-search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input id="libSearch" type="search" placeholder="Tìm: Sicily, gambit, Najdorf, c4…" autocomplete="off" aria-label="Tìm khai cuộc">
+      </label>
+      <div id="libFilters" class="lib-filters"></div>
+      <div id="libGrid" class="lib-grid"></div>
+      <div id="libDetail" class="lib-detail" hidden>
+        <button type="button" id="libBack" class="ghost lib-back"><svg class="ic"><use href="#i-chevron-left"/></svg>Danh sách</button>
+        <div class="lib-detail-body">
+          <div class="lib-board-col">
+            <div id="libBoard" class="lib-board lib-frame" aria-label="Minh họa thế cờ"></div>
+            <div id="libStepRow" class="lib-step">
+              <button type="button" id="libFirst" title="Thế xuất phát">⏮</button>
+              <button type="button" id="libPrev" title="Nước trước (←)">◀</button>
+              <span id="libStepLabel"></span>
+              <button type="button" id="libNext" title="Nước sau (→)">▶</button>
+              <button type="button" id="libLast" title="Nước cuối">⏭</button>
+            </div>
+          </div>
+          <div class="lib-info">
+            <span id="libTag" class="lib-tag"></span>
+            <h3 id="libName"></h3>
+            <p id="libNameEn" class="lib-name-en"></p>
+            <div id="libMoves" class="lib-moves"></div>
+            <p id="libDesc" class="lib-desc"></p>
+            <div class="lib-detail-actions">
+              <button type="button" id="libTry" class="primary"></button>
+              <button type="button" id="libSetup"></button>
+            </div>
+            <p class="lib-hint">Ván tập từ Thư viện không tính Elo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Câu đố -->
+  <div id="puzzleModal" class="modal" hidden>
+    <div class="modal-box puzzle-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-puzzle"/></svg>
+        <div>
+          <h2>Câu đố chiến thuật</h2>
+          <p class="muted">Mate ngắn, đòn chĩa, xiên, chiếu mở — luyện mắt cờ</p>
+        </div>
+      </div>
+      <div id="puzzleList" class="puzzle-list"></div>
+    </div>
+  </div>
+
+  <!-- Nhật ký ván -->
+  <div id="histModal" class="modal" hidden>
+    <div class="modal-box hist-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-history"/></svg>
+        <div>
+          <h2>Nhật ký ván đấu</h2>
+          <p class="muted">Tự lưu sau mỗi ván · xem lại từng nước · phân tích · tải PGN</p>
+        </div>
+      </div>
+      <div id="histSummary" class="hist-summary"></div>
+      <div class="hist-tools">
+        <label class="lib-search hist-search"><svg class="ic"><use href="#i-search"/></svg><input id="histSearch" type="search" placeholder="Tìm đối thủ, chế độ…" autocomplete="off" aria-label="Tìm ván"></label>
+        <label class="select-pill" title="Lọc theo chế độ chơi">
+          <svg class="ic"><use href="#i-filter"/></svg>
+          <select id="histMode" aria-label="Chế độ">
+            <option value="all">Mọi chế độ</option>
+            <option value="play">Đấu máy</option>
+            <option value="online">Online</option>
+            <option value="human">2 người</option>
+          </select>
+        </label>
+      </div>
+      <div id="histFilters" class="lib-filters hist-filters"></div>
+      <div id="histList" class="hist-list"></div>
+      <div class="hist-foot">
+        <button id="histDownload" type="button"><svg class="ic"><use href="#i-download"/></svg>Tải PGN các ván đang lọc</button>
+        <button id="histClear" type="button" class="danger-outline">Xóa hết</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bảng xếp hạng -->
+  <div id="lbModal" class="modal" hidden>
+    <div class="modal-box lb-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-podium"/></svg>
+        <div>
+          <h2>Bảng xếp hạng</h2>
+          <p id="lbNote" class="muted"></p>
+        </div>
+        <button id="lbRefresh" class="icon-btn" title="Tải lại"><svg class="ic"><use href="#i-refresh"/></svg></button>
+      </div>
+      <div class="lb-tools">
+        <div class="seg" id="lbTabs">
+          <button type="button" data-by="exp" class="on"><svg class="ic"><use href="#i-crown"/></svg>Rank</button>
+          <button type="button" data-by="elo"><svg class="ic"><use href="#i-bolt"/></svg>Elo</button>
+          <button type="button" data-by="medal"><svg class="ic"><use href="#i-trophy"/></svg>Huy chương</button>
+        </div>
+        <label class="lib-search lb-search"><svg class="ic"><use href="#i-search"/></svg><input id="lbSearch" type="search" placeholder="Tìm người chơi…" autocomplete="off" aria-label="Tìm người chơi"></label>
+      </div>
+      <div id="lbPodium" class="lb-podium"></div>
+      <div id="lbMe" class="lb-me" hidden></div>
+      <div class="rank-table">
+        <div class="rank-row rank-header" id="lbHeader"></div>
+        <div id="lbList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contest -->
+  <div id="contestModal" class="modal" hidden>
+    <div class="modal-box contest-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-trophy"/></svg>
+        <div>
+          <h2>Contest</h2>
+          <p id="contestNote" class="muted"></p>
+        </div>
+        <button id="contestRefresh" class="icon-btn" title="Tải lại"><svg class="ic"><use href="#i-refresh"/></svg></button>
+      </div>
+
+      <div id="contestListView">
+        <div id="contestAdminBox" class="contest-create" hidden>
+          <button id="contestNewBtn" type="button" class="primary"><svg class="ic"><use href="#i-plus"/></svg>Tạo contest (Admin)</button>
+          <form id="contestForm" class="contest-form" hidden>
+            <b id="cFormTitle" class="cf-title">Tạo contest mới</b>
+            <label>Tên contest
+              <input id="cName" maxlength="60" autocomplete="off" required>
+            </label>
+            <label>Mô tả (không bắt buộc)
+              <input id="cDesc" maxlength="200" autocomplete="off">
+            </label>
+            <div class="field-row">
+              <label>Bắt đầu lúc
+                <input id="cStart" type="datetime-local" required>
+              </label>
+              <label>Thời lượng
+                <select id="cDur">
+                  <option value="30">30 phút</option>
+                  <option value="60" selected>1 giờ</option>
+                  <option value="120">2 giờ</option>
+                  <option value="180">3 giờ</option>
+                  <option value="1440">1 ngày</option>
+                  <option value="10080">7 ngày</option>
+                </select>
+              </label>
+            </div>
+            <div class="buttons two">
+              <button id="cSubmit" class="primary" type="submit">Tạo contest</button>
+              <button id="cCancel" type="button">Hủy</button>
+            </div>
+          </form>
+          <p id="contestAdminMsg" class="admin-msg" role="status"></p>
+        </div>
+        <div id="contestTabs" class="lib-filters contest-tabs"></div>
+        <div id="contestList" class="contest-list"></div>
+        <p id="contestPlain" class="muted center"></p>
+      </div>
+
+      <div id="contestDetailView" hidden>
+        <button id="contestBack" type="button" class="ghost back">‹ Tất cả contest</button>
+        <div class="cd-hero" id="cdHero">
+          <span id="cdPhase" class="cd-phase"></span>
+          <h3 id="cdName"></h3>
+          <p id="cdDesc" class="muted"></p>
+          <div class="contest-meta"><span id="cdTime"></span><b id="cdClock"></b></div>
+          <div class="cd-progress"><i id="cdProg"></i></div>
+          <div class="cd-tools">
+            <button type="button" id="cdShare"><svg class="ic"><use href="#i-share"/></svg>Sao chép link</button>
+            <button type="button" id="cdCal"><svg class="ic"><use href="#i-calendar"/></svg>Thêm vào lịch</button>
+            <button type="button" id="cdEdit" hidden><svg class="ic"><use href="#i-edit"/></svg>Sửa</button>
+          </div>
+        </div>
+        <div id="cdStats" class="cd-stats"></div>
+        <div id="cdMine" class="cd-mine" hidden></div>
+        <div id="contestActions" class="contest-actions"></div>
+        <p id="contestMsg" class="admin-msg" role="status"></p>
+        <div id="contestPodium" class="podium-stage" hidden></div>
+        <div class="rank-table">
+          <div class="contest-row contest-header"><span>#</span><span>Người chơi</span><span>Điểm</span><span>Ván</span><span>T / H / B</span></div>
+          <div id="contestBoard"></div>
+        </div>
+        <p class="muted center">Thắng +2 · Hòa +1 · Thua 0 · Chỉ ván từ 4 nước trở lên, bắt đầu trong giờ contest mới được tính · Kết thúc: hạng 1, 2, 3 nhận huy chương Vàng, Bạc, Đồng</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bảng quản trị (chỉ tài khoản ADMIN thấy tab mở hộp này) -->
+  <div id="adminModal" class="modal" hidden>
+    <div class="modal-box admin-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-shield"/></svg>
+        <div>
+          <h2>Bảng quản trị</h2>
+          <p id="adminCount" class="muted"></p>
+        </div>
+        <button id="adminRefresh" class="icon-btn" title="Tải lại"><svg class="ic"><use href="#i-refresh"/></svg></button>
+      </div>
+      <div class="seg" id="adminTabs">
+        <button type="button" data-tab="players" class="on"><svg class="ic"><use href="#i-users"/></svg>Người chơi</button>
+        <button type="button" data-tab="announce"><svg class="ic"><use href="#i-megaphone"/></svg>Thông báo toàn web</button>
+      </div>
+
+      <div id="adminPlayers" class="admin-pane">
+        <div id="adminStats" class="admin-stats"></div>
+        <p id="adminNote" class="muted"></p>
+        <div class="admin-tools">
+          <label class="lib-search"><svg class="ic"><use href="#i-search"/></svg><input id="adminSearch" type="search" placeholder="Tìm người chơi…" autocomplete="off" aria-label="Tìm người chơi"></label>
+          <label class="select-pill" title="Sắp xếp danh sách">
+            <svg class="ic"><use href="#i-sort"/></svg><span class="sp-cap">Sắp xếp</span>
+            <select id="adminSort" aria-label="Sắp xếp">
+            <option value="role">Vai trò</option>
+            <option value="name">Tên A–Z</option>
+            <option value="elo">Elo cao nhất</option>
+            <option value="exp">Exp cao nhất</option>
+            <option value="games">Nhiều ván nhất</option>
+            <option value="active">Hoạt động gần đây</option>
+            </select>
+          </label>
+          <button id="adminCsv" type="button" title="Tải danh sách người chơi (CSV, mở được bằng Excel)"><svg class="ic"><use href="#i-download"/></svg>CSV</button>
+        </div>
+        <div id="adminFilters" class="lib-filters"></div>
+        <p id="adminMsg" class="admin-msg" role="status"></p>
+        <div class="admin-table"><div id="adminList"></div></div>
+        <p class="muted admin-hint">Chủ web cấp / thu hồi quyền admin và danh hiệu. Admin được dùng Gợi ý trong ván Online (vẫn tính Elo/rank) và có thể <b>Mute chat</b> người chơi nói tục. Cần luật Firebase có mục <code>mutes</code> và <code>titles</code> (xem file firebase-rules.json).</p>
+      </div>
+
+      <div id="adminAnnounce" class="admin-pane" hidden>
+        <p class="muted">Thông báo hiện thành một thanh ở đầu trang cho mọi người chơi (kể cả khách chưa đăng nhập vào ván). Người chơi có thể tắt thanh này; thông báo mới sẽ hiện lại.</p>
+        <div id="annCurrent" class="ann-current"></div>
+        <label>Nội dung (tối đa 300 ký tự)
+          <textarea id="annText" maxlength="300" rows="3" placeholder="Ví dụ: Tối thứ Sáu 20:00 có contest Blitz, đăng ký ngay trong tab Contest!"></textarea>
+        </label>
+        <div class="setup-row">
+          <span class="setup-label">Kiểu thông báo</span>
+          <div class="seg small" id="annKind">
+            <button type="button" data-k="info" class="on">Thông tin</button>
+            <button type="button" data-k="event">Sự kiện</button>
+            <button type="button" data-k="warn">Cảnh báo</button>
+          </div>
+        </div>
+        <label>Tự ẩn sau
+          <select id="annDur">
+            <option value="24">1 ngày</option>
+            <option value="72">3 ngày</option>
+            <option value="168" selected>7 ngày</option>
+            <option value="0">Không tự ẩn</option>
+          </select>
+        </label>
+        <div class="buttons two">
+          <button id="annPost" type="button" class="primary"><svg class="ic"><use href="#i-megaphone"/></svg>Đăng thông báo</button>
+          <button id="annClear" type="button" class="danger-outline">Gỡ thông báo</button>
+        </div>
+        <p id="annMsg" class="admin-msg" role="status"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rank -->
+  <div id="rankModal" class="modal" hidden>
+    <div class="modal-box rank-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-trophy"/></svg>
+        <div>
+          <h2>Rank</h2>
+          <p id="rankHint" class="muted"></p>
+        </div>
+      </div>
+      <div id="rankCurrent" class="rank-current"></div>
+      <div id="rankRules" class="rank-rules"></div>
+      <ol id="rankTiers" class="rank-tiers"></ol>
+    </div>
+  </div>
+
+  <!-- Phím tắt -->
+  <div id="keysModal" class="modal" hidden>
+    <div class="modal-box keys-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-keyboard"/></svg>
+        <div><h2>Phím tắt</h2><p class="muted">Bấm <kbd>?</kbd> ở bất cứ đâu để mở bảng này</p></div>
+      </div>
+      <dl class="keys-list">
+        <dt><kbd>N</kbd></dt><dd>Ván mới</dd>
+        <dt><kbd>Z</kbd> / <kbd>Y</kbd></dt><dd>Đi lại / đi tiếp</dd>
+        <dt><kbd>H</kbd></dt><dd>Gợi ý nước đi</dd>
+        <dt><kbd>F</kbd></dt><dd>Xoay bàn cờ</dd>
+        <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Xem lại nước trước / sau</dd>
+        <dt><kbd>Esc</kbd></dt><dd>Về thế cờ hiện tại, đóng hộp thoại</dd>
+        <dt>Chuột phải</dt><dd>Đánh dấu ô trên bàn cờ</dd>
+        <dt><kbd>1</kbd>–<kbd>4</kbd>, <kbd>Enter</kbd></dt><dd>Chọn đáp án / kiểm tra khi học cờ</dd>
+      </dl>
+    </div>
+  </div>
+
+  <footer class="footer">Viết bằng HTML, CSS và JavaScript thuần · Quân cờ: cburnett (Colin M.L. Burnett, GPLv2+)</footer>
+
+  <script>
+    // Hiện lỗi JavaScript ngay trên trang để dễ báo lỗi
+    window.addEventListener('error', function (e) {
+      var d = document.getElementById('jsError');
+      if (!d) {
+        d = document.createElement('div');
+        d.id = 'jsError';
+        d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:999;padding:10px 14px;background:#7a1f14;color:#fff;font:13px/1.4 system-ui,sans-serif';
+        document.body.appendChild(d);
+      }
+      d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
+    });
+  </script>
+  <script src="i18n.js?v=4"></script>
+  <script src="chess.js?v=14"></script>
+  <script src="ai.js?v=13"></script>
+  <script src="engine.js?v=2"></script>
+  <script src="config.js?v=13"></script>
+  <script src="profile.js?v=17"></script>
+  <script src="contest.js?v=15"></script>
+  <script src="sound.js?v=13"></script>
+  <script src="lessons.js?v=13"></script>
+  <script src="learn.js?v=15"></script>
+  <script src="online.js?v=17"></script>
+  <script src="library.js?v=6"></script>
+  <script src="coach.js?v=1"></script>
+  <script src="puzzles.js?v=8"></script>
+  <script src="history.js?v=4"></script>
+  <script src="openings.js?v=3"></script>
+  <script src="app.js?v=25"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "Royal Gambit",
+  "short_name": "Royal Gambit",
+  "description": "Chơi cờ vua: đấu với máy, tìm trận online, contest, câu đố và học cờ.",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#262421",
+  "theme_color": "#262421",
+  "icons": [
+    { "src": "img/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "img/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
