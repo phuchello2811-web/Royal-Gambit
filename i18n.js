@@ -349,6 +349,19 @@ const I18N = (() => {
     'Không tải được danh sách contest.': 'Could not load contests.', 'Chưa có contest nào sắp diễn ra.': 'No upcoming contests.',
     'Kết thúc sau': 'Ends in', 'Bắt đầu sau': 'Starts in', 'Không tải được bảng xếp hạng.': 'Could not load the leaderboard.',
     'Chưa có ai trên bảng xếp hạng.': 'Nobody on the leaderboard yet.',
+    // Mất kết nối Online (v28)
+    'Đối thủ mất kết nối': 'Opponent disconnected', 'Đối thủ mất kết nối.': 'Opponent disconnected.', 'Mất kết nối với đối thủ.': 'Lost connection to the opponent.',
+    'Đối thủ đã thoát khỏi trang.': 'Your opponent left the page.', 'Đối thủ đã rời phòng.': 'Your opponent left the room.', 'Đối thủ đã kết nối lại.': 'Your opponent reconnected.',
+    'Đối thủ thoát quá 15 giây – Bạn thắng': 'Opponent gone for over 15 seconds – You win', 'Đối thủ thoát quá 15 giây': 'Opponent gone for over 15 seconds',
+    'Bạn mất kết nối quá 15 giây – xử thua': 'You were disconnected for over 15 seconds – loss', 'Mất kết nối quá 15 giây': 'Disconnected for over 15 seconds',
+    'Bạn rời ván quá 15 giây – xử thua': 'You left the game for over 15 seconds – loss', 'Rời ván quá 15 giây': 'Left the game for over 15 seconds',
+    'Bạn đã vắng mặt quá 15 giây nên bị xử thua.': 'You were away for over 15 seconds, so you lose.', 'Bạn đã rời ván quá 15 giây nên bị xử thua.': 'You left the game for over 15 seconds, so you lose.',
+    'Đối thủ vắng mặt quá 15 giây nên bị xử thua.': 'Your opponent was away for over 15 seconds and loses.', 'Ván bị huỷ vì đối thủ thoát trước khi ván bắt đầu.': 'Game cancelled: your opponent left before it started.',
+    'Bạn đang mất kết nối mạng…': 'You are offline…',
+    // Xoá contest (v27)
+    'Xoá contest': 'Delete contest', 'Xoá': 'Delete',
+    'Contest đang diễn ra: các ván đang đấu sẽ không được tính nữa.': 'This contest is live: games in progress will no longer count.',
+    'Huy chương của contest này cũng sẽ bị xoá khỏi hồ sơ người chơi.': "This contest's medals will also be removed from player profiles.",
     // Học cờ (v26)
     'Mục tiêu hôm nay': "Today's goal", 'bài xong': 'lessons done', 'sao': 'stars', 'Tổng số sao đã đạt': 'Total stars earned',
     'Thành tích': 'Achievements', 'Khoá học cờ vua': 'Chess course', 'Hoàn thành khoá học!': 'Course complete!', 'Tiếp theo:': 'Next:',

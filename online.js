@@ -12,6 +12,10 @@ const Online = (() => {
   const PREFIX = 'covua-vn-';
   const SEARCH_LIMIT = 3 * 60 * 1000; // tìm trận tối đa 3 phút
   const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  // Nhịp tim: hai bên gửi 'ping' mỗi 2 giây. Im lặng 5 giây = mất kết nối (hiện đếm ngược);
+  // vắng mặt quá 15 giây = xử thua. Kết nối WebRTC nhiều khi không báo 'close' khi đối thủ đóng tab / mất mạng.
+  const HB_EVERY = 2000, HB_SILENT = 5000, FORFEIT_MS = 15000;
+  const PENDING_KEY = 'rg-online-forfeit';
   const $ = id => document.getElementById(id);
 
   let peer = null, conn = null;
@@ -29,6 +33,11 @@ const Online = (() => {
   let waitHello = false; // host: chờ lời chào của khách rồi mới bắt đầu ván
   let sentDraw = false;    // mình đã xin hòa và đối thủ chưa trả lời
   let sentRematch = false; // mình đã mời ván mới và đối thủ chưa trả lời
+  let lastSeen = 0;        // lần cuối nhận được tin của đối thủ
+  let goneAt = 0;          // lúc đối thủ bị coi là đã thoát (0 = vẫn đang kết nối)
+  let oppHb = false;       // đối thủ dùng bản web có nhịp tim (bản cũ thì chỉ dựa vào sự kiện đóng kết nối)
+  let hbTimer = null, hbTick = 0;
+  let oppKnown = false;    // đã nhận được lời chào của đối thủ
   const hooks = { fail: null };
 
   function loadLib() {
@@ -101,13 +110,37 @@ const Online = (() => {
   function attach(c) {
     conn = c;
     c.on('open', () => {
-      const me = Profile.me();
-      c.send({ t: 'hello', name: me.name, exp: me.exp, elo: me.elo, photo: me.photo, title: me.title || '', contest: search && search.contest ? search.contest.id : null });
+      sendHello(c);
+      // Trạng thái kết nối mạng thật (ICE): 'failed' / 'closed' nghĩa là đối thủ đã mất hẳn
+      const pc = c.peerConnection;
+      if (pc) pc.addEventListener('iceconnectionstatechange', () => {
+        if (conn === c && /failed|closed/.test(pc.iceConnectionState)) markGone('Mất kết nối với đối thủ.');
+      });
       if (isHost) waitHello = true; // bắt đầu ván khi nhận được lời chào (xem onData 'hello')
     });
     // Bỏ qua sự kiện của kết nối cũ (vòng tìm trận trước, phòng đã rời)
-    c.on('data', d => { if (conn === c) onData(d); });
+    c.on('data', d => { if (conn === c) { seen(); onData(d); } });
     c.on('close', () => { if (conn === c) onClose(); });
+  }
+
+  // Lời chào: gói nhỏ (tên, rank, Elo) gửi riêng; ảnh đại diện (tới 40KB) gửi sau thành gói khác.
+  // Trước đây gửi chung một gói lớn nên thỉnh thoảng bị rơi → hiện "Đối thủ · 800 Elo" và tính Elo sai.
+  function sendHello(c = conn) {
+    if (!c || !c.open) return;
+    const me = Profile.me();
+    c.send({ t: 'hello', hb: 1, uid: Profile.uid() || '', name: me.name, exp: me.exp, elo: me.elo, title: me.title || '', contest: search && search.contest ? search.contest.id : null });
+    if (me.photo) c.send({ t: 'photo', photo: me.photo });
+  }
+
+  // Sau khi vào ván mà vẫn chưa biết đối thủ là ai thì hỏi lại (tối đa 3 lần)
+  let whoTimer = null;
+  function askWho(n = 0) {
+    clearTimeout(whoTimer);
+    whoTimer = setTimeout(() => {
+      if (state !== 'playing' || left || oppKnown) return;
+      send({ t: 'who' });
+      if (n < 2) askWho(n + 1);
+    }, 2000);
   }
 
   function onPeerError(err) {
@@ -171,6 +204,8 @@ const Online = (() => {
     hint = null;
     info('');
     setState('playing');
+    startHeartbeat();
+    if (!oppKnown) askWho();
     chat(null, `Bắt đầu ván mới – bạn cầm quân ${COLOR_NAME[color]}.` + (contestId ? ' Ván này tính điểm Contest.' : ''));
   }
 
@@ -186,11 +221,13 @@ const Online = (() => {
           name: name.length >= 2 ? name : 'Đối thủ',
           exp: exp >= 0 && exp <= 100000 ? Math.floor(exp) : 0,
           elo: elo >= 100 && elo <= 3500 ? Math.floor(elo) : 800,
-          photo: Profile.validPhoto(d.photo) ? d.photo : '',
+          photo: Profile.validPhoto(d.photo) ? d.photo : (opp.name === name ? opp.photo : ''), // bản cũ gửi ảnh chung trong lời chào
           title: String(d.title || '').slice(0, 8),
           uid: typeof d.uid === 'string' ? d.uid.slice(0, 64) : '',
         };
         const ct = search && search.contest ? search.contest.id : null;
+        oppHb = d.hb === 1;
+        oppKnown = true;
         const self = name.toLowerCase() === Profile.me().name.toLowerCase();
         if (ct && self) { // tự ghép với chính mình ở tab / máy khác
           if (isHost) return reject(conn, 'self');
@@ -204,6 +241,23 @@ const Online = (() => {
         render();
         break;
       }
+      case 'ping':
+        break;
+      case 'photo':
+        if (Profile.validPhoto(d.photo)) { opp.photo = d.photo; render(); }
+        break;
+      case 'who': // đối thủ chưa nhận được lời chào của mình: gửi lại
+        sendHello();
+        break;
+      case 'bye': // đối thủ đóng tab / rời trang
+        markGone('Đối thủ đã thoát khỏi trang.');
+        break;
+      case 'forfeit': // đối thủ báo mình đã vắng quá 15 giây
+        if (state !== 'playing' || result || game.isGameOver()) return;
+        result = { text: 'Bạn mất kết nối quá 15 giây – xử thua', reason: 'Mất kết nối quá 15 giây', score: 0 };
+        chat(null, 'Bạn đã vắng mặt quá 15 giây nên bị xử thua.');
+        render();
+        break;
       case 'reject':
         if (!search) return fail('Phòng từ chối kết nối.');
         if (d.why === 'self') return fail('Bạn đang thi đấu contest này ở một tab hoặc máy khác, nên tab này dừng tự ghép cặp.', 'self');
@@ -271,14 +325,111 @@ const Online = (() => {
       left = true;
       offer = null;
       renderOffer();
-      chat(null, 'Đối thủ đã rời phòng.');
-      render();
+      markGone('Đối thủ đã rời phòng.');
     } else if (state === 'searching') {
       if (isHost) conn = null; // người vừa nối vào bỏ đi trước khi ván bắt đầu: tiếp tục chờ
       else retrySearch(search);
     } else if (state !== 'idle') {
       fail('Kết nối bị đóng.');
     }
+  }
+
+  // ---- Nhịp tim & xử thua khi vắng mặt ----
+
+  function seen() {
+    lastSeen = Date.now();
+    if (goneAt && !left && state === 'playing') { // đối thủ kết nối lại kịp trước 15 giây
+      goneAt = 0;
+      if (!result) chat(null, 'Đối thủ đã kết nối lại.');
+      renderStatus();
+    }
+  }
+
+  // Đối thủ thoát / mất kết nối: bắt đầu đếm 15 giây tính từ lần cuối còn thấy họ
+  function markGone(msg) {
+    if (state !== 'playing' || goneAt) return;
+    goneAt = lastSeen || Date.now();
+    if (!result && !game.isGameOver()) chat(null, `${msg} Nếu không quay lại trong ${Math.ceil((FORFEIT_MS - (Date.now() - goneAt)) / 1000)} giây, đối thủ sẽ bị xử thua.`);
+    else chat(null, msg);
+    render();
+  }
+
+  function startHeartbeat() {
+    stopHeartbeat();
+    lastSeen = hbTick = Date.now();
+    goneAt = 0;
+    hbTimer = setInterval(heartbeat, 1000);
+  }
+  function stopHeartbeat() { clearInterval(hbTimer); hbTimer = null; goneAt = 0; }
+
+  function heartbeat() {
+    const now = Date.now(), gap = now - hbTick;
+    hbTick = now;
+    if (state !== 'playing') return stopHeartbeat();
+    const live = !result && !game.isGameOver();
+    // Trang của MÌNH bị treo (điện thoại khoá màn hình, chuyển app…): không đổ lỗi cho đối thủ
+    if (gap > 3000) {
+      if (live && gap > FORFEIT_MS && game.history.length >= 2) {
+        send({ t: 'resign' });
+        result = { text: 'Bạn rời ván quá 15 giây – xử thua', reason: 'Rời ván quá 15 giây', score: 0 };
+        chat(null, 'Bạn đã rời ván quá 15 giây nên bị xử thua.');
+        render();
+        return;
+      }
+      lastSeen = Math.max(lastSeen, now); // vắng ngắn: cho đối thủ thêm thời gian
+      if (!left) goneAt = 0;
+    }
+    if (!left) send({ t: 'ping' });
+    if (!live) return;
+    if (!goneAt && oppHb && now - lastSeen > HB_SILENT) markGone('Đối thủ mất kết nối.');
+    if (!goneAt) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { // mình mất mạng: không xử ai thắng
+      goneAt = now; lastSeen = now;
+      info('Bạn đang mất kết nối mạng…');
+      return renderStatus();
+    }
+    if ($('onlineInfo').textContent === 'Bạn đang mất kết nối mạng…') info('');
+    if (now - goneAt < FORFEIT_MS) return renderStatus();
+    // Hết 15 giây
+    if (game.history.length < 2) {
+      left = true;
+      goneAt = 0;
+      chat(null, 'Ván bị huỷ vì đối thủ thoát trước khi ván bắt đầu.');
+      return render();
+    } else {
+      result = { text: 'Đối thủ thoát quá 15 giây – Bạn thắng', reason: 'Đối thủ thoát quá 15 giây', score: 1 };
+      send({ t: 'forfeit' }); // nếu họ còn kết nối được thì họ cũng thấy mình bị xử thua
+      chat(null, 'Đối thủ vắng mặt quá 15 giây nên bị xử thua.');
+    }
+    left = true;
+    render();
+  }
+
+  // Đóng tab / rời trang giữa ván: báo đối thủ và ghi nhớ để trừ điểm ở lần mở web sau
+  function onPageHide() {
+    if (!inGame()) return;
+    send({ t: 'bye' });
+    if (game.history.length < 2) return;
+    try {
+      const ct = contestId && typeof contestById !== 'undefined' ? contestById.get(contestId) : null;
+      localStorage.setItem(PENDING_KEY, JSON.stringify({
+        uid: Profile.uid(), oppElo: opp.elo, opp: opp.name, at: Date.now(), startedAt,
+        contest: ct ? { id: ct.id, name: ct.name, start: ct.start, end: ct.end } : null,
+      }));
+    } catch {}
+  }
+  window.addEventListener('pagehide', onPageHide);
+  // Trang được khôi phục từ bộ nhớ đệm (bấm Back): ván vẫn tiếp tục nên huỷ án phạt
+  window.addEventListener('pageshow', e => { if (e.persisted && inGame()) try { localStorage.removeItem(PENDING_KEY); } catch {} });
+
+  // Lần mở web sau: ván bỏ dở lần trước bị tính thua
+  function takePendingForfeit() {
+    let p = null;
+    try { p = JSON.parse(localStorage.getItem(PENDING_KEY)); } catch {}
+    if (!p) return null;
+    if (p.uid !== Profile.uid()) return null; // của tài khoản khác: giữ lại tới khi tài khoản đó đăng nhập
+    try { localStorage.removeItem(PENDING_KEY); } catch {}
+    return Date.now() - p.at > 7 * 86400000 ? null : p;
   }
 
   function killPeer() {
@@ -290,6 +441,9 @@ const Online = (() => {
 
   function cleanup() {
     stopSearch();
+    stopHeartbeat();
+    clearTimeout(whoTimer);
+    oppHb = oppKnown = false;
     killPeer();
     contestId = null;
     color = result = offer = null;
@@ -459,6 +613,10 @@ const Online = (() => {
     const s = game.status();
     if (s === 'checkmate') return { text: game.turn === color ? 'Chiếu hết – Bạn thua' : 'Chiếu hết – Bạn thắng', cls: 'over' };
     if (s !== 'playing') return null; // các kiểu hòa: dùng thông báo chung
+    if (goneAt && !result) {
+      const sec = Math.max(0, Math.ceil((FORFEIT_MS - (Date.now() - goneAt)) / 1000));
+      return { text: game.history.length < 2 ? `Đối thủ mất kết nối · huỷ ván sau ${sec} giây` : `Đối thủ mất kết nối · xử thắng sau ${sec} giây`, cls: 'in-check' };
+    }
     if (left) return { text: 'Đối thủ đã rời phòng', cls: 'in-check' };
     const check = game.inCheck() ? ' – đang bị chiếu!' : '';
     return game.turn === color
@@ -480,11 +638,11 @@ const Online = (() => {
     const s = game.status();
     if (s === 'checkmate') return { ...base, score: game.turn === color ? 0 : 1, reason: 'Chiếu hết' };
     if (s !== 'playing') return { ...base, score: 0.5, reason: null };
-    if (left && game.history.length >= 2) return { ...base, score: 1, reason: 'Đối thủ đã rời ván' };
     return null;
   }
 
-  function inGame() { return state === 'playing' && !left && !result && !game.isGameOver(); }
+  // Đang trong 15 giây chờ đối thủ mất kết nối quay lại thì không coi là "đang đấu" (rời phòng lúc đó không bị tính thua)
+  function inGame() { return state === 'playing' && !left && !goneAt && !result && !game.isGameOver(); }
 
   // ---- Nút bấm ----
 
@@ -495,7 +653,7 @@ const Online = (() => {
   $('roomCode').addEventListener('keydown', e => { if (e.key === 'Enter') join($('roomCode').value); });
   $('cancelRoom').addEventListener('click', leave);
   $('leaveRoom').addEventListener('click', () => {
-    if (!left && !result && !game.isGameOver() && !confirm('Rời phòng giữa ván sẽ bị tính thua. Tiếp tục?')) return;
+    if (inGame() && game.history.length >= 2 && !confirm('Rời phòng giữa ván sẽ bị tính thua. Tiếp tục?')) return;
     leave();
   });
   $('copyLink').addEventListener('click', () => {
@@ -607,7 +765,9 @@ const Online = (() => {
     onFail: f => { hooks.fail = f; },
     oppElo: () => opp.elo,
     rematch: () => $('rematch').click(),
-    connected: () => state === 'playing' && !left,
+    // Còn "kết nối" cả trong 15 giây chờ đối thủ quay lại (để contest không vội ghép ván mới)
+    connected: () => state === 'playing' && (!left || (!!goneAt && !result && !game.isGameOver())),
+    takePendingForfeit,
     refreshMuteBtn,
   };
 })();

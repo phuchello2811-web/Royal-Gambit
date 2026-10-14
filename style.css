@@ -4250,3 +4250,26 @@ body[data-lstep="quiz"] .ls-opt { padding: 16px 14px; font-size: 1rem; min-heigh
   .lhh-stats .lh-stat small { font-size: 0.6rem; }
   .lhh-tip { text-align: left; }
 }
+
+/* v27: Xoá contest */
+.ci-del {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: #a7a29a;
+  background: #ffffff0a;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ci-del .ic { width: 16px; height: 16px; }
+.ci-del:hover, .ci-del:focus-visible { background: #e2533f26; color: #ff8f7d; outline: none; }
+.cd-tools button.cd-del { color: #f08a7a; }
+.cd-tools button.cd-del:hover { background: #e2533f26; color: #ffb1a5; }
+.contest-list > * { flex-shrink: 0; }
+.ci-side:has(.ci-del) { display: grid; grid-template-columns: auto auto; align-items: center; justify-items: end; gap: 4px 8px; }
+.ci-side:has(.ci-del) .ci-count { grid-column: 1 / -1; }
+@media (max-width: 560px) {
+  .contest-item .ci-count { white-space: normal; text-align: center; max-width: 96px; line-height: 1.25; }
+}
