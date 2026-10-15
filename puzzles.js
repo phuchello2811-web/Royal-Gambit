@@ -239,18 +239,29 @@ const Puzzles = (() => {
     if (!shown) wrap.innerHTML = '<p class="pz-all-done">🎉 Bạn đã giải hết các câu ở mục này!</p>';
   }
 
+  // Chế độ người chơi đã chọn (đấu máy / 2 người) trước khi vào câu đố: trả lại khi thoát câu đố,
+  // để bấm "Bắt đầu ván" sau đó vẫn đấu với máy như trước
+  let savedMode = null;
+  let starting = false;
+
   function start(p) {
     // Gán current SAU newGame/setMode — vì newGame gọi showBanner(false) và xóa current
+    const keep = savedMode != null ? savedMode : $('mode').value;
     active = false;
     $('puzzleModal').hidden = true;
-    if (mode !== 'play') {
-      if ($('mode')) $('mode').value = 'none';
-      setMode('play');
-      if (mode !== 'play') return;
-    } else {
-      if (typeof abandonBotGame === 'function' && !abandonBotGame()) return;
-      newGame();
-    }
+    starting = true;
+    try {
+      if (mode !== 'play') {
+        $('mode').value = 'none';
+        setMode('play');
+        if (mode !== 'play') { $('mode').value = keep; return; } // người chơi không muốn rời ván đang dở
+      } else {
+        if (typeof abandonBotGame === 'function' && !abandonBotGame()) return;
+        $('mode').value = 'none'; // newGame() không hẹn nước máy ở thế xuất phát
+        newGame();
+      }
+    } finally { starting = false; }
+    savedMode = keep;
     if (typeof clockOff === 'function') clockOff();
     current = p;
     step = ply = mistakes = 0;
@@ -290,6 +301,7 @@ const Puzzles = (() => {
       active = false;
       current = null;
       step = ply = 0;
+      if (!starting && savedMode != null) { $('mode').value = savedMode; savedMode = null; }
       if (wasActive) {
         try {
           thinking = false;
@@ -405,10 +417,11 @@ const Puzzles = (() => {
     const token = current;
     setTimeout(() => {
       if (current !== token) return;
+      replyMove();               // máy đi nước line[ply] (trước đây tăng ply trước nên tra nhầm nước kế tiếp và không đáp được)
       if (!current.mate) ply++;
-      replyMove();
       thinking = false;
       render();
+      if (finished()) return solve();
       setBanner('Tiếp tục: tìm nước mạnh nhất.');
     }, 550);
   }

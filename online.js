@@ -8,7 +8,9 @@
 // kết nối trận đấu vẫn giữ nguyên) để cặp tiếp theo dùng. Contest dùng phòng chờ riêng cho từng contest.
 
 const Online = (() => {
-  const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+  const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';
+  // Mã kiểm tra toàn vẹn (SRI): trình duyệt từ chối chạy nếu file trên CDN bị sửa. Đổi phiên bản thì phải tính lại mã này.
+  const PEERJS_SRI = 'sha384-x0YgkOr/3UOZP2CRDxGW9e0Q+2Qjyr3uJrm4xU32Y7ZCNAo7Cc7bjhrZMi/dwczu';
   const PREFIX = 'covua-vn-';
   const SEARCH_LIMIT = 3 * 60 * 1000; // tìm trận tối đa 3 phút
   const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -45,6 +47,8 @@ const Online = (() => {
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = PEERJS_URL;
+      s.integrity = PEERJS_SRI;
+      s.crossOrigin = 'anonymous';
       s.onload = resolve;
       s.onerror = () => reject(new Error('lib'));
       document.head.appendChild(s);
@@ -125,11 +129,29 @@ const Online = (() => {
 
   // Lời chào: gói nhỏ (tên, rank, Elo) gửi riêng; ảnh đại diện (tới 40KB) gửi sau thành gói khác.
   // Trước đây gửi chung một gói lớn nên thỉnh thoảng bị rơi → hiện "Đối thủ · 800 Elo" và tính Elo sai.
-  function sendHello(c = conn) {
+  function sendHello(c = conn, photo = true) {
     if (!c || !c.open) return;
     const me = Profile.me();
     c.send({ t: 'hello', hb: 1, uid: Profile.uid() || '', name: me.name, exp: me.exp, elo: me.elo, title: me.title || '', contest: search && search.contest ? search.contest.id : null });
-    if (me.photo) c.send({ t: 'photo', photo: me.photo });
+    if (photo && me.photo) c.send({ t: 'photo', photo: me.photo });
+  }
+
+  // Lời chào do trình duyệt đối thủ tự khai. Bản Firebase: lấy Elo, exp và danh hiệu thật từ máy chủ
+  // (Elo đối thủ quyết định mình được / mất bao nhiêu Elo). uid giả hoặc không khớp tên thì giữ số liệu trong lời chào.
+  // Mỗi đối thủ chỉ kiểm tra một lần; ván chơi lại sau đó dùng Elo mới trong lời chào (máy chủ có thể chưa kịp cập nhật).
+  let verified = { uid: '', title: '' };
+  async function verifyOpp() {
+    const id = opp.uid, name = opp.name;
+    if (!Profile.remote || !id || typeof Profile.player !== 'function') return;
+    if (verified.uid === id) { opp.title = verified.title; return; }
+    verified = { uid: id, title: opp.title };
+    let p = null;
+    try { p = await Profile.player(id); } catch { return; }
+    if (!p || opp.uid !== id || opp.name !== name || p.name.toLowerCase() !== name.toLowerCase()) return;
+    verified.title = opp.title = p.title || '';
+    opp.exp = p.exp;
+    opp.elo = p.elo;
+    render();
   }
 
   // Sau khi vào ván mà vẫn chưa biết đối thủ là ai thì hỏi lại (tối đa 3 lần)
@@ -154,7 +176,9 @@ const Online = (() => {
       'server-error': 'Máy chủ kết nối đang lỗi, thử lại sau.',
       'browser-incompatible': 'Trình duyệt không hỗ trợ WebRTC.',
     };
-    if (state === 'playing' && err.type === 'network') return info(messages.network); // trận vẫn có thể tiếp tục
+    // Đang đánh: lỗi của máy chủ trung gian không làm đứt kết nối trực tiếp giữa hai bên, ván vẫn tiếp tục
+    // (nếu đối thủ thật sự mất kết nối, nhịp tim sẽ phát hiện và xử thua sau 15 giây)
+    if (state === 'playing') return info(messages[err.type] || messages.network);
     fail(messages[err.type] || 'Lỗi kết nối: ' + err.type);
   }
 
@@ -190,6 +214,7 @@ const Online = (() => {
       // Người giữ phòng chờ nhả ID cho cặp sau; kết nối trận đấu đã mở thì không bị ảnh hưởng
       if (isHost && peer && !peer.disconnected) peer.disconnect();
     }
+    const again = startedAt > 0; // chơi lại với cùng đối thủ (đã có ván trước trên kết nối này)
     color = myColor;
     result = null;
     offer = null;
@@ -206,6 +231,7 @@ const Online = (() => {
     setState('playing');
     startHeartbeat();
     if (!oppKnown) askWho();
+    else if (again) sendHello(conn, false); // chơi lại: gửi Elo / exp vừa đổi sau ván trước để đối thủ tính đúng
     chat(null, `Bắt đầu ván mới – bạn cầm quân ${COLOR_NAME[color]}.` + (contestId ? ' Ván này tính điểm Contest.' : ''));
   }
 
@@ -222,12 +248,13 @@ const Online = (() => {
           exp: exp >= 0 && exp <= 100000 ? Math.floor(exp) : 0,
           elo: elo >= 100 && elo <= 3500 ? Math.floor(elo) : 800,
           photo: Profile.validPhoto(d.photo) ? d.photo : (opp.name === name ? opp.photo : ''), // bản cũ gửi ảnh chung trong lời chào
-          title: String(d.title || '').slice(0, 8),
+          title: (Profile.TITLES || []).includes(String(d.title || '').toUpperCase()) ? String(d.title).toUpperCase() : '',
           uid: typeof d.uid === 'string' ? d.uid.slice(0, 64) : '',
         };
         const ct = search && search.contest ? search.contest.id : null;
         oppHb = d.hb === 1;
         oppKnown = true;
+        verifyOpp();
         const self = name.toLowerCase() === Profile.me().name.toLowerCase();
         if (ct && self) { // tự ghép với chính mình ở tab / máy khác
           if (isHost) return reject(conn, 'self');
@@ -263,11 +290,11 @@ const Online = (() => {
         if (d.why === 'self') return fail('Bạn đang thi đấu contest này ở một tab hoặc máy khác, nên tab này dừng tự ghép cặp.', 'self');
         retrySearch(search);
         break;
-      case 'start':
-        if (!isHost && (d.color === 'w' || d.color === 'b')) begin(d.color);
+      case 'start': // giữa ván không nhận lệnh bắt đầu lại (gói tin lạc / đối thủ sửa code)
+        if (!isHost && state !== 'playing' && (d.color === 'w' || d.color === 'b')) begin(d.color);
         break;
       case 'move': {
-        if (state !== 'playing' || game.turn === color || result) return;
+        if (state !== 'playing' || game.turn === color || result || game.isGameOver()) return;
         const m = game.move({ from: d.from, to: d.to, promotion: d.promotion || undefined });
         if (!m) chat(null, 'Nhận được nước đi không hợp lệ từ đối thủ.');
         offer = offer === 'draw' ? null : offer; // đối thủ đi tiếp coi như rút lời xin hòa
@@ -297,8 +324,8 @@ const Online = (() => {
         sentDraw = false;
         chat(null, 'Đối thủ từ chối hòa.');
         break;
-      case 'rematch':
-        if (contestId) return send({ t: 'rematch-decline' });
+      case 'rematch': // chỉ nhận lời mời khi ván hiện tại đã xong (tránh huỷ ván đang đánh mà không ai bị tính)
+        if (contestId || !outcome()) return send({ t: 'rematch-decline' });
         offer = 'rematch';
         renderOffer();
         break;
@@ -451,6 +478,7 @@ const Online = (() => {
     startedAt = 0;
     $('rematch').hidden = false;
     opp = { name: 'Đối thủ', exp: 0, elo: 800, photo: '', uid: '', title: '' };
+    verified = { uid: '', title: '' };
   }
 
   // ---- Tìm trận tự động ----
@@ -676,6 +704,7 @@ const Online = (() => {
   });
   $('rematch').addEventListener('click', () => {
     if (left || contestId || state !== 'playing') return;
+    if (!outcome()) { chat(null, 'Chỉ mời được ván mới khi ván hiện tại đã kết thúc.'); return; }
     sentRematch = true;
     send({ t: 'rematch' });
     chat(null, 'Đã gửi lời mời chơi ván mới.');

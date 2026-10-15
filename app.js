@@ -35,8 +35,15 @@ const THEMES = [
   ['ocean', 'Đại dương', 'linear-gradient(145deg,#00f5d4,#00bbf9)', 'linear-gradient(145deg,#0096c7,#023e8a)'],
 ];
 
+// Skin quân cờ. Skin có `true` là bộ quân SVG riêng (pieces/<skin>/, tạo bằng: node tools/make-skins.js),
+// các skin còn lại dùng bộ gốc kèm bộ lọc màu trong style.css
 const PIECE_SKINS = [
   ['default', 'Mặc định'],
+  ['royal', 'Hoàng gia', true],
+  ['crystal', 'Pha lê', true],
+  ['walnut', 'Gỗ khắc', true],
+  ['jewel', 'Ngọc', true],
+  ['cyber', 'Cyber', true],
   ['gold', 'Vàng'],
   ['neon', 'Neon'],
   ['mono', 'Đen trắng'],
@@ -44,6 +51,8 @@ const PIECE_SKINS = [
   ['fire', 'Lửa'],
   ['soft', 'Mềm'],
 ];
+const SVG_SKINS = new Set(PIECE_SKINS.filter(s => s[2]).map(s => s[0]));
+const GLOW_BOARDS = new Set(['gradient', 'sunset', 'ocean']); // bàn gradient có viền toả sáng (style.css)
 
 const game = new Chess();
 const $ = id => document.getElementById(id);
@@ -68,6 +77,7 @@ let seenMove = null, seenLen = 0; // để nhận ra nước mới cần hiệu 
 let skipAnim = false;   // nước vừa đi bằng kéo thả thì không cần trượt
 let viewPly = null;     // null = đang ở thế cờ live; số = đang xem lại sau N nước
 let redoStack = [];     // các nước đã undo, dùng cho "Đi tiếp"
+let gameReview = null;  // bản phân tích kiểu chess.com của ván trên bàn (xem phần "Phân tích ván")
 let showEval = true;    // hiện thanh đánh giá
 let drag = null;
 const contestById = new Map(); // tra contest theo id (kể cả khi đang chơi ván contest)
@@ -81,7 +91,8 @@ const Auto = {
   retryAt: 0,        // tìm lỗi (mạng...) thì chờ tới lúc này mới thử lại
 };
 
-const pieceSrc = p => `pieces/${p}.svg`;
+const skinSrc = (skin, p) => SVG_SKINS.has(skin) ? `pieces/${skin}/${p}.svg` : `pieces/${p}.svg`;
+const pieceSrc = p => skinSrc(Profile.prefs().pieces, p);
 const disp = i => flipped ? 63 - i : i; // vị trí hiển thị của ô i
 const rowCol = i => [disp(i) >> 3, disp(i) & 7];
 
@@ -133,6 +144,10 @@ function render() {
   const targets = live ? new Map(selectedMoves.map(m => [m.to, m])) : new Map();
   const deco = mode === 'learn' ? Learn.deco() : null; // { stars, ok, bad, focus }: tô ô cho bài học
   const stars = deco ? deco.stars : new Set();
+  // Đang có bản phân tích: hiện biểu tượng loại nước (!!, ??, ★…) ở ô đích của nước đang xem
+  const rv = activeReview();
+  const rvPly = live ? h.length : viewPly;
+  const badge = rv && rvPly > 0 && rvPly <= rv.upto ? { sq: h[rvPly - 1].move.to, id: rv.cls[rvPly - 1] } : null;
 
   // Chỉ cập nhật ô nào thay đổi (trước đây dựng lại cả 64 ô mỗi lần bấm → giật trên điện thoại)
   const rebuild = boardEl.children.length !== 64 || boardEl.dataset.flip !== String(flipped);
@@ -154,7 +169,8 @@ function render() {
     }
     const p = vg.board[i];
     const dragging = !!(p && drag && drag.moved && drag.from === i);
-    const content = (p ? pieceSrc(p) : '') + (stars.has(i) ? '*' : '');
+    const bdg = badge && badge.sq === i ? badge.id : '';
+    const content = (p ? pieceSrc(p) : '') + (stars.has(i) ? '*' : '') + (bdg ? '#' + bdg : '');
     const sq = rebuild ? document.createElement('div') : boardEl.children[k];
     if (sq.className !== cls) sq.className = cls;
     if (rebuild || sq.dataset.c !== content) {
@@ -169,6 +185,7 @@ function render() {
         sq.appendChild(img);
       }
       if (stars.has(i)) sq.insertAdjacentHTML('beforeend', '<span class="star">★</span>');
+      if (bdg) sq.insertAdjacentHTML('beforeend', clsBadge(bdg, 'mv-badge'));
       if ((k & 7) === 0) sq.insertAdjacentHTML('beforeend', `<span class="coord rank">${8 - r}</span>`);
       if (k >= 56) sq.insertAdjacentHTML('beforeend', `<span class="coord file">${'abcdefgh'[c]}</span>`);
     }
@@ -188,7 +205,10 @@ function render() {
   renderMoves();
   renderPlayers();
   const sans = h.map(x => x.san).join(' ');
-  renderEval(live ? null : vg, `${game.startFen}|${sans}|${live ? 'L' : viewPly}|${flipped}`);
+  renderEval(live ? null : vg, `${game.startFen}|${sans}|${live ? 'L' : viewPly}|${flipped}|${rv ? rv.upto : ''}`);
+  renderReviewBox();
+  renderArrows(rv, rvPly);
+  autosave();
   renderOpening(live ? h.length : viewPly, sans);
   clockSync(isNew ? last : null);
   renderSetup();
@@ -399,6 +419,7 @@ setInterval(() => {
   thinking = false;
   const human = aiColor === 'none' ? null : opposite(aiColor);
   const draw = onlyKing(opposite(c));
+  $('promo').hidden = true;
   playResult = draw
     ? { winner: null, reason: `${COLOR_NAME[c]} hết giờ nhưng ${COLOR_NAME[opposite(c)]} không đủ quân chiếu hết`, score: human ? 0.5 : null }
     : { winner: opposite(c), reason: `${COLOR_NAME[c]} hết giờ`, score: human ? (opposite(c) === human ? 1 : 0) : null };
@@ -416,10 +437,15 @@ function renderEval(g, key = '') {
   if (puzzle) { evalKey = ''; return; }
   if (key && key === evalKey) return; // thế cờ không đổi (chỉ chọn quân…): giữ kết quả cũ
   evalKey = key;
-  if (!g) g = boardAt(game.history.length);
+  if (!g) g = game; // quiesce đi thử rồi hoàn tác (_apply/_undo) nên không làm đổi ván đang chơi
   let white, label;
   const st = g.status();
-  if (st === 'checkmate') {
+  const rv = activeReview(), rvPly = isLiveView() ? game.history.length : viewPly;
+  const rvCp = rv && rvPly <= rv.upto ? rv.evals[rvPly] : null;
+  if (st === 'playing' && rvCp != null) { // điểm Stockfish lúc phân tích ván (chính xác hơn ước lượng nhanh)
+    white = Math.abs(rvCp) >= 9000 ? (rvCp > 0 ? 100 : 0) : 100 / (1 + Math.pow(10, -rvCp / 400));
+    label = fmtEval(rvCp).replace(/^[+−]/, '');
+  } else if (st === 'checkmate') {
     white = g.turn === 'w' ? 0 : 100;
     label = g.turn === 'w' ? '0-1' : '1-0';
   } else if (st !== 'playing') {
@@ -447,6 +473,7 @@ function renderEval(g, key = '') {
 }
 
 // Trượt quân từ ô cũ sang ô mới (và Xe khi nhập thành)
+const CAN_TRANSLATE = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('translate', '1px 1px');
 function animate(m) {
   const slide = (from, to) => {
     const img = boardEl.children[disp(to)].querySelector('.piece');
@@ -454,9 +481,13 @@ function animate(m) {
     const [fr, fc] = rowCol(from), [tr, tc] = rowCol(to);
     img.classList.add('moving');
     img.style.transition = 'none';
-    img.style.transform = `translate(${(fc - tc) * 100}%, ${(fr - tr) * 100}%)`;
+    // Dùng thuộc tính `translate` (tính theo mặt bàn) thay cho transform: ở góc nhìn nghiêng 3D quân đã xoay đứng lên,
+    // trượt bằng transform sẽ đi theo trục đã xoay nên quân "chìm" xuống dưới bàn trong lúc trượt
+    if (CAN_TRANSLATE) img.style.translate = `${(fc - tc) * 100}% ${(fr - tr) * 100}%`;
+    else img.style.transform = `translate(${(fc - tc) * 100}%, ${(fr - tr) * 100}%)`;
     img.getBoundingClientRect(); // ép trình duyệt áp vị trí đầu
     img.style.transition = '';
+    img.style.translate = '';
     img.style.transform = '';
     img.addEventListener('transitionend', () => img.classList.remove('moving'), { once: true });
   };
@@ -501,7 +532,8 @@ function renderMoves() {
   const h = game.history;
   const live = isLiveView();
   const focus = live ? h.length : viewPly;
-  const key = `${live}|${focus}|${h.map(x => x.san).join(' ')}`;
+  const rv = activeReview();
+  const key = `${live}|${focus}|${h.map(x => x.san).join(' ')}|${rv ? rv.cls.join('') + rv.upto : ''}`;
   if (key === movesKey && box.childElementCount) return;
   movesKey = key;
   box.innerHTML = '';
@@ -513,6 +545,7 @@ function renderMoves() {
     const addMv = (el, ply) => {
       if (ply >= h.length) return;
       el.textContent = h[ply].san;
+      if (rv && ply < rv.upto) el.insertAdjacentHTML('afterbegin', clsBadge(rv.cls[ply], 'sm'));
       el.dataset.ply = String(ply + 1); // xem sau nước ply+1
       if (focus === ply + 1) el.classList.add('viewing');
       if (live && ply >= h.length - 2) el.classList.add('current');
@@ -551,7 +584,7 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function titleBadge(title) {
-  const t = String(title || '').trim().toUpperCase();
+  const t = escapeHtml(String(title || '').trim().toUpperCase()); // danh hiệu có thể do đối thủ Online tự gửi tới
   if (!t) return '';
   return `<span class="title-badge" title="Danh hiệu ${t}">${t}</span>`;
 }
@@ -674,11 +707,112 @@ function renderHeader() {
   document.body.dataset.pieces = Profile.prefs().pieces || 'default';
   document.body.dataset.coords = Profile.prefs().coords === false ? 'off' : 'on';
   document.body.dataset.dots = Profile.prefs().dots === false ? 'off' : 'on';
+  document.body.dataset.relief = Profile.prefs().relief === false ? 'off' : 'on'; // bàn cờ nổi 3D (mặc định bật)
+  document.body.dataset.tilt = Profile.prefs().tilt ? 'on' : 'off';            // góc nhìn nghiêng 3D (mặc định tắt)
   // Chỉ tài khoản ADMIN thấy tab Admin; admin được dùng Gợi ý trong ván Online
   const staff = Profile.isAdmin();
   $('adminTab').hidden = !Profile.isOwner();
   $('onlineHint').hidden = !staff;
   $('onlineTools').classList.toggle('three', !staff);
+}
+
+// ---------------- Mũi tên trên bàn cờ ----------------
+// Mũi tên người chơi vẽ (chuột phải kéo) và mũi tên xanh "nước tốt nhất" khi xem lại bản phân tích.
+const OFF_BY_DEFAULT = new Set(['autoQueen', 'tilt']); // các tuỳ chọn trong Cài đặt mặc định tắt
+let arrowLayer = null, arrowKey = '', bestArrow = { key: '', move: null };
+
+function arrowSVG(from, to, color, w) {
+  const c = i => { const [r, col] = rowCol(i); return [col + 0.5, r + 0.5]; };
+  const [x1, y1] = c(from), [x2, y2] = c(to);
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+  if (!len) return '';
+  const ux = dx / len, uy = dy / len, head = 0.42, hw = w * 2.3;
+  const bx = x2 - ux * head, by = y2 - uy * head;          // gốc đầu mũi tên
+  const sx = x1 + ux * 0.28, sy = y1 + uy * 0.28;          // bắt đầu cách tâm ô một chút
+  const px = -uy, py = ux;
+  const pts = [[sx + px * w / 2, sy + py * w / 2], [bx + px * w / 2, by + py * w / 2], [bx + px * hw / 2, by + py * hw / 2], [x2, y2],
+    [bx - px * hw / 2, by - py * hw / 2], [bx - px * w / 2, by - py * w / 2], [sx - px * w / 2, sy - py * w / 2]];
+  return `<polygon points="${pts.map(p => p.map(v => v.toFixed(3)).join(',')).join(' ')}" fill="${color}"/>`;
+}
+
+function renderArrows(rv, rvPly) {
+  if (!arrowLayer) {
+    arrowLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    arrowLayer.setAttribute('class', 'arrow-layer');
+    arrowLayer.setAttribute('viewBox', '0 0 8 8');
+    arrowLayer.setAttribute('aria-hidden', 'true');
+    boardEl.parentElement.appendChild(arrowLayer);
+  }
+  // Nước tốt nhất ở thế trước nước đang xem (bản phân tích): tính lại từ SAN, nhớ kết quả
+  let best = null;
+  const san = rv && rvPly > 0 && rvPly <= rv.upto ? rv.best[rvPly - 1] : '';
+  if (san) {
+    const k = `${rv.startFen}|${rvPly}|${san}`;
+    if (bestArrow.key !== k) {
+      const g = boardAt(rvPly - 1), legal = g.legalMoves(), want = san.replace(/[+#]/g, '');
+      bestArrow = { key: k, move: legal.find(m => g._san(m, legal) === want) || null };
+    }
+    best = bestArrow.move;
+  }
+  const user = [...marks].filter(x => typeof x === 'string').map(x => x.split('>').map(Number));
+  const key = `${flipped}|${best ? best.from + '-' + best.to : ''}|${user.map(a => a.join('-')).join(',')}`;
+  // Khớp vị trí với bàn cờ (bàn nằm cạnh thanh đánh giá trong .board-wrap)
+  Object.assign(arrowLayer.style, { left: boardEl.offsetLeft + 'px', top: boardEl.offsetTop + 'px', width: boardEl.offsetWidth + 'px', height: boardEl.offsetHeight + 'px' });
+  if (key === arrowKey) return;
+  arrowKey = key;
+  arrowLayer.innerHTML = (best ? arrowSVG(best.from, best.to, '#81b64cd9', 0.2) : '') + user.map(([a, b]) => arrowSVG(a, b, '#f0a024d0', 0.17)).join('');
+}
+window.addEventListener('resize', () => { if (arrowLayer) renderArrows(activeReview(), isLiveView() ? game.history.length : viewPly); });
+
+// ---------------- Tự lưu ván đang dở ----------------
+// Ván đấu máy / 2 người / ván tập đang đánh được lưu sau mỗi nước; tải lại trang hay tắt trình duyệt rồi vào lại
+// thì ván được khôi phục (ván tính Elo vẫn tính Elo, nên không "thoát hiểm" bằng cách tải lại trang được).
+const savedKey = () => 'rg-saved-game:' + (Profile.uid() || 'guest');
+let savedSig = null;
+function autosave() {
+  if (!entered) return;
+  const puzzle = typeof Puzzles !== 'undefined' && Puzzles.isActive();
+  const live = mode === 'play' && !puzzle && !ratedDone && game.history.length > 0 && !game.isGameOver() && !playResult;
+  const sig = live ? `${game.startFen}|${game.history.map(h => h.san).join(' ')}|${aiColor}|${gameLevel}|${assisted}|${practice}` : '';
+  if (sig === savedSig) return;
+  savedSig = sig;
+  try {
+    if (!live) { localStorage.removeItem(savedKey()); return; }
+    localStorage.setItem(savedKey(), JSON.stringify({
+      at: Date.now(), startFen: game.startFen,
+      moves: game.history.map(h => sqName(h.move.from) + sqName(h.move.to) + (h.move.promotion || '')),
+      aiColor, level: gameLevel, practice, assisted, flipped,
+      clock: clock ? { base: clock.base, inc: clock.inc, w: clockLeft('w'), b: clockLeft('b') } : null,
+    }));
+  } catch {}
+}
+
+function restoreSavedGame() {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(savedKey())); } catch {}
+  if (!s || !Array.isArray(s.moves) || Date.now() - s.at > 7 * 86400000 || mode !== 'play' || game.history.length) return false;
+  $('mode').value = ['w', 'b', 'none'].includes(s.aiColor) ? s.aiColor : 'none';
+  $('level').value = String([1, 2, 3].includes(s.level) ? s.level : 2);
+  newGame();
+  try { game.load(s.startFen || START_FEN); } catch { game.reset(); }
+  for (const u of s.moves) {
+    if (!game.move({ from: sqIndex(u.slice(0, 2)), to: sqIndex(u.slice(2, 4)), promotion: u[4] || undefined })) break;
+  }
+  if (!game.history.length || game.isGameOver()) { game.reset(); render(); return false; }
+  practice = !!s.practice;
+  assisted = !!s.assisted;
+  ratedDone = false;
+  flipped = !!s.flipped;
+  // Đồng hồ: giữ thời gian còn lại, dừng tới nước đi tiếp theo
+  if (s.clock && s.clock.base) clock = { base: s.clock.base, inc: s.clock.inc || 0, w: s.clock.w, b: s.clock.b, turn: game.turn, at: 0 };
+  else clockOff();
+  seenLen = game.history.length;
+  seenMove = game.history[seenLen - 1].move;
+  renderRatedNote();
+  render();
+  maybeAiMove();
+  toast(`Đã khôi phục ván đang dở (${Math.ceil(game.history.length / 2)} nước)`);
+  return true;
 }
 
 // ---------------- Thao tác trên bàn cờ ----------------
@@ -699,7 +833,9 @@ function onSquare(i, dragged = false) {
   if (!canHumanMove()) return;
   const matches = selectedMoves.filter(m => m.to === i);
   if (matches.length) {
-    if (matches.length > 1 && Profile.prefs().autoQueen) play(matches.find(m => m.promotion === 'Q') || matches[0], dragged);
+    // "Tự phong Hậu" chỉ áp dụng khi đánh ván: bài học / câu đố có thể yêu cầu phong Mã (phong dưới cấp)
+    const autoQueen = Profile.prefs().autoQueen && mode !== 'learn' && !(typeof Puzzles !== 'undefined' && Puzzles.isActive());
+    if (matches.length > 1 && autoQueen) play(matches.find(m => m.promotion === 'Q') || matches[0], dragged);
     else if (matches.length > 1) askPromotion(matches, dragged);
     else play(matches[0], dragged);
     return;
@@ -715,7 +851,15 @@ function clearSelection() {
   selectedMoves = [];
 }
 
+// Bàn nghiêng 3D (Hồ sơ › Cài đặt): toạ độ màn hình không còn tỉ lệ thẳng với ô, nên tìm ô ngay dưới con trỏ
+const tiltOn = () => document.body.dataset.tilt === 'on' && (mode === 'play' || mode === 'online');
 function squareAt(e) {
+  if (tiltOn()) {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const sq = el && el.closest && el.closest('#board > .sq');
+    const k = sq ? Array.prototype.indexOf.call(boardEl.children, sq) : -1;
+    return k < 0 ? -1 : flipped ? 63 - k : k;
+  }
   const r = boardEl.getBoundingClientRect();
   const col = Math.floor((e.clientX - r.left) / r.width * 8);
   const row = Math.floor((e.clientY - r.top) / r.height * 8);
@@ -737,7 +881,8 @@ function endDrag() {
 }
 
 boardEl.addEventListener('pointerdown', e => {
-  if (e.button !== 0) return;
+  if (e.button !== 0 || !e.isPrimary) return; // ngón tay thứ hai trên màn cảm ứng: bỏ qua
+  if (drag) endDrag(); // không để sót quân "bóng ma" của lần kéo trước
   Sound.unlock();
   const i = squareAt(e);
   if (i < 0) return;
@@ -790,11 +935,18 @@ boardEl.addEventListener('pointerup', e => {
 boardEl.addEventListener('pointercancel', () => { endDrag(); render(); });
 
 // Chuột phải: đánh dấu ô (như khi phân tích)
-boardEl.addEventListener('contextmenu', e => {
-  e.preventDefault();
-  const i = squareAt(e);
-  if (i < 0) return;
-  if (marks.has(i)) marks.delete(i); else marks.add(i);
+// Chuột phải: bấm vào một ô = đánh dấu ô, kéo từ ô này sang ô khác = vẽ mũi tên (như khi phân tích trên lichess / chess.com).
+// Mũi tên lưu chung trong `marks` dưới dạng chuỗi "từ>tới", nên bấm chuột trái / đi nước là xoá hết như các ô đánh dấu.
+let rightFrom = -1;
+boardEl.addEventListener('contextmenu', e => e.preventDefault());
+boardEl.addEventListener('pointerdown', e => { if (e.button === 2) rightFrom = squareAt(e); });
+boardEl.addEventListener('pointerup', e => {
+  if (e.button !== 2) return;
+  const from = rightFrom, to = squareAt(e);
+  rightFrom = -1;
+  if (from < 0 || to < 0) return;
+  const k = from === to ? from : `${from}>${to}`;
+  if (marks.has(k)) marks.delete(k); else marks.add(k);
   render();
 });
 
@@ -802,10 +954,16 @@ function askPromotion(moves, dragged) {
   const modal = $('promo');
   const box = $('promoChoices');
   box.innerHTML = '';
+  const ply = game.history.length;
   for (const m of moves) {
     const btn = document.createElement('button');
     btn.innerHTML = `<img src="${pieceSrc(m.piece[0] + m.promotion)}" alt="${m.promotion}">`;
-    btn.addEventListener('click', () => { modal.hidden = true; play(m, dragged); });
+    btn.addEventListener('click', () => {
+      modal.hidden = true;
+      // Trong lúc chọn quân, ván có thể đã đổi (hết giờ, đối thủ xin thua, ván mới…): bỏ nước này
+      if (game.history.length !== ply || !canHumanMove()) { clearSelection(); render(); return; }
+      play(m, dragged);
+    });
     box.appendChild(btn);
   }
   modal.hidden = false;
@@ -819,7 +977,7 @@ function play(m, dragged = false) {
   viewPly = null; // về live khi đi nước mới
   redoStack = []; // nước mới → hết nhánh redo
   if (mode === 'learn') return Learn.onMove(m);
-  game.move(m);
+  if (!game.move(m)) { render(); return; } // nước không còn hợp lệ: không gửi cho đối thủ
   if (typeof Puzzles !== 'undefined' && Puzzles.isActive()) {
     Puzzles.onMove();
     render();
@@ -834,6 +992,7 @@ function play(m, dragged = false) {
 // ván Online: chỉ admin. Admin dùng Gợi ý vẫn được tính Elo và rank (không đặt `assisted`).
 async function showHint() {
   const staff = Profile.isAdmin();
+  if (puzzleBusy()) return;
   if (!(mode === 'play' || (mode === 'online' && staff)) || !canHumanMove()) return;
   if (!staff && isRatedBotGame() && !assisted) {
     if (!confirm('Dùng Gợi ý thì ván này sẽ không tính Elo. Tiếp tục?')) return;
@@ -842,12 +1001,12 @@ async function showHint() {
   }
   // Stockfish depth ~18 — rất mạnh; fallback ai.js nếu engine chưa sẵn sàng
   if (typeof toast === 'function') toast('Đang tính gợi ý (Stockfish)…');
-  const id = gameId;
+  const id = gameId, ply = game.history.length;
   let m = null;
   try {
     if (typeof Engine !== 'undefined' && Engine.hintMove) m = await Engine.hintMove(game);
   } catch (e) { console.warn('hint engine', e); }
-  if (id !== gameId) return;
+  if (id !== gameId || ply !== game.history.length) return; // thế cờ đã đổi trong lúc tính: gợi ý cũ không còn đúng
   if (!m && typeof findBestMove === 'function') m = findBestMove(game, 3);
   if (m) {
     hint = { from: m.from, to: m.to };
@@ -873,7 +1032,7 @@ function maybeAiMove() {
     if (id !== gameId) return;
     if (!m && typeof findBestMove === 'function') m = findBestMove(game, gameLevel);
     thinking = false;
-    if (m) game.move(m);
+    if (m && game.move(m)) redoStack = []; // máy đi nước mới: nhánh "Đi tiếp" cũ không còn dùng được
     render();
   }, 200);
 }
@@ -924,6 +1083,8 @@ function newGame() {
   marks.clear();
   viewPly = null;
   redoStack = [];
+  gameReview = null;
+  $('promo').hidden = true;
   aiColor = $('mode').value;
   gameLevel = Number($('level').value);
   flipped = aiColor === 'w';
@@ -943,9 +1104,17 @@ function changeSetup() {
   }
 }
 
+// Đang giải câu đố: các nút Đi lại / Đi tiếp / Gợi ý / Xin thua của bàn chính làm lệch tiến độ câu đố,
+// nên tạm khoá (câu đố có nút Gợi ý / Đáp án riêng)
+function puzzleBusy() {
+  if (mode !== 'play' || typeof Puzzles === 'undefined' || !Puzzles.isActive()) return false;
+  toast('Đang giải câu đố: dùng nút Gợi ý hoặc Đáp án trong khung câu đố.');
+  return true;
+}
+
 function undo() {
   if (thinking || playResult || !game.history.length) return;
-  if (mode === 'online') return; // online không đi lại
+  if (mode !== 'play' || puzzleBusy()) return; // online / học cờ không đi lại
   if (isRatedBotGame() && !assisted) {
     if (!confirm('Đi lại thì ván này sẽ không tính Elo. Tiếp tục?')) return;
     assisted = true;
@@ -962,10 +1131,8 @@ function undo() {
     const h2 = game.undo();
     if (h2) pulled.push(h2.move || h2);
   }
-  if (pulled.length) {
-    // redo theo thứ tự đi lại: push từng nước (nước cuối undo là nước đi tiếp trước)
-    for (const m of pulled.reverse()) redoStack.push(m);
-  }
+  // pulled = [nước mới nhất, nước trước đó]: đẩy nước mới nhất vào trước để đỉnh ngăn xếp là nước đi tiếp đầu tiên
+  for (const m of pulled) redoStack.push(m);
   clearSelection();
   render();
   // Không gọi maybeAiMove — đã về lượt người (hoặc 2 người)
@@ -973,27 +1140,21 @@ function undo() {
 
 function redo() {
   if (thinking || playResult || !redoStack.length) return;
-  if (mode === 'online') return;
+  if (mode !== 'play' || puzzleBusy()) return;
   hint = null;
   viewPly = null;
-  // Đi lại các nước đã undo
-  while (redoStack.length) {
+  // Đi lại nước vừa lùi; đấu máy thì đi lại luôn nước của máy để về lượt người như trước khi bấm Đi lại
+  do {
     const m = redoStack.pop();
-    if (!m) break;
-    const ok = game.move(typeof m === 'object' && m.from != null
-      ? { from: m.from, to: m.to, promotion: m.promotion || undefined }
-      : m);
-    if (!ok) break;
-    // Đấu máy: sau nước người, nếu tới lượt máy thì để maybeAiMove xử lý (không auto redo nước máy từ stack)
-    if (aiColor !== 'none' && game.turn === aiColor) break;
-  }
+    if (!game.move({ from: m.from, to: m.to, promotion: m.promotion || undefined })) { redoStack = []; break; }
+  } while (redoStack.length && aiColor !== 'none' && game.turn === aiColor);
   clearSelection();
   render();
-  maybeAiMove();
+  maybeAiMove(); // hết nước để đi tiếp mà tới lượt máy: máy tự tính nước mới
 }
 
 function resignPlay() {
-  if (playResult || game.isGameOver() || !game.history.length) return;
+  if (playResult || game.isGameOver() || !game.history.length || puzzleBusy()) return;
   const loser = aiColor === 'none' ? game.turn : opposite(aiColor);
   if (!confirm(aiColor === 'none' ? `${COLOR_NAME[loser]} xin thua?` : 'Bạn chắc chắn muốn xin thua?')) return;
   gameId++;
@@ -1093,7 +1254,8 @@ function buildGameReview(o) {
   const hist = game.history;
   if (!hist.length) return null;
 
-  const g = new Chess();
+  let g;
+  try { g = new Chess(game.startFen || START_FEN); } catch { g = new Chess(); } // ván tập tàn cuộc bắt đầu từ thế riêng
   const human = humanColorForReview();
   const tags = [];
   const lines = [];
@@ -1283,18 +1445,164 @@ function renderGameReview(o) {
 }
 
 // ---------------- Sổ luyện lỗi: phân tích ván vừa xong (coach.js) ----------------
+// ---------------- Phân tích ván kiểu chess.com: xếp loại từng nước, xem lại trên bàn ----------------
+
+// Nhận dữ liệu `review` của coach.js (hoặc bản lưu trong Nhật ký) cho ván đang trên bàn
+function setReview(rev) {
+  if (!rev || typeof rev.cls !== 'string' || typeof Coach === 'undefined' || !Coach.BY_CODE) { gameReview = null; return; }
+  gameReview = {
+    startFen: game.startFen,
+    sans: game.history.slice(0, rev.cls.length).map(h => h.san),
+    cls: [...rev.cls].map(c => (Coach.BY_CODE[c] || Coach.CLASS.good).id),
+    evals: Array.isArray(rev.evals) ? rev.evals : [],
+    best: Array.isArray(rev.best) ? rev.best : [],
+    acc: rev.acc || {},
+  };
+}
+
+// Bản phân tích còn khớp ván trên bàn tới nước thứ `upto` (đi lại rồi đi nước khác thì phần sau không còn đúng)
+function activeReview() {
+  const r = gameReview;
+  if (!r || (mode !== 'play' && mode !== 'online') || game.startFen !== r.startFen) return null;
+  if (typeof Puzzles !== 'undefined' && Puzzles.isActive()) return null;
+  let upto = 0;
+  const n = Math.min(r.sans.length, game.history.length);
+  while (upto < n && game.history[upto].san === r.sans[upto]) upto++;
+  return upto ? { ...r, upto } : null;
+}
+
+// Biểu tượng loại nước (giống chess.com): chữ !! ! ?! ? ?? hoặc hình nhỏ
+const CLS_SVG = {
+  best: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="m12 2.6 2.9 6 6.6.9-4.8 4.6 1.2 6.6L12 17.5l-5.9 3.2 1.2-6.6-4.8-4.6 6.6-.9z"/></svg>',
+  excellent: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2.5 10.2h3.6V20H2.5zM7.6 20h9a2 2 0 0 0 2-1.6l1.3-6.3a2 2 0 0 0-2-2.4h-4.1l.6-3.7A2 2 0 0 0 11 4.4L7.6 9.8z"/></svg>',
+  good: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="m5.5 12.5 4.2 4.2L18.5 7.8"/></svg>',
+  book: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3.5 5.6c2.7-1.2 5.8-1 8.5.6 2.7-1.6 5.8-1.8 8.5-.6v13.2c-2.7-1-5.8-.8-8.5.7-2.7-1.5-5.8-1.7-8.5-.7z"/></svg>',
+  miss: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" d="M7 7l10 10M17 7 7 17"/></svg>',
+  forced: '<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="3"/></svg>',
+};
+function clsBadge(id, extra = '') {
+  const c = typeof Coach !== 'undefined' && Coach.CLASS && Coach.CLASS[id];
+  if (!c) return '';
+  return `<span class="mvc mvc-${id}${extra ? ' ' + extra : ''}" title="${c.name}">${CLS_SVG[id] || `<i>${c.sym}</i>`}</span>`;
+}
+
+// Lời nhận xét cho từng loại nước
+const CLS_SAY = {
+  brilliant: 'là nước thiên tài!', great: 'là nước tuyệt vời: nước duy nhất giữ được thế cờ', best: 'là nước tốt nhất',
+  excellent: 'là nước xuất sắc', good: 'là nước tốt', book: 'là nước lý thuyết khai cuộc', inaccuracy: 'là nước thiếu chính xác',
+  mistake: 'là một sai lầm', miss: 'bỏ lỡ cơ hội trừng phạt sai lầm của đối thủ', blunder: 'là nước hớ', forced: 'là nước bắt buộc (duy nhất)',
+};
+
+// Điểm (góc Trắng) → nhãn hiển thị: +1.3, −0.4, M3 (chiếu hết sau 3 nước)
+function fmtEval(cp) {
+  if (Math.abs(cp) >= 9000) return (cp > 0 ? '' : '−') + 'M' + Math.max(1, Math.round((10000 - Math.abs(cp)) / 10));
+  const v = cp / 100;
+  return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1);
+}
+
+// Đồ thị đánh giá cả ván (phần trắng = lợi thế Trắng), chấm màu ở các nước thiên tài / hớ / sai; bấm để nhảy tới nước đó
+const GRAPH_DOT = { brilliant: '#26c2a3', great: '#5c8bb0', miss: '#ee6b55', mistake: '#e58f2a', blunder: '#ca3431' };
+function evalGraphHTML(rv, current = null) {
+  const ev = rv.evals;
+  if (!ev || ev.length < 2) return '';
+  const W = 320, H = 64, n = ev.length - 1;
+  const x = i => (W * i / n).toFixed(1);
+  const y = cp => (H / 2 - (H / 2 - 2) * Math.max(-1, Math.min(1, cp / 800))).toFixed(1);
+  const pts = ev.map((cp, i) => `${x(i)},${y(cp)}`).join(' ');
+  const dots = rv.cls.map((c, i) => GRAPH_DOT[c] ? `<circle cx="${x(i + 1)}" cy="${y(ev[i + 1] || 0)}" r="3.2" fill="${GRAPH_DOT[c]}" stroke="#1d1c19" stroke-width="1"/>` : '').join('');
+  const cur = current != null && current <= n ? `<line x1="${x(current)}" x2="${x(current)}" y1="0" y2="${H}" class="cur"/>` : '';
+  return `<svg class="rv-graph" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" data-n="${n}">
+    <rect width="${W}" height="${H}" class="blk"/><polygon points="0,${H} ${pts} ${W},${H}" class="wht"/>
+    <line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="mid"/>${cur}${dots}</svg>`;
+}
+function bindGraph(box) {
+  const svg = box && box.querySelector('.rv-graph');
+  if (!svg) return;
+  svg.addEventListener('click', e => {
+    const r = svg.getBoundingClientRect(), n = Number(svg.dataset.n);
+    const ply = Math.max(0, Math.min(n, Math.round((e.clientX - r.left) / r.width * n)));
+    enterReview(ply);
+  });
+}
+
+// Bảng tổng kết kiểu chess.com: độ chính xác hai bên + số nước mỗi loại
+function reviewSummaryHTML(rv) {
+  const cnt = { w: {}, b: {} };
+  const first = new Chess(rv.startFen).turn;
+  rv.cls.forEach((c, i) => {
+    const side = i % 2 === 0 ? first : opposite(first);
+    cnt[side][c] = (cnt[side][c] || 0) + 1;
+  });
+  const name = c => escapeHtml((playerInfo(c) || {}).name || COLOR_NAME[c]);
+  const ring = (v, c) => {
+    const C = 2 * Math.PI * 22, a = v == null ? 0 : v;
+    return `<div class="rv-acc-side ${c}"><span class="rv-who"><span class="pz-side ${c}"></span>${name(c)}</span>
+      <span class="rv-ring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" class="track"/><circle cx="27" cy="27" r="22" class="fill" stroke-dasharray="${(C * a / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 27 27)"/></svg><b>${v == null ? '–' : v}</b></span></div>`;
+  };
+  const rows = Coach.CLASSES.filter(c => c.id !== 'forced' || cnt.w.forced || cnt.b.forced).map(c =>
+    `<tr class="${(cnt.w[c.id] || cnt.b[c.id]) ? '' : 'zero'}"><td class="n w">${cnt.w[c.id] || 0}</td><td class="k">${clsBadge(c.id)}<span>${c.name}</span></td><td class="n b">${cnt.b[c.id] || 0}</td></tr>`).join('');
+  return `<div class="rv-acc">${ring(rv.acc.w, 'w')}<span class="rv-acc-label">Độ chính xác</span>${ring(rv.acc.b, 'b')}</div>
+    <table class="rv-table"><tbody>${rows}</tbody></table>`;
+}
+
+// Vào chế độ xem lại từng nước trên bàn (bắt đầu từ nước `ply`)
+function enterReview(ply = 1) {
+  const rv = activeReview();
+  if (!rv) return;
+  $('resultModal').hidden = true;
+  const human = humanColorForReview();
+  if (human) flipped = human === 'b';
+  setViewPly(Math.max(0, Math.min(ply, game.history.length)));
+  const box = $('reviewBox');
+  if (box && window.innerWidth < 900) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+// Khung nhận xét nước đang xem (cạnh biên bản)
+let reviewBoxKey = '';
+function renderReviewBox() {
+  const box = $('reviewBox');
+  if (!box) return;
+  const rv = activeReview();
+  const ply = isLiveView() ? game.history.length : viewPly;
+  const key = rv ? `${rv.cls.join('')}|${rv.upto}|${ply}|${flipped}` : '';
+  if (key === reviewBoxKey) return;
+  reviewBoxKey = key;
+  box.hidden = !rv;
+  if (!rv) { box.innerHTML = ''; return; }
+  let body;
+  if (ply === 0 || ply > rv.upto) {
+    body = ply === 0 ? '<p class="rvb-say">Thế xuất phát · bấm ▶ hoặc phím → để xem từng nước</p>'
+      : '<p class="rvb-say">Nước này chưa được phân tích</p>';
+  } else {
+    const id = rv.cls[ply - 1], h = game.history[ply - 1];
+    const side = h.move.piece[0];
+    const s0 = new Chess(rv.startFen);
+    const no = s0.fullmove + Math.floor((ply - 1 + (s0.turn === 'b' ? 1 : 0)) / 2);
+    const best = rv.best[ply - 1];
+    body = `<div class="rvb-move mvc-text-${id}">${clsBadge(id, 'lg')}<b>${no}${side === 'w' ? '.' : '...'} ${escapeHtml(h.san)}</b><span class="rvb-say">${CLS_SAY[id] || ''}</span>
+        ${rv.evals[ply] != null ? `<span class="rvb-eval ${rv.evals[ply] >= 0 ? 'w' : 'b'}">${fmtEval(rv.evals[ply])}</span>` : ''}</div>
+      ${best ? `<p class="rvb-best"><span>Nước tốt nhất:</span> <b>${escapeHtml(best)}</b></p>` : ''}`;
+  }
+  box.innerHTML = `<div class="rvb-head"><b>Phân tích ván</b><span class="rvb-acc"><span class="pz-side w"></span>${rv.acc.w ?? '–'} · <span class="pz-side b"></span>${rv.acc.b ?? '–'}</span>
+      <button type="button" class="rvb-close" title="Tắt phân tích"><svg class="ic"><use href="#i-close"/></svg></button></div>
+    ${evalGraphHTML(rv, ply)}${body}`;
+  bindGraph(box);
+  box.querySelector('.rvb-close').addEventListener('click', () => { gameReview = null; render(); });
+}
+
 let coachRun = null; // { progress, report, done, failed }
 
 function startCoach(histId) {
   coachRun = null;
   if (typeof Coach === 'undefined' || quietResult) return;
   const puzzle = typeof Puzzles !== 'undefined' && Puzzles.isActive();
-  const human = humanColorForReview();
-  if (puzzle || !human || game.history.length < 8 || (mode !== 'play' && mode !== 'online')) return;
+  const human = humanColorForReview(); // null = 2 người cùng máy: vẫn phân tích, không lưu thẻ ôn
+  if (puzzle || game.history.length < 8 || (mode !== 'play' && mode !== 'online')) return;
   const label = mode === 'online'
     ? `Online với ${(Online.player(opposite(human)) || {}).name || 'đối thủ'}`
-    : practice ? 'Ván tập từ Thư viện' : `Máy ${LEVEL_NAME[gameLevel]}`;
+    : practice ? 'Ván tập từ Thư viện' : !human ? '2 người' : `Máy ${LEVEL_NAME[gameLevel]}`;
   const run = coachRun = { progress: 0, report: null, done: false };
+  const sansAtEnd = game.history.map(h => h.san).join(' '), fenAtEnd = game.startFen;
   Coach.analyse({
     startFen: game.startFen,
     moves: game.history.map(h => ({ from: h.move.from, to: h.move.to, promotion: h.move.promotion || undefined })),
@@ -1302,7 +1610,12 @@ function startCoach(histId) {
     onProgress: f => { run.progress = f; if (coachRun === run) renderCoachResult(); },
   }).then(r => {
     run.report = r; run.done = true; run.failed = !r;
-    if (r && histId) GameHistory.update(histId, { acc: r.accuracy });
+    if (r && r.review) {
+      const { cls, evals, best, acc } = r.review;
+      if (histId) GameHistory.update(histId, { ...(r.accuracy != null ? { acc: r.accuracy } : {}), rev: { cls, evals, best, acc } });
+      // Ván trên bàn vẫn là ván vừa phân tích: gắn bản phân tích để xem lại từng nước
+      if (game.startFen === fenAtEnd && game.history.map(h => h.san).join(' ') === sansAtEnd) { setReview(r.review); render(); }
+    }
     if (coachRun === run) renderCoachResult();
   })
     .catch(() => { run.done = true; run.failed = true; if (coachRun === run) renderCoachResult(); });
@@ -1315,27 +1628,20 @@ function renderCoachResult() {
   box.hidden = !run;
   if (!run) return;
   if (!run.done) {
-    box.innerHTML = `<div class="rc-loading"><span class="spinner"></span><span>Huấn luyện viên đang chấm từng nước của bạn…</span><b>${Math.round(run.progress * 100)}%</b></div>
+    box.innerHTML = `<div class="rc-loading"><span class="spinner"></span><span>Stockfish đang phân tích từng nước của ván…</span><b>${Math.round(run.progress * 100)}%</b></div>
       <div class="progress"><div class="progress-bar" style="width:${Math.round(run.progress * 100)}%"></div></div>`;
     return;
   }
   const r = run.report;
   if (!r) { box.innerHTML = '<p class="rc-note">Không phân tích được ván này (chưa tải được Stockfish).</p>'; return; }
-  const tone = r.accuracy >= 85 ? 'great' : r.accuracy >= 70 ? 'good' : r.accuracy >= 50 ? 'ok' : 'low';
-  const C = 2 * Math.PI * 26;
-  box.innerHTML = `<div class="rc-row">
-      <div class="rc-ring ${tone}"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="track"/><circle cx="32" cy="32" r="26" class="fill" stroke-dasharray="${(C * r.accuracy / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/></svg><b>${r.accuracy}</b></div>
-      <div class="rc-main">
-        <b>Độ chính xác ${r.accuracy}%</b>
-        <div class="rc-counts">
-          <span class="k-blunder" title="Nước hớ: mất ≥30% cơ hội thắng"><i></i>${r.blunder} hớ</span>
-          <span class="k-mistake" title="Nước sai: mất ≥20% cơ hội thắng"><i></i>${r.mistake} sai</span>
-          <span class="k-inaccuracy" title="Thiếu chính xác: mất ≥10% cơ hội thắng"><i></i>${r.inaccuracy} thiếu chính xác</span>
-        </div>
-      </div>
-    </div>
-    ${r.worst ? `<p class="rc-note">Lỗi đáng tiếc nhất: nước ${r.worst.no} ${r.worst.san}, nên đi <b>${r.worst.best}</b>.</p>` : '<p class="rc-note">Không có nước hớ hay nước sai nào. Rất tốt!</p>'}
-    ${r.added ? `<button type="button" id="rcTrain" class="rc-train"><svg class="ic"><use href="#i-target"/></svg>Đã thêm ${r.added} thế cờ vào Sổ luyện lỗi · Ôn ngay</button>` : ''}`;
+  const rv = activeReview();
+  box.innerHTML = (rv ? reviewSummaryHTML(rv) + evalGraphHTML(rv) : '')
+    + (r.accuracy != null ? (r.worst ? `<p class="rc-note">Lỗi đáng tiếc nhất của bạn: nước ${r.worst.no} ${r.worst.san}, nên đi <b>${r.worst.best}</b>.</p>` : '<p class="rc-note">Bạn không có nước hớ hay sai lầm nào. Rất tốt!</p>') : '')
+    + (rv ? '<button type="button" id="rcReview" class="primary rc-review"><svg class="ic"><use href="#i-search"/></svg>Xem lại từng nước</button>' : '')
+    + (r.added ? `<button type="button" id="rcTrain" class="rc-train"><svg class="ic"><use href="#i-target"/></svg>Đã thêm ${r.added} thế cờ vào Sổ luyện lỗi · Ôn ngay</button>` : '');
+  bindGraph(box);
+  const rb = $('rcReview');
+  if (rb) rb.addEventListener('click', () => enterReview(1));
   const b = $('rcTrain');
   if (b) b.addEventListener('click', () => { $('resultModal').hidden = true; Puzzles.startReview(); });
 }
@@ -1412,6 +1718,8 @@ function setMode(m) {
   quietResult = true;
   if (mode === 'online') Online.leave();
   if (mode === 'learn') Learn.leave();
+  // Rời chế độ Chơi khi đang giải câu đố: tắt câu đố, nếu không mọi nước đi Online bị câu đố chặn lại và hoàn tác
+  if (mode === 'play' && typeof Puzzles !== 'undefined') { try { Puzzles.showBanner(false); } catch {} }
   quietResult = false;
   mode = m;
   gameId++;
@@ -1432,7 +1740,10 @@ function setMode(m) {
   viewPly = null;
   flipped = false;
   assisted = false;
+  redoStack = [];
+  gameReview = null;
   $('resultModal').hidden = true;
+  $('promo').hidden = true;
   document.body.dataset.mode = m;
   practice = false;
   clockOff();
@@ -1483,10 +1794,17 @@ function gameToPGN() {
   }
   let result = '*';
   const s = game.status();
+  const online = mode === 'online' ? Online.outcome() : null;
+  const me2 = online ? humanColorForReview() : null;
   if (s === 'checkmate') result = game.turn === 'b' ? '1-0' : '0-1';
   else if (s !== 'playing') result = '1/2-1/2';
-  else if (playResult && playResult.winner) result = playResult.winner === 'w' ? '1-0' : '0-1';
+  else if (playResult) result = !playResult.winner ? '1/2-1/2' : playResult.winner === 'w' ? '1-0' : '0-1';
+  else if (online && me2) { // ván Online kết thúc vì xin thua / hòa thỏa thuận / bỏ ván
+    const winner = online.score === 1 ? me2 : online.score === 0 ? opposite(me2) : null;
+    result = !winner ? '1/2-1/2' : winner === 'w' ? '1-0' : '0-1';
+  }
 
+  const startFen = game.startFen || START_FEN;
   const tags = [
     `[Event "Royal Gambit"]`,
     `[Site "Royal Gambit"]`,
@@ -1495,48 +1813,25 @@ function gameToPGN() {
     `[Black "${black.replace(/"/g, '')}"]`,
     `[Result "${result}"]`,
   ];
+  // Ván bắt đầu từ thế riêng (tàn cuộc trong Thư viện, câu đố…): ghi kèm FEN để mở lại được ở web khác
+  if (startFen !== START_FEN) tags.push('[SetUp "1"]', `[FEN "${startFen}"]`);
+  let no = 1, side = 'w';
+  try { const s0 = new Chess(startFen); no = s0.fullmove; side = s0.turn; } catch {}
   const moves = [];
   for (let i = 0; i < h.length; i++) {
-    if (i % 2 === 0) moves.push(`${i / 2 + 1}.`);
+    if (side === 'w') moves.push(`${no}.`);
+    else if (i === 0) moves.push(`${no}...`);
     moves.push(h[i].san);
+    if (side === 'b') no++;
+    side = opposite(side);
   }
   moves.push(result);
   return tags.join('\n') + '\n\n' + moves.join(' ') + '\n';
 }
 
+// FEN của thế đang xem (hoặc live)
 function gameToFEN() {
-  // FEN của thế đang xem (hoặc live)
-  const g = isLiveView() ? game : boardAt(viewPly);
-  // chess.js không export fen() — dựng thủ công từ board
-  if (typeof g.fen === 'function') return g.fen();
-  let rows = [];
-  for (let r = 0; r < 8; r++) {
-    let empty = 0, row = '';
-    for (let c = 0; c < 8; c++) {
-      const p = g.board[r * 8 + c];
-      if (!p) { empty++; continue; }
-      if (empty) { row += empty; empty = 0; }
-      const ch = p[1];
-      row += p[0] === 'w' ? ch : ch.toLowerCase();
-    }
-    if (empty) row += empty;
-    rows.push(row);
-  }
-  const castle = g.castling || {};
-  let cast = (castle.wK ? 'K' : '') + (castle.wQ ? 'Q' : '') + (castle.bK ? 'k' : '') + (castle.bQ ? 'q' : '');
-  if (!cast) cast = '-';
-  const ep = g.ep >= 0 && typeof sqName === 'function' ? sqName(g.ep) : '-';
-  return `${rows.join('/')} ${g.turn} ${cast} ${ep} ${g.halfmove || 0} ${g.fullmove || 1}`;
-}
-
-function toast(msg) {
-  const old = document.querySelector('.toast-copy');
-  if (old) old.remove();
-  const el = document.createElement('div');
-  el.className = 'toast-copy';
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1700);
+  return (isLiveView() ? game : boardAt(viewPly)).fen();
 }
 
 async function copyText(text, okMsg) {
@@ -1885,7 +2180,7 @@ function renderHome() {
   $('hmRank').querySelector('.hm-rank-btn').addEventListener('click', openRank);
 
   const hist = typeof GameHistory !== 'undefined' ? GameHistory.read() : [];
-  const res = hist.map(g => GameHistory.resultLabel(g.result).c);
+  const res = hist.map(g => GameHistory.outcome(g)); // ván 2 người không tính vào tỉ lệ thắng
   const wins = res.filter(c => c === 'win').length;
   const decided = res.filter(c => c).length;
   const learn = typeof Learn !== 'undefined' && Learn.summary ? Learn.summary() : null;
@@ -1989,13 +2284,13 @@ function renderHomeRecent(hist) {
   }
   box.innerHTML = '';
   for (const g of hist.slice(0, 5)) {
-    const r = GameHistory.resultLabel(g.result);
+    const r = GameHistory.label(g);
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'hm-game';
     const elo = Number.isFinite(g.elo) && g.elo ? `<span class="hm-elo ${g.elo > 0 ? 'up' : 'down'}">${g.elo > 0 ? '+' : ''}${g.elo}</span>` : '';
     row.innerHTML = `<span class="hm-res ${r.c}">${r.t}</span>
-      <span class="hm-game-main"><b></b><small><svg class="ic"><use href="#${g.mode === 'online' ? 'i-globe' : 'i-cpu'}"/></svg><span>${g.mode === 'online' ? 'Online' : 'Đấu máy'}</span> · <span>${Math.ceil((g.moves || 0) / 2)}</span> <span>nước</span>${Number.isFinite(g.acc) ? ` · <span>${Math.round(g.acc)}%</span>` : ''}</small></span>
+      <span class="hm-game-main"><b></b><small><svg class="ic"><use href="#${g.mode === 'online' ? 'i-globe' : g.mode === 'import' ? 'i-download' : 'i-cpu'}"/></svg><span>${g.mode === 'online' ? 'Online' : g.mode === 'import' ? 'Ván nhập' : /^2 người/.test(g.title || '') ? '2 người' : 'Đấu máy'}</span> · <span>${g.moves || 0}</span> <span>nước</span>${Number.isFinite(g.acc) ? ` · <span>${Math.round(g.acc)}%</span>` : ''}</small></span>
       ${elo}<span class="hm-when">${timeAgo(g.at)}</span>`;
     row.querySelector('b').textContent = g.opp ? (g.color === 'b' ? '♚ ' : '♔ ') + g.opp : g.title;
     row.addEventListener('click', () => GameHistory.open());
@@ -2444,9 +2739,8 @@ function renderProfileSide(p, rank) {
   const games = p.me && typeof GameHistory !== 'undefined' ? GameHistory.read().slice(0, 5) : [];
   gamesCard.hidden = !p.me;
   if (p.me) {
-    const RES = { '1-0': ['Thắng', 'win'], '0-1': ['Thua', 'loss'], '1/2-1/2': ['Hòa', 'draw'] };
     $('pfGames').innerHTML = games.length ? games.map(g => {
-      const [t, c] = RES[g.result] || ['—', ''];
+      const { t, c } = GameHistory.label(g);
       return `<div class="pf-game"><span class="pf-res ${c}">${t}</span><span class="pf-g-main"><b>${escapeHtml(g.title)}</b><small>${g.moves} nước · ${timeAgo(g.at)}</small></span></div>`;
     }).join('') : '<p class="pf-empty">Chưa có ván nào trong nhật ký.</p>';
   }
@@ -2458,7 +2752,7 @@ function renderProfileSide(p, rank) {
     $('soundToggle').checked = Profile.prefs().sound;
     for (const box of document.querySelectorAll('#pfSettings [data-pref]')) {
       const k = box.dataset.pref;
-      box.checked = k === 'autoQueen' ? !!Profile.prefs()[k] : Profile.prefs()[k] !== false;
+      box.checked = OFF_BY_DEFAULT.has(k) ? !!Profile.prefs()[k] : Profile.prefs()[k] !== false;
     }
     $('notifyToggle').checked = !!Profile.prefs().notify && typeof Notification !== 'undefined' && Notification.permission === 'granted';
     renderThemes();
@@ -2529,7 +2823,7 @@ function renderThemes() {
   boardGrid.className = 'themes';
   for (const [key, name, light, dark] of THEMES) {
     const b = document.createElement('button');
-    b.className = 'theme' + (prefs.board === key ? ' on' : '');
+    b.className = 'theme' + (prefs.board === key ? ' on' : '') + (GLOW_BOARDS.has(key) ? ' glow' : '');
     b.title = name;
     const bg = light.startsWith('linear')
       ? `background-image:${light},${dark};background-size:50% 100%,50% 100%;background-position:0 0,100% 0;background-repeat:no-repeat`
@@ -2554,11 +2848,12 @@ function renderThemes() {
     const b = document.createElement('button');
     b.className = 'theme' + ((prefs.pieces || 'default') === key ? ' on' : '');
     b.title = name;
-    b.innerHTML = `<div class="piece-preview" data-pieces="${key}"><img src="pieces/wN.svg" alt=""></div><small>${name}</small>`;
+    b.innerHTML = `<div class="piece-preview${SVG_SKINS.has(key) ? ' pair' : ''}" data-pieces="${key}"><img src="${skinSrc(key, 'wN')}" alt="">${SVG_SKINS.has(key) ? `<img src="${skinSrc(key, 'bN')}" alt="">` : ''}</div><small>${name}</small>`;
     b.addEventListener('click', () => {
       Profile.setPref('pieces', key);
       document.body.dataset.pieces = key;
       renderThemes();
+      render(); // vẽ lại quân trên bàn bằng bộ quân mới
     });
     pieceGrid.appendChild(b);
   }
@@ -2725,7 +3020,13 @@ $('promo').addEventListener('click', e => {
 const room = new URLSearchParams(location.search).get('room');
 renderHeader();
 newGame();
-if (typeof Engine !== 'undefined' && Engine.load) Engine.load().catch(() => {});
+// Tải sẵn Stockfish (~2 MB) khi trình duyệt rảnh, không tranh băng thông với lúc mở trang.
+// Nếu người chơi cần máy đi / gợi ý trước đó thì engine.js tự tải ngay lúc ấy.
+if (typeof Engine !== 'undefined' && Engine.load) {
+  const preload = () => Engine.load().catch(() => {});
+  if ('requestIdleCallback' in window) requestIdleCallback(preload, { timeout: 4000 });
+  else setTimeout(preload, 1500);
+}
 
 // ---------------- Ngôn ngữ (i18n.js) ----------------
 function renderLang() {
@@ -2784,6 +3085,7 @@ function enterApp() {
     }
   };
   homeOpen = !room; // vào web: mở Trang chủ (trừ khi vào bằng link mời phòng)
+  if (!room) restoreSavedGame(); // ván đấu máy / 2 người đang dở lần trước (tải lại trang, tắt trình duyệt…)
   if (needsPlacement()) { afterPlace = go; openPlacement(); }
   else go();
   refreshAuto(); // contest đã đăng ký: hiện thông báo và tự ghép cặp khi tới giờ
@@ -3887,7 +4189,8 @@ function toast(text, medal) {
   el.appendChild(document.createTextNode(text));
   el.hidden = false;
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => { el.hidden = true; }, 7000);
+  // Câu ngắn ("Đã bật âm") ẩn nhanh, câu dài / báo huy chương giữ lâu hơn để kịp đọc
+  toast.t = setTimeout(() => { el.hidden = true; }, medal ? 7000 : Math.min(7000, 2200 + String(text).length * 45));
 }
 
 // Đang làm dở việc khác (ván với máy, ván 2 người, bài học) thì chưa tự chuyển sang contest
@@ -3895,6 +4198,7 @@ function autoCanStart() {
   if (!$('promo').hidden || !$('placeModal').hidden || !$('authModal').hidden) return false;
   if (mode === 'online') return Online.idle();
   if (mode === 'learn') return !Learn.inLesson();
+  if (typeof Puzzles !== 'undefined' && Puzzles.isActive()) return false; // đang giải câu đố: đợi giải xong
   return !game.history.length || game.isGameOver() || !!playResult;
 }
 

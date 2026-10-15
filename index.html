@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=27">
+  <link rel="stylesheet" href="style.css?v=31">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -385,6 +385,7 @@
             <button type="button" id="copyFen" class="ghost tiny" title="Sao chép FEN thế cờ hiện tại">FEN</button>
           </div>
         </div>
+        <div id="reviewBox" class="review-box" hidden></div>
         <div id="moves" class="moves"></div>
         <p id="viewHint" class="view-hint" hidden>Đang xem lại · bấm «Live» hoặc đi nước mới để về ván hiện tại</p>
         <div class="nav-row" id="moveNav">
@@ -541,6 +542,8 @@
             <label class="switch"><input type="checkbox" data-pref="dots"><span>Chấm các nước đi hợp lệ</span></label>
             <label class="switch"><input type="checkbox" data-pref="anim"><span>Hiệu ứng trượt quân</span></label>
             <label class="switch"><input type="checkbox" data-pref="autoQueen"><span>Tự phong Hậu (không hỏi)</span></label>
+            <label class="switch"><input type="checkbox" data-pref="relief"><span>Bàn cờ nổi 3D (ánh sáng, bóng đổ, quân nhấc lên)</span></label>
+            <label class="switch"><input type="checkbox" data-pref="tilt"><span>Góc nhìn nghiêng 3D (quân đứng trên bàn)</span></label>
             <label class="switch"><input type="checkbox" id="notifyToggle"><span>Thông báo khi contest đã đăng ký sắp bắt đầu</span></label>
           </div>
           <button id="keysBtn" type="button" class="pf-link"><svg class="ic"><use href="#i-keyboard"/></svg>Phím tắt</button>
@@ -718,8 +721,24 @@
             <option value="play">Đấu máy</option>
             <option value="online">Online</option>
             <option value="human">2 người</option>
+            <option value="import">Ván nhập</option>
           </select>
         </label>
+        <button id="histImportBtn" type="button" class="hist-import-btn" title="Dán PGN / FEN từ chess.com, lichess… để phân tích"><svg class="ic"><use href="#i-plus"/></svg><span>Nhập PGN</span></button>
+      </div>
+      <div id="histImport" class="hist-import" hidden>
+        <textarea id="histImportText" rows="6" spellcheck="false" placeholder="Dán PGN của một ván (từ chess.com, lichess…) hoặc một thế cờ FEN"></textarea>
+        <div class="hist-import-row">
+          <label for="histImportSide">Bạn cầm</label>
+          <select id="histImportSide">
+            <option value="">Không (chỉ phân tích)</option>
+            <option value="w">Trắng</option>
+            <option value="b">Đen</option>
+          </select>
+          <button id="histImportGo" type="button" class="primary">Nhập &amp; phân tích</button>
+          <button id="histImportCancel" type="button">Hủy</button>
+        </div>
+        <p id="histImportMsg" class="admin-msg"></p>
       </div>
       <div id="histFilters" class="lib-filters hist-filters"></div>
       <div id="histList" class="hist-list"></div>
@@ -964,22 +983,22 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=6"></script>
-  <script src="chess.js?v=14"></script>
+  <script src="i18n.js?v=10"></script>
+  <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
-  <script src="engine.js?v=2"></script>
+  <script src="engine.js?v=5"></script>
   <script src="config.js?v=13"></script>
   <script src="profile.js?v=17"></script>
   <script src="contest.js?v=15"></script>
   <script src="sound.js?v=13"></script>
   <script src="lessons.js?v=13"></script>
-  <script src="learn.js?v=15"></script>
-  <script src="online.js?v=19"></script>
-  <script src="library.js?v=6"></script>
-  <script src="coach.js?v=1"></script>
-  <script src="puzzles.js?v=8"></script>
-  <script src="history.js?v=4"></script>
-  <script src="openings.js?v=3"></script>
-  <script src="app.js?v=28"></script>
+  <script src="learn.js?v=16"></script>
+  <script src="online.js?v=20"></script>
+  <script src="library.js?v=8"></script>
+  <script src="coach.js?v=3"></script>
+  <script src="puzzles.js?v=9"></script>
+  <script src="history.js?v=7"></script>
+  <script src="openings.js?v=5"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>

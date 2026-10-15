@@ -390,6 +390,17 @@ const Learn = (() => {
       const sq = s.squares.map(sqIndex);
       const next = s.ordered ? sq[st.tapIdx] : sq.find(x => !st.ok.has(x));
       if (next != null) st.focus.add(next);
+    } else if (canMove() && (s.t === 'win' || s.t === 'run') && typeof Engine !== 'undefined' && Engine.hintMove) {
+      // Đấu với máy (dồn Vua chiếu hết, đẩy Tốt): cần kỹ thuật nhiều nước nên gợi ý bằng Stockfish;
+      // bộ tìm kiếm nông của ai.js hay đi vòng vòng, dựa vào nó thì không kịp chiếu hết trong giới hạn nước.
+      const t = token, at = game.history.length, cur = st;
+      coach('Đang tìm nước gợi ý…');
+      Engine.hintMove(game).then(m => {
+        if (t !== token || st !== cur || st.done || game.history.length !== at) return; // đã đi nước khác / sang bài khác
+        if (m) { hint = { from: m.from, to: m.to }; coach('Gợi ý: đi quân ở ô được tô xanh tới ô đánh dấu.'); }
+        render();
+        renderPanel();
+      }).catch(() => {});
     } else if (canMove()) {
       const m = findHint();
       if (m) { hint = { from: m.from, to: m.to }; coach('Gợi ý: đi quân ở ô được tô xanh tới ô đánh dấu.'); }

@@ -37,6 +37,26 @@ const OPENINGS = [
     'Đen bỏ tốt e5 để phát triển nhanh và giăng hàng loạt bẫy chiếu hết. Nổi tiếng trên mạng; biết cách đáp thì Trắng có lợi thế.'),
   O('englund', 'Gambit Englund', 'Englund Gambit', 'gambit', '1.d4 e5',
     'Đen thí tốt ngay nước đầu để chơi Hậu e7 và giăng bẫy dọc cột e. Lý thuyết đánh giá thấp, nhưng là bài học tốt về phát triển quân.'),
+  O('alien-gambit', 'Gambit Alien', 'Caro-Kann: Alien Gambit', 'gambit', '1.e4 c6 2.d4 d5 3.Nc3 dxe4 4.Nxe4 Nf6 5.Ng5 h6 6.Nxf7 Kxf7 7.Nf3',
+    'Trắng thí Mã ở f7 ngay trong Caro-Kann để kéo Vua Đen ra giữa bàn rồi tấn công. Máy đánh giá là không chính xác, nhưng ở cờ nhanh Đen rất dễ đi sai. Bẫy quen thuộc: 7...Bg4?? 8.Ne5+ chĩa Vua và Tượng.'),
+  O('jerome-gambit', 'Gambit Jerome', 'Jerome Gambit', 'gambit', '1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.Bxf7+',
+    'Một gambit "điên rồ" thế kỷ 19: Trắng thí Tượng ở f7, rồi thường thí thêm Mã ở e5 để kéo Vua Đen ra ngoài. Đen phòng thủ đúng là hơn quân, nhưng đầy bẫy cho người thiếu cẩn thận.'),
+  O('halloween-gambit', 'Gambit Halloween', 'Halloween Gambit', 'gambit', '1.e4 e5 2.Nf3 Nc6 3.Nc3 Nf6 4.Nxe5',
+    'Trong Khai cuộc Bốn Mã, Trắng thí Mã lấy tốt e5 rồi đẩy d4, e5 để xua các Mã Đen về hàng cuối. Tên gọi đến từ việc nó "đáng sợ" với bên phòng thủ.'),
+  O('vienna-gambit', 'Gambit Vienna', 'Vienna Gambit', 'gambit', '1.e4 e5 2.Nc3 Nf6 3.f4',
+    'Trắng phát triển Mã c3 trước rồi mới thí tốt f, nên tấn công có chuẩn bị hơn Gambit Vua. Đen thường đáp 3...d5 để phản công ở trung tâm.'),
+  O('elephant-gambit', 'Gambit Voi', 'Elephant Gambit', 'gambit', '1.e4 e5 2.Nf3 d5',
+    'Đen thí tốt d để phá trung tâm ngay nước thứ hai. Không vững về lý thuyết nhưng hiếm gặp, nên Trắng dễ bị bất ngờ.'),
+  O('traxler', 'Phản đòn Traxler', 'Traxler Counterattack', 'gambit', '1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6 4.Ng5 Bc5',
+    'Khi Trắng nhắm f7 bằng Ng5, Đen mặc kệ và phản đòn bằng Tượng c5, sẵn sàng thí quân ở f2. Cực kỳ sắc bén: cả hai bên đều có thể bị chiếu hết nếu tính sai một nước.'),
+  O('marshall', 'Tấn công Marshall', 'Ruy Lopez: Marshall Attack', 'gambit', '1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6 5.O-O Be7 6.Re1 b5 7.Bb3 O-O 8.c3 d5',
+    'Gambit của Đen trong Khai cuộc Tây Ban Nha: thí tốt d5 để dồn quân tấn công cánh Vua Trắng. Được các kỳ thủ hàng đầu tin dùng đến mức nhiều người tránh luôn biến chính.'),
+  O('icelandic', 'Gambit Iceland', 'Icelandic Gambit', 'gambit', '1.e4 d5 2.exd5 Nf6 3.c4 e6',
+    'Trong Phòng thủ Scandinavia, Đen thí thêm tốt e để phát triển rất nhanh và tấn công tốt d5 bị bỏ lại. Còn gọi là Gambit Palme.'),
+  O('wing-gambit', 'Sicily: Gambit Cánh', 'Sicilian Wing Gambit', 'gambit', '1.e4 c5 2.b4',
+    'Trắng thí tốt b để kéo tốt c5 khỏi trung tâm rồi dựng tốt e4–d4. Hiếm gặp, hợp với người thích thế cờ mở và tấn công.'),
+  O('froms-gambit', 'Gambit From', "From's Gambit", 'gambit', '1.f4 e5',
+    'Đen đáp Khai cuộc Bird bằng cách thí tốt e ngay, mở đường cho Tượng d6 nhắm vào vua Trắng đã yếu sau f4. Có bẫy chiếu hết rất nhanh nếu Trắng ham tốt.'),
 
   // ----- Ván mở (1.e4 e5) -----
   O('italian', 'Khai cuộc Ý', 'Italian Game (Giuoco Piano)', 'open', '1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5',
@@ -63,6 +83,8 @@ const OPENINGS = [
     'Trắng chuẩn bị d4 để dựng trung tâm tốt lớn. Ít gặp nên dễ bất ngờ, nhưng Đen có thể phản công ngay bằng d5 hoặc Nf6.'),
   O('bishops-opening', 'Khai cuộc Tượng', "Bishop's Opening", 'open', '1.e4 e5 2.Bc4',
     'Tượng nhắm ngay f7 và giữ linh hoạt cho Mã g1 và tốt f. Có thể chuyển sang Khai cuộc Ý hoặc Vienna.'),
+  O('bongcloud', 'Tấn công Bongcloud', 'Bongcloud Attack', 'open', '1.e4 e5 2.Ke2',
+    'Vua Trắng tự đi lên e2, bỏ quyền nhập thành và chặn cả Hậu lẫn Tượng. Một khai cuộc "đùa" nổi tiếng trên mạng (Carlsen và Nakamura từng chơi ở giải đấu thật). Đừng học theo!'),
 
   // ----- Nửa mở (1.e4, Đen không đi e5) -----
   O('sicilian', 'Phòng thủ Sicily', 'Sicilian Defense', 'semi', '1.e4 c5',
@@ -89,6 +111,14 @@ const OPENINGS = [
     'Đen để Trắng chiếm trung tâm, fianchetto Tượng g7 rồi phản công bằng c5 hoặc e5. Linh hoạt, nhưng phải cẩn thận trước tấn công nhanh.'),
   O('modern', 'Phòng thủ Hiện đại', 'Modern Defense', 'semi', '1.e4 g6 2.d4 Bg7',
     'Họ hàng của Pirc: Tượng ra g7 trước, giữ Mã g8 linh hoạt. Rất ít lý thuyết bắt buộc, phù hợp người thích thế cờ khác lạ.'),
+  O('sveshnikov', 'Sicily: Sveshnikov', 'Sicilian: Sveshnikov', 'semi', '1.e4 c5 2.Nf3 Nc6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 e5',
+    'Đen đẩy e5 đuổi Mã, chấp nhận ô d5 yếu để đổi lấy nhịp phát triển và thế cờ năng động. Biến được Carlsen dùng trong các trận tranh ngôi vô địch thế giới.'),
+  O('accelerated-dragon', 'Sicily: Rồng gia tốc', 'Sicilian: Accelerated Dragon', 'semi', '1.e4 c5 2.Nf3 Nc6 3.d4 cxd4 4.Nxd4 g6',
+    'Đen fianchetto Tượng g7 ngay, chưa đi d6, để sau này có thể đẩy d5 trong một nước. Tránh được Tấn công Yugoslav nguy hiểm của Biến Rồng thường.'),
+  O('french-winawer', 'Pháp: Winawer', 'French: Winawer', 'semi', '1.e4 e6 2.d4 d5 3.Nc3 Bb4',
+    'Tượng ghim Mã c3, sẵn sàng đổi để làm hỏng cấu trúc tốt của Trắng. Thế cờ lệch và sắc bén nhất của Phòng thủ Pháp.'),
+  O('caro-classical', 'Caro-Kann: Cổ điển', 'Caro-Kann: Classical', 'semi', '1.e4 c6 2.d4 d5 3.Nc3 dxe4 4.Nxe4 Bf5',
+    'Đen đưa Tượng ra f5 trước khi khoá chuỗi tốt bằng e6. Rất vững chắc: Đen ít điểm yếu và có kế hoạch rõ ràng.'),
 
   // ----- Ván đóng (1.d4 d5) -----
   O('qgd', 'Gambit Hậu từ chối', "Queen's Gambit Declined", 'closed', '1.d4 d5 2.c4 e6 3.Nc3 Nf6',
@@ -103,6 +133,8 @@ const OPENINGS = [
     'Trắng dựng cùng một thế trận (Bf4, e3, c3, Nbd2, Bd3) bất kể Đen đi gì. Dễ học, ít lý thuyết, rất phổ biến ở mọi trình độ.'),
   O('colle', 'Hệ thống Colle', 'Colle System', 'closed', '1.d4 d5 2.Nf3 Nf6 3.e3 e6 4.Bd3',
     'Trắng xây thế trận khiêm tốn rồi đẩy e4 để mở đường cho Tượng d3 tấn công cánh Vua. Kế hoạch rõ ràng, hợp người mới.'),
+  O('semi-slav', 'Phòng thủ Bán Slav', 'Semi-Slav Defense', 'closed', '1.d4 d5 2.c4 c6 3.Nf3 Nf6 4.Nc3 e6',
+    'Đen kết hợp c6 và e6 thành bức tường tốt rất chắc, nhưng có thể ăn tốt c4 rồi giữ bằng b5 để phản công. Dẫn tới những biến cực kỳ sắc như Botvinnik và Meran.'),
 
   // ----- Ấn Độ & 1.d4 khác -----
   O('kings-indian', 'Phòng thủ Ấn Độ Vua', "King's Indian Defense", 'indian', '1.d4 Nf6 2.c4 g6 3.Nc3 Bg7 4.e4 d6',
@@ -117,6 +149,8 @@ const OPENINGS = [
     'Thế cờ lệch: Đen có đa số tốt cánh Hậu và Tượng g7 mạnh, Trắng có trung tâm và không gian. Hai bên đều có cơ hội thắng.'),
   O('dutch', 'Phòng thủ Hà Lan', 'Dutch Defense', 'indian', '1.d4 f5',
     'Đen khống chế ô e4 bằng tốt f, chuẩn bị tấn công cánh Vua. Các biến thể chính: Bức tường đá (Stonewall) và Leningrad.'),
+  O('bogo-indian', 'Phòng thủ Bogo-Ấn', 'Bogo-Indian Defense', 'indian', '1.d4 Nf6 2.c4 e6 3.Nf3 Bb4+',
+    'Họ hàng của Nimzo-Ấn khi Trắng tránh Nc3: Đen chiếu bằng Tượng b4 để đổi Tượng xấu và phát triển nhanh. Ít lý thuyết, rất vững.'),
   O('trompowsky', 'Tấn công Trompowsky', 'Trompowsky Attack', 'indian', '1.d4 Nf6 2.Bg5',
     'Trắng ghim/đổi Mã f6 ngay, tránh lý thuyết Ấn Độ dài dằng dặc. Đơn giản, thực dụng và hay đưa đối thủ vào thế cờ lạ.'),
 
@@ -133,6 +167,8 @@ const OPENINGS = [
     'Trắng khống chế e5 bằng tốt f, giống Phòng thủ Hà Lan với một nhịp hơn. Cẩn thận Gambit From 1...e5 của Đen.'),
   O('larsen', 'Khai cuộc Larsen', 'Larsen Opening', 'flank', '1.b3 e5 2.Bb2',
     'Tượng fianchetto b2 gây áp lực ngay lên tốt e5 và trung tâm. Khai cuộc ít gặp, dẫn tới thế cờ không theo lối mòn.'),
+  O('polish', 'Khai cuộc Sokolsky', 'Polish Opening (Sokolsky)', 'flank', '1.b4',
+    'Trắng đẩy tốt b ngay nước đầu để chiếm chỗ cánh Hậu và fianchetto Tượng b2. Khác thường, nhưng Đen phải cẩn thận vì tốt b4 có thể bị tấn công.'),
 ];
 
 const ENDGAMES = [
@@ -179,6 +215,24 @@ const ENDGAMES = [
 
 // Bản tiếng Anh của mô tả (dùng khi chọn English, xem i18n.js)
 const LIB_EN = {
+  'alien-gambit': ['White sacrifices a knight on f7 in the Caro-Kann to drag the black king into the open and attack. Engines call it unsound, but in fast games Black goes wrong easily. Classic trap: 7...Bg4?? 8.Ne5+ forks king and bishop.'],
+  'jerome-gambit': ['A wild 19th-century gambit: White gives the bishop on f7, often followed by a knight on e5, to pull the black king out. Correct defence leaves Black a piece up, but it is full of traps for the careless.'],
+  'halloween-gambit': ['From the Four Knights, White gives a knight for the e5 pawn, then pushes d4 and e5 to drive the black knights back. Named for how scary it is to face.'],
+  'vienna-gambit': ['White develops the c3 knight first and only then gives the f-pawn, a better-prepared King\'s Gambit. Black usually hits back with 3...d5.'],
+  'elephant-gambit': ['Black gives the d-pawn on move two to break up the centre at once. Theoretically dubious but rare, so White is often caught off guard.'],
+  'traxler': ['When White targets f7 with Ng5, Black ignores it and counterattacks with Bc5, ready to sacrifice on f2. Razor-sharp: one miscalculation and either side gets mated.'],
+  'marshall': ['Black\'s gambit in the Ruy Lopez: d5 gives a pawn to throw everything at White\'s king. Trusted at the top level, so much that many players avoid the main line.'],
+  'icelandic': ['In the Scandinavian, Black gives another pawn with e6 for very fast development and pressure on the stranded d5 pawn. Also called the Palme Gambit.'],
+  'wing-gambit': ['White gives the b-pawn to lure c5 away from the centre, then builds e4–d4. Rare, for players who like open, attacking positions.'],
+  'froms-gambit': ['Black meets the Bird by giving the e-pawn at once, opening the d6 bishop against a king weakened by f4. A quick mating trap awaits a greedy White.'],
+  'bongcloud': ['The white king walks to e2, giving up castling and blocking its own queen and bishop. A famous internet joke opening (Carlsen and Nakamura even played it in a real event). Do not copy it!'],
+  'sveshnikov': ['Black plays e5 to kick the knight, accepting a weak d5 square in return for time and dynamic play. A line Carlsen used in world championship matches.'],
+  'accelerated-dragon': ['Black fianchettoes at once without d6, keeping the option of ...d5 in one move. Avoids the dangerous Yugoslav Attack of the regular Dragon.'],
+  'french-winawer': ['The bishop pins the c3 knight, ready to trade and damage White\'s pawns. The sharpest, most unbalanced line of the French.'],
+  'caro-classical': ['Black develops the bishop to f5 before closing the pawn chain with e6. Very solid: few weaknesses and clear plans.'],
+  'semi-slav': ['Black combines c6 and e6 into a rock-solid pawn wall, but can grab c4 and hold it with b5 for counterplay. Leads to razor-sharp lines like the Botvinnik and the Meran.'],
+  'bogo-indian': ['A relative of the Nimzo-Indian when White avoids Nc3: the bishop check on b4 trades off Black\'s bad bishop and speeds up development. Little theory, very solid.'],
+  'polish': ['White pushes the b-pawn on move one to gain queenside space and fianchetto on b2. Unusual, but Black must watch out as the b4 pawn can come under fire.'],
   'kings-gambit': ['White gives up the f-pawn to deflect e5 from the centre, opening the f-file for the rook and the diagonal for the c4 bishop. The romantic opening of the 19th century, demanding sharp calculation from both sides.'],
   'falkbeer': ['Black declines the pawn and strikes back in the centre at once, returning a pawn to seize the initiative. The most combative answer to the King\'s Gambit.'],
   'queens-gambit': ['White offers the c-pawn to lure the d5 pawn from the centre; if Black takes, White usually regains it easily. A cornerstone of modern chess: safe yet rich in plans.'],
@@ -341,7 +395,7 @@ const Library = (() => {
       const r = sq >> 3, c = sq & 7;
       const cls = 'lb-sq ' + ((r + c) % 2 ? 'd' : 'l') + (last && (sq === last.from || sq === last.to) ? ' hl' : '');
       const p = cells[sq];
-      html += p ? `<span class="${cls}"><img class="lb-piece" src="pieces/${p}.svg" alt="" draggable="false"></span>` : `<span class="${cls}"></span>`;
+      html += p ? `<span class="${cls}"><img class="lb-piece" src="${typeof pieceSrc === 'function' ? pieceSrc(p) : `pieces/${p}.svg`}" alt="" draggable="false"></span>` : `<span class="${cls}"></span>`;
     }
     return html;
   }
@@ -450,9 +504,11 @@ const Library = (() => {
   // Tàn cuộc: nạp FEN. Ván tập từ thư viện không tính Elo.
   function enter(o, vsBot) {
     const userSide = o.side;
-    if ($('mode')) $('mode').value = vsBot ? (userSide === 'w' ? 'b' : 'w') : 'none';
-    if (mode !== 'play') { setMode('play'); if (mode !== 'play') return; }
-    if (!newGame()) return;
+    const prevMode = $('mode').value;
+    $('mode').value = vsBot ? (userSide === 'w' ? 'b' : 'w') : 'none';
+    // Người chơi không muốn bỏ ván đang dở: trả ô chọn chế độ về như cũ
+    if (mode !== 'play') { setMode('play'); if (mode !== 'play') { $('mode').value = prevMode; return; } }
+    else if (!newGame()) { $('mode').value = prevMode; return; }
     gameId++;          // bỏ nước máy mà newGame() vừa hẹn giờ ở thế xuất phát
     $('libModal').hidden = true;
     if (o.cat === 'endgame') {
@@ -463,8 +519,8 @@ const Library = (() => {
     aiColor = vsBot ? (userSide === 'w' ? 'b' : 'w') : 'none';
     if ($('mode')) $('mode').value = aiColor;
     flipped = userSide === 'b';
-    practice = true;
-    ratedDone = true;
+    practice = true;   // không tính Elo (isRatedBotGame / checkResult đã xét `practice`)
+    ratedDone = false; // vẫn hiện kết quả, lưu Nhật ký và chạy Sổ luyện lỗi khi ván tập kết thúc
     if (typeof clockReset === 'function') clockReset();
     viewPly = null;
     seenLen = game.history.length;
