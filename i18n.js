@@ -111,6 +111,8 @@ const I18N = (() => {
     'Đang giải câu đố: dùng nút Gợi ý hoặc Đáp án trong khung câu đố.': 'Solving a puzzle: use the Hint or Solution buttons in the puzzle panel.',
     'Chỉ mời được ván mới khi ván hiện tại đã kết thúc.': 'You can only offer a new game once the current one has ended.',
     // ----- Nhật ký: nhập ván, kết quả ván 2 người; bàn cờ 3D; tự lưu ván -----
+    'Chưa có contest nào. Hãy bấm "Tạo contest" ở trên.': 'No contests yet. Press "Create contest" above.', 'Chưa có contest nào.': 'No contests yet.',
+    'Không kết nối được máy chủ trung gian (mạng yếu hoặc máy chủ đang quá tải). Hãy thử lại sau ít phút.': 'Could not reach the relay server (weak connection or the server is busy). Please try again in a few minutes.',
     'Trắng thắng': 'White won', 'Đen thắng': 'Black won', 'Ván nhập': 'Imported', 'Nhập PGN': 'Import PGN',
     'Dán PGN / FEN từ chess.com, lichess… để phân tích': 'Paste a PGN / FEN from chess.com, lichess… to analyse',
     'Dán PGN của một ván (từ chess.com, lichess…) hoặc một thế cờ FEN': 'Paste the PGN of a game (from chess.com, lichess…) or a FEN position',

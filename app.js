@@ -431,10 +431,15 @@ setInterval(() => {
 let evalKey = '';
 function renderEval(g, key = '') {
   const bar = $('evalBar');
-  if (!bar || bar.hidden || mode !== 'play' || typeof quiesce !== 'function') { evalKey = ''; return; }
+  if (!bar || bar.hidden || (mode !== 'play' && mode !== 'online') || typeof quiesce !== 'function') { evalKey = ''; return; }
   const puzzle = typeof Puzzles !== 'undefined' && Puzzles.isActive && Puzzles.isActive();
   bar.classList.toggle('off', !!puzzle); // đang giải câu đố: không lộ đáp án
   if (puzzle) { evalKey = ''; return; }
+  // Online: thanh chỉ hiện khi xem lại / phân tích ván đã xong (đang lùi xem các nước, Stockfish đang phân tích hoặc
+  // đã có bản phân tích). Ở sảnh chờ và trong lúc đang đánh thì ẩn (vẫn giữ chỗ để bàn cờ không co giãn).
+  const reviewing = mode !== 'online' || (!Online.inGame() && game.history.length > 0 && (!isLiveView() || !!coachRun || !!activeReview()));
+  bar.classList.toggle('concealed', !reviewing);
+  if (!reviewing) { evalKey = ''; return; }
   if (key && key === evalKey) return; // thế cờ không đổi (chỉ chọn quân…): giữ kết quả cũ
   evalKey = key;
   if (!g) g = game; // quiesce đi thử rồi hoàn tác (_apply/_undo) nên không làm đổi ván đang chơi
@@ -787,7 +792,12 @@ function autosave() {
   } catch {}
 }
 
+let restoringGame = false;
 function restoreSavedGame() {
+  restoringGame = true;
+  try { return restoreSavedGameNow(); } finally { restoringGame = false; }
+}
+function restoreSavedGameNow() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(savedKey())); } catch {}
   if (!s || !Array.isArray(s.moves) || Date.now() - s.at > 7 * 86400000 || mode !== 'play' || game.history.length) return false;
@@ -1041,6 +1051,8 @@ function maybeAiMove() {
 
 function startRatedGame() {
   showBoard();
+  gameReview = null; // ván mới (kể cả ván Online chơi lại): bỏ bản phân tích của ván trước
+  coachRun = null;
   ratedDone = false;
   assisted = false;
   playResult = null;
@@ -1603,6 +1615,7 @@ function startCoach(histId) {
     : practice ? 'Ván tập từ Thư viện' : !human ? '2 người' : `Máy ${LEVEL_NAME[gameLevel]}`;
   const run = coachRun = { progress: 0, report: null, done: false };
   const sansAtEnd = game.history.map(h => h.san).join(' '), fenAtEnd = game.startFen;
+  setTimeout(() => renderEval(null, ''), 0); // bắt đầu phân tích: hiện thanh đánh giá (ván Online)
   Coach.analyse({
     startFen: game.startFen,
     moves: game.history.map(h => ({ from: h.move.from, to: h.move.to, promotion: h.move.promotion || undefined })),
@@ -2159,7 +2172,7 @@ function leaveHome() {
 
 // Đưa người chơi về bàn cờ (đóng Trang chủ / trang hồ sơ)
 function showBoard() {
-  if (!entered) return;
+  if (!entered || restoringGame) return; // đang khôi phục ván lúc vào web: giữ Trang chủ / trang được mở bằng link
   leaveHome();
   closeProfilePage();
 }

@@ -179,6 +179,10 @@ const Online = (() => {
     // Đang đánh: lỗi của máy chủ trung gian không làm đứt kết nối trực tiếp giữa hai bên, ván vẫn tiếp tục
     // (nếu đối thủ thật sự mất kết nối, nhịp tim sẽ phát hiện và xử thua sau 15 giây)
     if (state === 'playing') return info(messages[err.type] || messages.network);
+    // Chưa vào ván mà không nối được máy chủ trung gian (mạng yếu, hoặc máy chủ PeerJS miễn phí đang quá tải / tạm chặn)
+    if (err.type === 'network' || err.type === 'socket-error' || err.type === 'socket-closed' || err.type === 'server-error') {
+      return fail('Không kết nối được máy chủ trung gian (mạng yếu hoặc máy chủ đang quá tải). Hãy thử lại sau ít phút.');
+    }
     fail(messages[err.type] || 'Lỗi kết nối: ' + err.type);
   }
 
