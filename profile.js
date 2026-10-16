@@ -303,8 +303,10 @@ const Profile = (() => {
       refreshToken: r.refreshToken || r.refresh_token,
       expires: Date.now() + Number(r.expiresIn || r.expires_in) * 1000,
       name: name || (auth && auth.name) || '',
+      provider: (auth && auth.provider) || 'password', // 'password' | 'google'
+      email: (auth && auth.email) || '',              // Gmail (tài khoản Google)
     };
-    write(AUTH_KEY, auth);
+    if (!pendingGoogle) write(AUTH_KEY, auth); // đăng nhập Google chưa chọn tên: chưa lưu phiên
   }
 
   async function token() {
@@ -346,6 +348,7 @@ const Profile = (() => {
     }
     auth.name = me.name;
     write(AUTH_KEY, auth);
+    claimName(me.name, t).catch(() => {}); // tài khoản cũ: ghi tên vào sổ tên để người đăng nhập Google không lấy trùng
     try { await loadMyTitle(); } catch {}
     try {
       const p = await call(photoUrl(t));
@@ -413,14 +416,19 @@ const Profile = (() => {
     checkReserved(name);
     password = checkPassword(password);
     if (remote) {
+      // Tên đã có người dùng qua đăng nhập Google (sổ tên /usernames)
+      const owner = await call(`${db}/usernames/${name.toLowerCase()}.json`).catch(() => null);
+      if (owner) throw new Error('EXISTS');
       const r = await call(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${cfg.apiKey}`,
         postJson({ email: toEmail(name), password, returnSecureToken: true }));
+      auth = null;
       setAuth(r, name);
       me = { ...guest(), name };
       adminFlag = false;
       signedIn = true;
       try { await loadMyTitle(); } catch { me.title = ''; }
       try { await putProfile(await token()); } catch {} // tạo lại ở lần đăng nhập sau nếu lỗi
+      claimName(name).catch(() => {});
     } else {
       const users = read(USERS_KEY, {});
       const key = name.toLowerCase();
@@ -442,6 +450,7 @@ const Profile = (() => {
     if (remote) {
       const r = await call(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${cfg.apiKey}`,
         postJson({ email: toEmail(name), password: String(password || ''), returnSecureToken: true }));
+      auth = null;
       setAuth(r, name);
       await pull(name);
       signedIn = true;
@@ -463,6 +472,8 @@ const Profile = (() => {
 
   // Tự đăng nhập lại bằng phiên đã lưu. Trả về true nếu thành công.
   async function restore() {
+    // Lần trước vào bằng chế độ khách. `await` để app.js khởi tạo xong rồi mới báo thay đổi (tránh dùng biến chưa khai báo)
+    if (read(GUEST_KEY, false) === true) { await null; enterGuest(); return true; }
     try {
       if (remote) {
         if (!auth) return false;
@@ -488,10 +499,142 @@ const Profile = (() => {
   async function logout() {
     await queue.catch(() => {}); // đợi ghi nốt dữ liệu đang chờ
     signedIn = false;
-    auth = null; localKey = null; adminFlag = false;
-    drop(AUTH_KEY); drop(SESSION_KEY);
+    auth = null; localKey = null; adminFlag = false; guestMode = false; pendingGoogle = null;
+    drop(AUTH_KEY); drop(SESSION_KEY); drop(GUEST_KEY);
+    try { if (window.firebase && firebase.apps && firebase.apps.length) await firebase.auth().signOut(); } catch {}
     me = guest();
     notify();
+  }
+
+  // ---------- Chế độ khách ----------
+  // Chơi không cần tài khoản: đấu máy, 2 người, câu đố, học cờ, thư viện. Không có Elo / rank, không chơi Online,
+  // không tham gia contest. Tiến độ lưu trên máy này (như tài khoản "guest").
+  const GUEST_KEY = 'rg-guest';
+  let guestMode = false;
+  function enterGuest() {
+    guestMode = true;
+    signedIn = false;
+    auth = null; localKey = null; adminFlag = false;
+    me = guest();
+    write(GUEST_KEY, true);
+    notify();
+  }
+  const isGuest = () => guestMode;
+
+  // ---------- Sổ tên (/usernames/<tên viết thường> = uid) ----------
+  // Tài khoản Google không có email "tên@rg-user.app" nên dùng sổ tên để giữ tên đăng nhập là duy nhất.
+  async function claimName(name, t) {
+    if (!remote || !auth) return;
+    const lower = String(name).toLowerCase();
+    const owner = await call(`${db}/usernames/${lower}.json`);
+    if (owner) return;
+    await call(`${db}/usernames/${lower}.json?auth=${t || await token()}`, { method: 'PUT', body: JSON.stringify(auth.uid) });
+  }
+
+  // ---------- Đăng nhập bằng Google (Gmail) ----------
+  // Dùng Firebase Auth (SDK chỉ tải khi bấm nút). Cần bật Google trong Firebase Console › Authentication › Sign-in method
+  // và thêm tên miền web vào Authorized domains. Lần đầu đăng nhập: chọn tên hiển thị (chooseName).
+  const SDK = [
+    ['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', 'sha384-AQ3POAMqIhwS81FrUH95ekxqBZHeP5tG2JfEL3+7GuTtfRLWnrRh32UxwzM+//A9'],
+    ['https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js', 'sha384-TnlRYaR4JYz/lpaGuaiU61PjNberSA4vjLjtF+oRC/IkohkJqnWxw5EmDSOt1vA1'],
+  ];
+  let pendingGoogle = null; // đã đăng nhập Google nhưng chưa có hồ sơ: { suggest }
+  const authDomain = () => cfg.authDomain || ((/^https?:\/\/([^.]+?)(?:-default-rtdb)?\./.exec(cfg.databaseURL || '') || [])[1] || '') + '.firebaseapp.com';
+  function loadScript(src, integrity) {
+    return new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = src; el.integrity = integrity; el.crossOrigin = 'anonymous';
+      el.onload = resolve; el.onerror = () => reject(new Error('NETWORK'));
+      document.head.appendChild(el);
+    });
+  }
+  async function loadSdk() {
+    if (window.firebase && window.firebase.auth) return;
+    for (const [src, sri] of SDK) await loadScript(src, sri);
+  }
+  const GOOGLE_ERR = {
+    'auth/popup-closed-by-user': 'CANCELLED', 'auth/cancelled-popup-request': 'CANCELLED', 'auth/user-cancelled': 'CANCELLED',
+    'auth/popup-blocked': 'POPUP', 'auth/unauthorized-domain': 'DOMAIN', 'auth/operation-not-allowed': 'NOT_ALLOWED',
+    'auth/network-request-failed': 'NETWORK', 'auth/too-many-requests': 'TOO_MANY', 'auth/user-disabled': 'BAD_LOGIN',
+  };
+  // Trả về { needName: true, suggest } nếu là lần đầu (cần chọn tên), hoặc { needName: false } nếu đã vào được
+  async function loginGoogle() {
+    if (!remote) throw new Error('NO_REMOTE');
+    await loadSdk();
+    if (!firebase.apps.length) firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: authDomain() });
+    let res;
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      res = await firebase.auth().signInWithPopup(provider);
+    } catch (e) {
+      throw new Error(GOOGLE_ERR[e && e.code] || 'SERVER');
+    }
+    const u = res.user;
+    pendingGoogle = { suggest: suggestName(u) };
+    auth = null;
+    setAuth({ localId: u.uid, idToken: await u.getIdToken(), refreshToken: u.refreshToken, expiresIn: 3500 }, '');
+    auth.provider = 'google';
+    auth.email = u.email || '';
+    const r = await call(playerUrl(await token()));
+    if (r && typeof r.name === 'string') { // đã có hồ sơ: vào luôn
+      pendingGoogle = null;
+      write(AUTH_KEY, auth);
+      await pull(r.name);
+      guestMode = false; drop(GUEST_KEY);
+      signedIn = true;
+      notify();
+      return { needName: false };
+    }
+    return { needName: true, suggest: pendingGoogle.suggest };
+  }
+  // Gợi ý tên từ Gmail / tên Google: chỉ chữ không dấu, số, dấu _
+  function suggestName(u) {
+    const base = String((u.email || '').split('@')[0] || u.displayName || 'player')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').replace(/[^A-Za-z0-9_]/g, '').slice(0, 20);
+    const n = base.length >= 3 ? base : (base + 'player').slice(0, 20);
+    return /^admin/i.test(n) ? 'player_' + n.slice(0, 13) : n;
+  }
+  // Lần đầu đăng nhập Google: chọn tên hiển thị (duy nhất, như tên đăng nhập)
+  async function chooseName(raw) {
+    if (!pendingGoogle || !auth) throw new Error('SESSION');
+    const name = checkName(raw);
+    checkReserved(name);
+    const t = await token();
+    const lower = name.toLowerCase();
+    const owner = await call(`${db}/usernames/${lower}.json`);
+    if (owner && owner !== auth.uid) throw new Error('EXISTS');
+    // Tài khoản đăng ký bằng tên + mật khẩu từ trước có thể chưa có trong sổ tên: so với danh sách người chơi
+    const players = await call(`${db}/players.json`).catch(() => null);
+    if (players && Object.entries(players).some(([id, p]) => id !== auth.uid && p && typeof p.name === 'string' && p.name.toLowerCase() === lower)) throw new Error('EXISTS');
+    if (!owner) await call(`${db}/usernames/${lower}.json?auth=${t}`, { method: 'PUT', body: JSON.stringify(auth.uid) });
+    me = { ...guest(), name };
+    auth.name = name;
+    await putProfile(t);
+    pendingGoogle = null;
+    write(AUTH_KEY, auth);
+    guestMode = false; drop(GUEST_KEY);
+    adminFlag = false;
+    signedIn = true;
+    try { await loadMyTitle(); } catch { me.title = ''; }
+    notify();
+  }
+  function cancelGoogle() {
+    pendingGoogle = null; auth = null;
+    try { if (window.firebase && firebase.apps.length) firebase.auth().signOut(); } catch {}
+  }
+
+  // ---------- Thông báo qua Gmail (tài khoản Google) ----------
+  // Lưu /notify/<uid> = { email, on, name, at }. Luật Firebase chỉ cho ghi đúng Gmail đã xác minh của chính mình,
+  // nên không ai đăng ký nhận thư hộ người khác được. Email được gửi bởi Google Apps Script (tools/email-notify.gs).
+  const canEmail = () => remote && signedIn && !!auth && auth.provider === 'google' && !!auth.email;
+  async function getEmailNotify() {
+    if (!canEmail()) return false;
+    try { const r = await call(`${db}/notify/${auth.uid}.json?auth=${await token()}`); return !!(r && r.on); } catch { return false; }
+  }
+  async function setEmailNotify(on) {
+    if (!canEmail()) throw new Error('NO_GOOGLE');
+    await call(`${db}/notify/${auth.uid}.json?auth=${await token()}`, { method: 'PUT', body: JSON.stringify({ email: auth.email, on: !!on, name: me.name, at: { '.sv': 'timestamp' } }) });
   }
 
   // ---------- Ảnh đại diện công khai (lưu riêng /photos, không nằm trong /players) ----------
@@ -820,6 +963,8 @@ const Profile = (() => {
     uid, dbCall,
     remote,
     signedIn: () => signedIn,
+    isGuest, enterGuest, loginGoogle, chooseName, cancelGoogle, canEmail, getEmailNotify, setEmailNotify,
+    email: () => (auth && auth.email) || '', provider: () => (auth && auth.provider) || '',
     register, login, restore, logout,
     leaderboard, player, eloHistory, getAnnounce, setAnnounce,
     isOwner, isAdmin, refreshAdmin, listPlayers, setAdmin, setMute, setMuteByName, isMuted, mutesMap, setTitle, titlesMap, loadMyTitle, TITLES,

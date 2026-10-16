@@ -704,7 +704,8 @@ function renderHeader() {
   const badgeEl = $('meRankBadge');
   if (badgeEl) badgeEl.innerHTML = medal;
   const ratingEl = $('meRating');
-  if (ratingEl) ratingEl.innerHTML = `<span class="me-rank-line"><span style="color:${rank.color}">${rank.text}</span></span> · ${me.elo} Elo`;
+  if (ratingEl) ratingEl.innerHTML = Profile.isGuest() ? '<span class="me-rank-line">Chế độ khách</span>'
+    : `<span class="me-rank-line"><span style="color:${rank.color}">${rank.text}</span></span> · ${me.elo} Elo`;
   const rankBtn = $('rankBtn');
   if (rankBtn) rankBtn.title = `${rank.name} · ${me.elo} Elo`;
   setAvatar($('meAvatar'), { name: me.name, photo: me.photo, me: true }, 'w');
@@ -1061,7 +1062,7 @@ function startRatedGame() {
 
 // Đang đấu với máy (ván có thể tính Elo)
 function isRatedBotGame() {
-  return mode === 'play' && aiColor !== 'none' && !practice && !ratedDone && !playResult && !game.isGameOver();
+  return mode === 'play' && aiColor !== 'none' && !practice && !Profile.isGuest() && !ratedDone && !playResult && !game.isGameOver();
 }
 
 // Bỏ ván giữa chừng khi đấu với máy bị tính thua (như chess.com). Trả về false nếu người chơi hủy.
@@ -1076,8 +1077,9 @@ function abandonBotGame() {
 function renderRatedNote() {
   const el = $('ratedNote');
   const rated = aiColor !== 'none';
-  el.classList.toggle('off', !rated || assisted || practice);
-  el.textContent = practice ? 'Ván tập từ Thư viện · không tính Elo'
+  el.classList.toggle('off', !rated || assisted || practice || Profile.isGuest());
+  el.textContent = Profile.isGuest() ? 'Chế độ khách: không tính Elo, không xếp hạng · đăng nhập để có Elo và rank'
+    : practice ? 'Ván tập từ Thư viện · không tính Elo'
     : !rated ? '2 người cùng máy không tính Elo'
     : assisted ? (Profile.isAdmin() ? 'Ván này không tính Elo vì đã dùng Đi lại' : 'Ván này không tính Elo vì đã dùng Gợi ý / Đi lại')
     : `Đấu với máy ${LEVEL_NAME[gameLevel]} (${BOT_ELO[gameLevel]} Elo) có tính Elo, không tính rank · ${Profile.isAdmin() ? 'Admin: Gợi ý vẫn tính, Đi lại thì không' : 'dùng Gợi ý hoặc Đi lại thì không tính'}`;
@@ -1198,6 +1200,7 @@ function checkResult() {
   let change = null, note = null;
   if (o.score != null) {
     if (mode === 'play' && practice) note = 'Ván tập từ Thư viện không tính Elo';
+    else if (Profile.isGuest()) note = 'Chế độ khách không tính Elo';
     else if (mode === 'play' && assisted) note = Profile.isAdmin() ? 'Ván có dùng Đi lại nên không tính Elo' : 'Ván có dùng Gợi ý / Đi lại nên không tính Elo';
     else if (game.history.length < MIN_RANKED_PLIES) note = mode === 'online' ? 'Ván quá ngắn nên không tính rank và Elo' : 'Ván quá ngắn nên không tính Elo';
     else change = mode === 'online' ? Profile.record(o.score, Online.oppElo()) : Profile.recordBot(o.score, BOT_ELO[gameLevel]);
@@ -1662,7 +1665,7 @@ function renderCoachResult() {
 function updateCoachBadge() {
   const el = $('puzzleBadge');
   if (!el || typeof Coach === 'undefined') return;
-  const n = Profile.signedIn() ? Coach.due().length : 0;
+  const n = Profile.signedIn() || Profile.isGuest() ? Coach.due().length : 0;
   el.hidden = !n;
   el.textContent = n > 9 ? '9+' : n;
 }
@@ -1722,6 +1725,7 @@ function showResult(o, change, note) {
 // ---------------- Chuyển chế độ ----------------
 
 function setMode(m) {
+  if (m === 'online' && Profile.isGuest()) { guestBlocked('chơi Online'); return; }
   showBoard();
   if (m === mode) return;
   if (mode === 'online' && Online.inGame() && game.history.length >= 2 &&
@@ -2191,6 +2195,20 @@ function renderHome() {
     <span class="hm-exp" title="Exp tới ngôi sao tiếp theo"><span class="hm-exp-bar"><i style="width:${pct}%;background:${rank.color}"></i></span>
       <small>${rank.top ? '<span>Rank cao nhất</span>' : `${rank.inStar}/${R.perStar} exp`}</small></span>`;
   $('hmRank').querySelector('.hm-rank-btn').addEventListener('click', openRank);
+  // Chế độ khách: không có rank / Elo, mời đăng nhập
+  let gb = $('hmGuest');
+  if (Profile.isGuest()) {
+    $('hmRank').innerHTML = '<span class="hm-guest-chip">Chế độ khách</span>';
+    if (!gb) {
+      gb = document.createElement('div');
+      gb.id = 'hmGuest';
+      gb.className = 'hm-guest';
+      gb.innerHTML = '<span><b>Bạn đang chơi với tư cách khách</b><small>Đăng nhập (hoặc dùng Google) để có rank, Elo, chơi Online, tham gia contest và đồng bộ nhật ký giữa các máy.</small></span><button type="button" class="primary">Đăng nhập / Đăng ký</button>';
+      gb.querySelector('button').addEventListener('click', leaveGuest);
+      $('hmStats').before(gb);
+    }
+    gb.hidden = false;
+  } else if (gb) gb.hidden = true;
 
   const hist = typeof GameHistory !== 'undefined' ? GameHistory.read() : [];
   const res = hist.map(g => GameHistory.outcome(g)); // ván 2 người không tính vào tỉ lệ thắng
@@ -2201,7 +2219,7 @@ function renderHome() {
   const stat = (ic, val, label, cls = '', title = '') =>
     `<div class="hm-stat ${cls}"${title ? ` title="${title}"` : ''}><svg class="ic"><use href="#${ic}"/></svg><b>${val}</b><small>${label}</small></div>`;
   $('hmStats').innerHTML =
-    stat('i-star', me.elo, 'Elo', 'gold', 'Elo hiện tại') +
+    stat('i-star', Profile.isGuest() ? '—' : me.elo, 'Elo', 'gold', 'Elo hiện tại') +
     stat('i-swords', hist.length, 'Ván đã chơi', '', 'Số ván trong nhật ký trên máy này') +
     stat('i-trophy', decided ? Math.round(100 * wins / decided) + '%' : '—', 'Tỉ lệ thắng', 'green') +
     stat('i-flame', learn ? learn.streak : 0, 'Chuỗi ngày học', 'flame') +
@@ -2768,6 +2786,7 @@ function renderProfileSide(p, rank) {
       box.checked = OFF_BY_DEFAULT.has(k) ? !!Profile.prefs()[k] : Profile.prefs()[k] !== false;
     }
     $('notifyToggle').checked = !!Profile.prefs().notify && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+    renderMailNotify();
     renderThemes();
   }
 }
@@ -3024,7 +3043,7 @@ if ($('clockSel')) {
   if (use) use.setAttribute('href', onSound ? '#i-volume' : '#i-mute');
 })();
 $('rankBtn').addEventListener('click', openRank);
-$('profileBtn').addEventListener('click', () => openProfile());
+$('profileBtn').addEventListener('click', () => (Profile.isGuest() ? guestBlocked('có hồ sơ, rank và Elo') : openProfile()));
 $('promo').addEventListener('click', e => {
   if (e.target === $('promo')) $('promo').hidden = true;
 });
@@ -3068,7 +3087,11 @@ const AUTH_ERRORS = {
   BAD_LOGIN: 'Sai tên đăng nhập hoặc mật khẩu',
   TOO_MANY: 'Thử quá nhiều lần, hãy đợi một lúc rồi thử lại',
   NETWORK: 'Không kết nối được máy chủ. Kiểm tra mạng Internet.',
-  NOT_ALLOWED: 'Máy chủ chưa bật đăng nhập Email/Password (xem README).',
+  NOT_ALLOWED: 'Máy chủ chưa bật cách đăng nhập này (Firebase Console › Authentication › Sign-in method, xem README).',
+  POPUP: 'Trình duyệt đã chặn cửa sổ đăng nhập Google. Hãy cho phép cửa sổ bật lên rồi thử lại.',
+  DOMAIN: 'Tên miền của web chưa được thêm vào Firebase (Authentication › Settings › Authorized domains).',
+  SESSION: 'Phiên đăng nhập đã hết, hãy đăng nhập lại.',
+  NO_REMOTE: 'Đăng nhập bằng Google cần cấu hình Firebase (xem README).',
   DENIED: 'Máy chủ từ chối truy cập, kiểm tra lại luật Firebase (xem README).',
 };
 let authMode = 'login';
@@ -3092,6 +3115,7 @@ function enterApp() {
   renderPlayers();
   // Mở bằng link mời (?room=MÃ) thì vào thẳng phòng online (sau khi chọn trình độ)
   const go = () => {
+    if (room && Profile.isGuest()) { toast('Link mời là ván Online: hãy đăng nhập để vào phòng.'); return; }
     if (room) {
       setMode('online');
       Online.join(room);
@@ -3106,6 +3130,22 @@ function enterApp() {
   routeContest(); // mở bằng link #contest/<id>
   updateCoachBadge();
   applyPendingForfeit();
+  if (typeof GameHistory !== 'undefined' && GameHistory.sync) GameHistory.sync(); // nhật ký chơi trên máy khác
+}
+
+// Nhật ký vừa đồng bộ với tài khoản (có ván chơi trên máy khác): vẽ lại Trang chủ / Hồ sơ đang mở
+if (typeof GameHistory !== 'undefined' && GameHistory.onChange) {
+  GameHistory.onChange(() => {
+    if (entered && homeVisible()) renderHome();
+    if (pfView && pfView.p.me && !$('profilePage').hidden) renderProfilePage(selfPlayer(), pfView.hist);
+  });
+  // Quay lại tab / mở lại app trên điện thoại: đồng bộ (tối đa 1 lần mỗi phút)
+  let lastVisSync = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !entered || Date.now() - lastVisSync < 60000) return;
+    lastVisSync = Date.now();
+    GameHistory.sync();
+  });
 }
 
 // Lần trước thoát trang giữa ván Online (đóng tab, tải lại trang…): ván đó bị tính thua
@@ -3173,6 +3213,87 @@ $('authForm').addEventListener('submit', async e => {
     msg.textContent = AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
   }
   $('authSubmit').disabled = false;
+});
+
+// ----- Đăng nhập bằng Google (Gmail) và chế độ khách -----
+$('authGoogle').hidden = !Profile.remote; // cần Firebase
+function showNameStep(on, suggest = '') {
+  $('authForm').hidden = on;
+  $('authAlt').hidden = on;
+  document.querySelector('.auth-tabs').hidden = on;
+  $('authNameForm').hidden = !on;
+  $('authGMsg').textContent = '';
+  if (on) {
+    $('authGEmail').textContent = Profile.email();
+    $('authGName').value = suggest;
+    $('authGName').focus();
+  }
+}
+$('authGoogle').addEventListener('click', async () => {
+  const msg = $('authMsg');
+  msg.textContent = '';
+  $('authGoogle').disabled = true;
+  try {
+    const r = await Profile.loginGoogle();
+    if (r.needName) showNameStep(true, r.suggest); // lần đầu: chọn tên hiển thị
+    else enterApp();
+  } catch (err) {
+    if (err.message !== 'CANCELLED') msg.textContent = AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
+  }
+  $('authGoogle').disabled = false;
+});
+$('authNameForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('authGMsg').textContent = '';
+  $('authGSubmit').disabled = true;
+  try {
+    await Profile.chooseName($('authGName').value);
+    showNameStep(false);
+    enterApp();
+  } catch (err) {
+    $('authGMsg').textContent = AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
+    if (err.message === 'SESSION') { Profile.cancelGoogle(); setTimeout(() => showNameStep(false), 1500); }
+  }
+  $('authGSubmit').disabled = false;
+});
+$('authGCancel').addEventListener('click', () => { Profile.cancelGoogle(); showNameStep(false); });
+$('authGuest').addEventListener('click', () => { Profile.enterGuest(); enterApp(); });
+
+// Khách bấm vào tính năng cần tài khoản: mời đăng nhập
+function guestBlocked(what) {
+  if (confirm(`Chế độ khách không ${what} được. Đăng nhập hoặc đăng ký tài khoản (miễn phí)?`)) leaveGuest();
+}
+async function leaveGuest() {
+  await Profile.logout();
+  history.replaceState(null, '', location.pathname + location.search);
+  location.reload();
+}
+
+// ----- Cài đặt: gửi thông báo về Gmail (tài khoản Google) -----
+async function renderMailNotify() {
+  const row = $('mailNotifyRow'), box = $('mailNotifyToggle'), note = $('mailNotifyNote');
+  if (!row) return;
+  row.hidden = note.hidden = !Profile.remote;
+  if (!Profile.remote) return;
+  const can = Profile.canEmail();
+  box.disabled = !can;
+  if (!can) { box.checked = false; note.textContent = 'Đăng nhập bằng Google để nhận thông báo qua Gmail.'; return; }
+  note.textContent = 'Gửi tới ' + Profile.email();
+  box.checked = await Profile.getEmailNotify();
+}
+$('mailNotifyToggle').addEventListener('change', async e => {
+  const on = e.target.checked;
+  e.target.disabled = true;
+  try {
+    await Profile.setEmailNotify(on);
+    toast(on ? 'Đã bật: thông báo contest sẽ được gửi về ' + Profile.email() : 'Đã tắt thông báo qua Gmail');
+  } catch (err) {
+    e.target.checked = !on;
+    $('mailNotifyNote').textContent = err.message === 'DENIED'
+      ? 'Máy chủ chưa cho lưu: chủ web cần dán lại firebase-rules.json (có mục "notify") rồi bấm Publish.'
+      : 'Không lưu được, kiểm tra mạng rồi thử lại.';
+  }
+  e.target.disabled = !Profile.canEmail();
 });
 
 Profile.restore().then(ok => {
@@ -3962,6 +4083,11 @@ function renderContestActions() {
     return b;
   };
   const note = text => box.insertAdjacentHTML('beforeend', `<p class="muted center">${text}</p>`);
+  if (Profile.isGuest()) { // khách: xem được contest nhưng không tham gia
+    if (ph !== 'ended') add('Đăng nhập để tham gia contest', 'primary big', leaveGuest);
+    note('Chế độ khách không tham gia contest được.');
+    return;
+  }
   if (ph === 'upcoming') {
     if (joined) {
       add('Đã đăng ký ✓', 'big', () => {}, true);
@@ -4018,6 +4144,7 @@ function startContestClock() {
 }
 
 async function contestRegister(btn) {
+  if (Profile.isGuest()) return guestBlocked('tham gia contest');
   const c = contestView;
   btn.disabled = true;
   setContestMsg($('contestMsg'), '');

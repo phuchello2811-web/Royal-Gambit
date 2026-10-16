@@ -6,7 +6,7 @@ Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần 
 
 - **Trang chủ** (tab đầu tiên, hoặc bấm logo): lời chào, rank + thanh exp, Elo, số ván, tỉ lệ thắng, chuỗi ngày học, số câu đố đã giải; thẻ **Ván đang dở** (bấm Tiếp tục để quay lại bàn); 4 nút bắt đầu nhanh (Chơi với máy, Online, Câu đố, Học cờ); **Câu đố hôm nay**; danh sách **Việc hôm nay** (giải câu đố, mục tiêu học, ôn Sổ luyện lỗi, chơi 1 ván); 5 ván gần đây; contest đang / sắp diễn ra kèm đếm ngược; top 5 Elo; **Khai cuộc hôm nay**. Vào web là mở Trang chủ (trừ khi vào bằng link mời phòng)
 - **Contest**: lọc Đang diễn ra / Sắp diễn ra / Đã kết thúc / Của tôi; mỗi contest hiện đồng hồ đếm ngược, số người tham gia, nhà vô địch. Trang chi tiết có thanh tiến độ thời gian, thống kê, thẻ "Thành tích của bạn", **link chia sẻ** (`#contest/<id>` mở thẳng contest đó), **Thêm vào lịch** (file .ics, nhắc trước 10 phút) và nút **Sửa** cho admin (đổi tên / mô tả; đổi giờ khi chưa bắt đầu)
-- **Nhật ký ván**: lưu riêng theo tài khoản (tối đa 100 ván), ghi đối thủ, màu quân, Elo ± và độ chính xác; thống kê tổng, lọc Thắng / Hòa / Thua và theo chế độ, tìm kiếm, nhóm theo ngày, bàn cờ thu nhỏ. **Xem lại** từng nước trên bàn, **Phân tích** / **Xem phân tích** (xếp loại từng nước), sao chép / **tải PGN** các ván đang lọc. Ván 2 người cùng máy hiện "Trắng thắng / Đen thắng" và không tính vào tỉ lệ thắng của bạn
+- **Nhật ký ván**: lưu riêng theo tài khoản (tối đa 100 ván) và **đồng bộ qua tài khoản** ở bản Firebase: chơi trên máy tính thì mở trên điện thoại vẫn thấy, xoá ở máy này thì máy kia cũng xoá, chơi lúc mất mạng thì có mạng lại tự đồng bộ (dòng trạng thái ☁ trong hộp Nhật ký). **Cần dán lại `firebase-rules.json` mới (có mục `history`) rồi bấm Publish**; ghi đối thủ, màu quân, Elo ± và độ chính xác; thống kê tổng, lọc Thắng / Hòa / Thua và theo chế độ, tìm kiếm, nhóm theo ngày, bàn cờ thu nhỏ. **Xem lại** từng nước trên bàn, **Phân tích** / **Xem phân tích** (xếp loại từng nước), sao chép / **tải PGN** các ván đang lọc. Ván 2 người cùng máy hiện "Trắng thắng / Đen thắng" và không tính vào tỉ lệ thắng của bạn
 - **Nhập PGN / FEN** (nút **Nhập PGN** trong Nhật ký): dán PGN một ván từ chess.com, lichess… (chấp nhận chú thích, đồng hồ `[%clk]`, biến phụ, ký hiệu `$1`, `0-0`…), chọn bên bạn cầm (tự nhận ra nếu tên trong PGN trùng tên tài khoản), web lưu ván, phân tích bằng Stockfish rồi mở chế độ xem lại từng nước. Dán một thế cờ FEN thì thế cờ được đặt lên bàn 2 người
 - **Mũi tên và đánh dấu**: chuột phải kéo từ ô này sang ô khác để vẽ mũi tên, chuột phải bấm một ô để đánh dấu ô; bấm chuột trái hoặc đi nước là xoá. Khi xem phân tích, mũi tên xanh chỉ nước tốt nhất
 - **Tự lưu ván đang dở**: ván đấu máy / 2 người / ván tập được lưu sau mỗi nước; tải lại trang hay tắt trình duyệt rồi vào lại thì ván được khôi phục (ván tính Elo vẫn tính Elo, đồng hồ giữ thời gian còn lại)
@@ -61,6 +61,7 @@ Chế độ Online cần mạng Internet. Hai trình duyệt kết nối trực 
 | `lessons.js` | Nội dung 106 bài học và bộ giải nhỏ (gợi ý, kiểm tra bài) |
 | `learn.js` | Chế độ học cờ kiểu Duolingo |
 | `tools/check-lessons.js` | Kiểm tra mọi bài học giải được: `node tools/check-lessons.js` |
+| `tools/email-notify.gs` | Google Apps Script gửi thông báo contest qua Gmail (xem mục Thông báo qua Gmail) |
 | `tools/make-skins.js` | Tạo các bộ quân skin trong `pieces/<skin>/` từ bộ gốc: `node tools/make-skins.js` |
 | `online.js` | Chế độ chơi online (PeerJS / WebRTC), gồm tìm trận tự động |
 | `contest.js` | Contest: tạo (admin), đăng ký, cộng điểm, bảng điểm, huy chương |
@@ -160,6 +161,31 @@ Web có 2 chế độ, tự chọn theo `config.js`:
 5. Điền 2 giá trị đó vào `config.js`, rồi đăng web lên mạng (mục dưới).
 
 Cách hoạt động: tên đăng nhập được đổi thành email giả `tên@rg-user.app` để dùng đăng nhập email/mật khẩu của Firebase, nên **không có chức năng quên mật khẩu**. Luật server chặn tạo điểm khống: tài khoản mới bắt đầu từ 0 exp và 800 Elo, chỉ được chọn trình độ một lần (400–1500), mỗi ván chỉ được +15 / +5 / −10 exp, Elo mỗi ván đổi tối đa 40, hai ván cách nhau ít nhất 10 giây, và mỗi người chỉ sửa được dữ liệu của chính mình. Tuy vậy điểm vẫn do trình duyệt tự gửi lên, nên người rành kỹ thuật vẫn có thể gian lận dần; đây là bảng xếp hạng cho vui, không phải giải đấu.
+
+## Đăng nhập bằng Google (Gmail)
+
+Nút **Đăng nhập bằng Google** trên màn hình đăng nhập (chỉ hiện ở bản Firebase). Lần đầu đăng nhập, người chơi chọn **tên hiển thị** (giống tên đăng nhập: 3–20 ký tự, không trùng ai, không bắt đầu bằng `admin`); các lần sau vào thẳng. Tên được giữ duy nhất nhờ "sổ tên" `/usernames` trên Firebase (tài khoản tên + mật khẩu cũ tự ghi tên vào sổ ở lần đăng nhập tiếp theo).
+
+Cài một lần trong Firebase Console:
+1. **Authentication › Sign-in method › Add new provider › Google › Enable**, chọn email hỗ trợ, bấm Save.
+2. **Authentication › Settings › Authorized domains**: thêm tên miền web (ví dụ `ten-ban.github.io`). `localhost` có sẵn để chạy thử.
+3. Dán lại toàn bộ `firebase-rules.json` (có thêm `usernames`, `notify`, `history`) rồi bấm **Publish**.
+4. `config.js` đã có `authDomain` (`<project-id>.firebaseapp.com`); đổi project thì sửa cho khớp.
+
+## Thông báo qua Gmail
+
+Người đăng nhập bằng Google bật **Gửi thông báo về Gmail** trong Hồ sơ › Cài đặt để nhận thư khi **có contest mới** và khi **contest đã đăng ký sắp bắt đầu** (≤ 15 phút). Web là trang tĩnh nên không tự gửi email; việc gửi do một **Google Apps Script** chạy bằng Gmail của chủ web đảm nhận (miễn phí, khoảng 100 thư / ngày). Luật Firebase chỉ cho mỗi người đăng ký đúng Gmail đã xác minh của chính mình, nên không ai dùng được để gửi thư cho người khác.
+
+Cài script (một lần):
+1. Vào <https://script.google.com> › **New project**, dán toàn bộ `tools/email-notify.gs` vào `Code.gs`, bấm Save.
+2. **Project Settings › Script properties**: thêm `DB_URL` (giống `databaseURL`), `DB_SECRET` (Firebase Console › Project settings › Service accounts › **Database secrets** › Show) và `SITE_URL` (địa chỉ web).
+3. Chọn hàm **setup**, bấm **Run**, cho phép quyền. Script tự chạy mỗi 5 phút; chạy **testEmail** để gửi thử cho chính bạn.
+
+`DB_SECRET` là khoá quản trị cơ sở dữ liệu: chỉ để trong Script properties, không dán vào file web.
+
+## Chế độ khách
+
+Nút **Chơi với tư cách khách**: vào chơi không cần tài khoản (đấu máy, 2 người cùng máy, câu đố, học cờ, thư viện, nhật ký và phân tích trên máy này). Khách **không có rank / Elo** (đấu máy không tính Elo), **không chơi Online**, **không tham gia contest** (vẫn xem được bảng xếp hạng và danh sách contest). Bấm vào các tính năng đó, hoặc nút trên Trang chủ, để chuyển sang đăng nhập / đăng ký. Tiến độ của khách lưu trên máy này.
 
 ## Đăng lên GitHub Pages
 

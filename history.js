@@ -33,9 +33,11 @@ const GameHistory = (() => {
   function save(entry) {
     if (!entry || !entry.pgn || (entry.moves || 0) < (entry.mode === 'import' ? 1 : 2)) return null;
     const list = read();
+    const now = Date.now();
     const g = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      at: Date.now(),
+      id: now.toString(36) + Math.random().toString(36).slice(2, 6),
+      at: now,
+      u: now, // lần sửa cuối (để gộp khi đồng bộ giữa các máy)
       mode: entry.mode || 'play',
       result: entry.result || '*',
       title: entry.title || 'Ván cờ',
@@ -49,6 +51,7 @@ const GameHistory = (() => {
     if (Number.isFinite(entry.elo)) g.elo = entry.elo;
     list.unshift(g);
     write(list);
+    push([g]);
     return g.id;
   }
 
@@ -56,13 +59,122 @@ const GameHistory = (() => {
     const list = read();
     const g = list.find(x => x.id === id);
     if (!g) return;
-    Object.assign(g, fields);
+    Object.assign(g, fields, { u: Date.now() });
     write(list);
+    push([g]);
     if (!$('histModal').hidden) render();
   }
 
-  function remove(id) { write(read().filter(x => x.id !== id)); }
-  function clear() { write([]); }
+  function remove(id) {
+    write(read().filter(x => x.id !== id));
+    markDeleted([id]);
+  }
+  function clear() {
+    const ids = read().map(g => g.id);
+    write([]);
+    markDeleted(ids);
+  }
+
+  // ---------- Đồng bộ với tài khoản (bản Firebase) ----------
+  // Mỗi ván lưu ở /history/<uid>/<id> = { at, u, d: JSON của ván } hoặc { at, u, del: true } (đã xoá).
+  // Gộp theo `u` (lần sửa cuối): bản mới hơn thắng, nên xoá ở máy này thì máy kia cũng xoá, không bị đẩy lên lại.
+  // Cần luật Firebase có mục "history" (firebase-rules.json). Chế độ cục bộ (không Firebase) thì không đồng bộ.
+  const DEL_KEY = () => key() + ':deleted'; // ván đã xoá ở máy này: id → thời điểm xoá
+  const remoteOn = () => typeof Profile !== 'undefined' && Profile.remote && Profile.signedIn() && !!Profile.uid();
+  const path = () => 'history/' + Profile.uid();
+  const pack = g => ({ at: g.at, u: g.u || g.at, d: JSON.stringify(g) });
+  let syncInfo = { state: 'idle', at: 0, error: '' };
+  let syncing = null, pushTimer = null;
+  const listeners = [];
+  const changed = () => listeners.forEach(f => { try { f(); } catch {} });
+
+  function readDeleted() { try { return JSON.parse(localStorage.getItem(DEL_KEY())) || {}; } catch { return {}; } }
+  function writeDeleted(m) {
+    const cut = Date.now() - 90 * 86400000; // dấu xoá cũ hơn 90 ngày thì bỏ
+    for (const id in m) if (m[id] < cut) delete m[id];
+    try { localStorage.setItem(DEL_KEY(), JSON.stringify(m)); } catch {}
+  }
+  function markDeleted(ids) {
+    if (!ids.length) return;
+    const m = readDeleted(), now = Date.now();
+    for (const id of ids) m[id] = now;
+    writeDeleted(m);
+    if (remoteOn()) send(Object.fromEntries(ids.map(id => [id, { at: now, u: now, del: true }])));
+  }
+  function push(games) { if (remoteOn() && games.length) send(Object.fromEntries(games.map(g => [g.id, pack(g)]))); }
+
+  // Ghi nhiều ván một lần (PATCH); lỗi mạng thì để lần đồng bộ sau gộp lại
+  async function send(patch) {
+    try { await Profile.dbCall(path(), 'PATCH', patch); setInfo('ok'); }
+    catch (e) { setInfo('error', e.message); }
+  }
+  function setInfo(state, error = '') {
+    syncInfo = { state, at: state === 'ok' ? Date.now() : syncInfo.at, error };
+    renderSyncNote();
+  }
+
+  // Tải nhật ký trên tài khoản về, gộp với nhật ký trên máy này, rồi đẩy phần máy này có mà tài khoản chưa có
+  function sync() {
+    if (!remoteOn()) return Promise.resolve(false);
+    if (syncing) return syncing;
+    setInfo('syncing');
+    syncing = (async () => {
+      try {
+        const remote = (await Profile.dbCall(path())) || {};
+        const local = read(), deleted = readDeleted();
+        const byId = new Map(local.map(g => [g.id, g]));
+        const ids = new Set([...byId.keys(), ...Object.keys(deleted), ...Object.keys(remote)]);
+        const keep = [], patch = {};
+        for (const id of ids) {
+          const L = byId.get(id), D = deleted[id], R = remote[id];
+          let rGame = null;
+          if (R && !R.del && typeof R.d === 'string') { try { rGame = JSON.parse(R.d); } catch {} }
+          if (rGame && (rGame.id !== id || typeof rGame.pgn !== 'string')) rGame = null;
+          const cand = [
+            L ? { u: L.u || L.at, game: L, from: 'local' } : null,
+            D ? { u: D, game: null, from: 'local' } : null,
+            R ? { u: Number(R.u) || 0, game: rGame, from: 'remote' } : null,
+          ].filter(Boolean).sort((a, b) => b.u - a.u || (a.from === 'remote' ? -1 : 1));
+          const win = cand[0];
+          if (!win) continue;
+          if (win.game) keep.push(win.game); else deleted[id] = win.u; // bản thắng là "đã xoá"
+          if (win.from === 'local' && (!R || (Number(R.u) || 0) < win.u)) patch[id] = win.game ? pack(win.game) : { at: win.u, u: win.u, del: true };
+        }
+        keep.sort((a, b) => b.at - a.at);
+        // Ván quá giới hạn (100) thì bỏ khỏi tài khoản luôn
+        for (const g of keep.slice(MAX)) if (remote[g.id]) patch[g.id] = null;
+        write(keep);
+        for (const id of Object.keys(deleted)) if (keep.some(g => g.id === id)) delete deleted[id];
+        writeDeleted(deleted);
+        if (Object.keys(patch).length) await Profile.dbCall(path(), 'PATCH', patch);
+        setInfo('ok');
+        changed();
+        return true;
+      } catch (e) {
+        setInfo('error', e.message);
+        return false;
+      } finally {
+        syncing = null;
+      }
+    })();
+    return syncing;
+  }
+
+  // Dòng trạng thái đồng bộ trong hộp Nhật ký
+  function renderSyncNote() {
+    const el = $('histSync');
+    if (!el) return;
+    el.hidden = !remoteOn();
+    if (el.hidden) return;
+    const { state, at, error } = syncInfo;
+    el.className = 'hist-sync ' + state;
+    el.textContent = state === 'syncing' ? 'Đang đồng bộ với tài khoản…'
+      : state === 'error' ? (error === 'DENIED'
+        ? 'Chưa đồng bộ được: máy chủ chưa cho lưu nhật ký. Chủ web cần dán lại firebase-rules.json (có mục "history") rồi bấm Publish.'
+        : error === 'NETWORK' ? 'Chưa đồng bộ được (mất mạng). Ván vẫn lưu trên máy này và sẽ đồng bộ lại sau.'
+        : 'Chưa đồng bộ được, sẽ thử lại sau.')
+      : at ? 'Đã đồng bộ với tài khoản: xem được trên mọi máy bạn đăng nhập' : 'Nhật ký được đồng bộ với tài khoản';
+  }
 
   const pad = n => String(n).padStart(2, '0');
   function fmtTime(ts) { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
@@ -429,7 +541,10 @@ const GameHistory = (() => {
 
   function open() {
     render();
+    renderSyncNote();
     openModal('histModal');
+    // Lấy ván chơi trên máy khác (điện thoại / máy tính) về rồi vẽ lại
+    sync().then(ok => { if (ok && !$('histModal').hidden) render(); });
   }
 
   function bind() {
@@ -450,5 +565,5 @@ const GameHistory = (() => {
     $('histImportText').addEventListener('input', guessSide);
   }
 
-  return { save, update, read, open, bind, render, remove, clear, replay, resultLabel, outcome, label, normalFen };
+  return { save, update, read, open, bind, render, remove, clear, replay, resultLabel, outcome, label, normalFen, sync, onChange: f => listeners.push(f) };
 })();

@@ -4582,3 +4582,31 @@ body[data-relief="on"] .eval-label { z-index: 2; }
   body:not([data-mode="learn"]) .panel .record { flex: 1 1 auto; min-height: 0; }
   body:not([data-mode="learn"]) .panel .moves { flex: 1 1 0; min-height: 140px; max-height: none; overflow-y: auto; }
 }
+
+/* Nhật ký: dòng trạng thái đồng bộ với tài khoản */
+.hist-sync[hidden] { display: none; }
+.hist-sync { margin: 4px 0 0; color: #8b8987; font-size: 0.74rem; line-height: 1.4; }
+.hist-sync::before { content: "☁ "; }
+.hist-sync.ok { color: #a6d36b; }
+.hist-sync.syncing { color: #8ec5ff; }
+.hist-sync.error { color: #f0b730; }
+
+/* Đăng nhập bằng Google / chế độ khách */
+.auth-alt[hidden], .auth-form[hidden] { display: none; }
+.auth-alt { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.auth-alt .divider { margin: 0; }
+.auth-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: #fff; color: #1f1f1f; font-weight: 700; box-shadow: 0 2px 0 #c9c9c9; }
+.auth-google:hover { background: #f1f1f1; }
+.auth-google svg { width: 20px; height: 20px; }
+.auth-guest { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+.auth-guest-note { margin: -2px 0 0; color: #8b8987; font-size: 0.74rem; line-height: 1.45; text-align: center; }
+.auth-name-intro { margin: 0 0 4px; color: #c3c2c1; font-size: 0.86rem; line-height: 1.5; }
+.auth-name-intro b { color: #fff; }
+.hm-guest-chip { display: inline-block; padding: 4px 10px; border-radius: 99px; background: #ffffff14; color: #d4d2cc; font-size: 0.78rem; font-weight: 700; }
+.hm-guest[hidden] { display: none; }
+.hm-guest { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; background: #5aa9ff1a; border: 1px solid #5aa9ff40; }
+.hm-guest > span { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 200px; }
+.hm-guest b { color: #fff; font-size: 0.92rem; }
+.hm-guest small { color: #c3c2c1; font-size: 0.78rem; line-height: 1.4; }
+.small-note { margin: -6px 0 8px 28px; font-size: 0.76rem; }
+.auth-name-email { margin: -4px 0 4px; color: #8ec5ff; font-size: 0.84rem; font-weight: 700; word-break: break-all; }

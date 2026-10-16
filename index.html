@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=37">
+  <link rel="stylesheet" href="style.css?v=39">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -544,6 +544,8 @@
             <label class="switch"><input type="checkbox" data-pref="autoQueen"><span>Tự phong Hậu (không hỏi)</span></label>
             <label class="switch"><input type="checkbox" data-pref="relief"><span>Bàn cờ nổi 3D (ánh sáng, bóng đổ, quân nhấc lên)</span></label>
             <label class="switch"><input type="checkbox" data-pref="tilt"><span>Góc nhìn nghiêng 3D (quân đứng trên bàn)</span></label>
+            <label class="switch" id="mailNotifyRow"><input type="checkbox" id="mailNotifyToggle"><span>Gửi thông báo về Gmail (contest mới, contest đã đăng ký sắp bắt đầu)</span></label>
+            <p id="mailNotifyNote" class="muted small-note" hidden></p>
             <label class="switch"><input type="checkbox" id="notifyToggle"><span>Thông báo khi contest đã đăng ký sắp bắt đầu</span></label>
           </div>
           <button id="keysBtn" type="button" class="pf-link"><svg class="ic"><use href="#i-keyboard"/></svg>Phím tắt</button>
@@ -624,6 +626,25 @@
         </label>
         <p id="authMsg" class="auth-msg" role="alert"></p>
         <button id="authSubmit" class="primary big" type="submit">Đăng nhập</button>
+      </form>
+      <div id="authAlt" class="auth-alt">
+        <div class="divider"><span>hoặc</span></div>
+        <button id="authGoogle" type="button" class="auth-google big" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.2 14.6 2.2 12 2.2 6.6 2.2 2.2 6.6 2.2 12s4.4 9.8 9.8 9.8c5.7 0 9.4-4 9.4-9.6 0-.6-.1-1.1-.2-1.6H12z"/><path fill="#34A853" d="M3.3 7.4l3.2 2.4C7.4 7.7 9.5 6.1 12 6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.2 14.6 2.2 12 2.2 8.2 2.2 4.9 4.3 3.3 7.4z" opacity=".001"/><path fill="#4285F4" d="M21.2 10.4H12v3.9h5.5c-.3 1.4-1.1 2.5-2.3 3.3l3.1 2.4c1.8-1.7 2.9-4.2 2.9-7.4 0-.8-.1-1.5-.2-2.2z"/><path fill="#FBBC05" d="M6.1 14.1A6 6 0 0 1 6 12c0-.7.1-1.4.3-2.1L3.1 7.4A9.8 9.8 0 0 0 2.2 12c0 1.6.4 3.1 1 4.4l2.9-2.3z"/><path fill="#34A853" d="M12 21.8c2.6 0 4.8-.9 6.4-2.4l-3.1-2.4c-.8.6-1.9 1-3.3 1-2.5 0-4.6-1.7-5.4-4l-3.2 2.4c1.6 3.2 4.9 5.4 8.6 5.4z"/></svg>
+          <span>Đăng nhập bằng Google</span>
+        </button>
+        <button id="authGuest" type="button" class="auth-guest big"><svg class="ic"><use href="#i-user"/></svg><span>Chơi với tư cách khách</span></button>
+        <p class="auth-guest-note">Khách: đấu máy, 2 người, câu đố, học cờ. Không có rank / Elo, không chơi Online, không tham gia contest.</p>
+      </div>
+      <form id="authNameForm" class="auth-form" hidden>
+        <p class="auth-name-intro">Chào bạn! Hãy chọn tên hiển thị cho tài khoản Google này. Tên hiện trên bảng xếp hạng và không đổi được.</p>
+        <p id="authGEmail" class="auth-name-email"></p>
+        <label>Tên hiển thị
+          <input id="authGName" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+        </label>
+        <p id="authGMsg" class="auth-msg" role="alert"></p>
+        <button id="authGSubmit" class="primary big" type="submit">Vào chơi</button>
+        <button id="authGCancel" type="button" class="ghost">Dùng tài khoản khác</button>
       </form>
       <p id="authNote" class="muted"></p>
     </div>
@@ -709,6 +730,7 @@
         <div>
           <h2>Nhật ký ván đấu</h2>
           <p class="muted">Tự lưu sau mỗi ván · xem lại từng nước · phân tích · tải PGN</p>
+          <p id="histSync" class="hist-sync" hidden></p>
         </div>
       </div>
       <div id="histSummary" class="hist-summary"></div>
@@ -983,12 +1005,12 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=13"></script>
+  <script src="i18n.js?v=15"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=5"></script>
-  <script src="config.js?v=13"></script>
-  <script src="profile.js?v=17"></script>
+  <script src="config.js?v=14"></script>
+  <script src="profile.js?v=18"></script>
   <script src="contest.js?v=15"></script>
   <script src="sound.js?v=13"></script>
   <script src="lessons.js?v=13"></script>
@@ -997,8 +1019,8 @@
   <script src="library.js?v=8"></script>
   <script src="coach.js?v=3"></script>
   <script src="puzzles.js?v=9"></script>
-  <script src="history.js?v=7"></script>
+  <script src="history.js?v=8"></script>
   <script src="openings.js?v=5"></script>
-  <script src="app.js?v=36"></script>
+  <script src="app.js?v=38"></script>
 </body>
 </html>
