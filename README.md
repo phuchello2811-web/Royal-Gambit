@@ -61,7 +61,8 @@ Chế độ Online cần mạng Internet. Hai trình duyệt kết nối trực 
 | `lessons.js` | Nội dung 106 bài học và bộ giải nhỏ (gợi ý, kiểm tra bài) |
 | `learn.js` | Chế độ học cờ kiểu Duolingo |
 | `tools/check-lessons.js` | Kiểm tra mọi bài học giải được: `node tools/check-lessons.js` |
-| `tools/email-notify.gs` | Google Apps Script gửi thông báo contest qua Gmail (xem mục Thông báo qua Gmail) |
+| `tools/email-notify.gs` | Google Apps Script: thông báo qua Gmail, Gmail khôi phục, quên mật khẩu (xem mục Cài Apps Script) |
+| `tools/appsscript.json` | Manifest (quyền) cho Apps Script ở trên |
 | `tools/make-skins.js` | Tạo các bộ quân skin trong `pieces/<skin>/` từ bộ gốc: `node tools/make-skins.js` |
 | `online.js` | Chế độ chơi online (PeerJS / WebRTC), gồm tìm trận tự động |
 | `contest.js` | Contest: tạo (admin), đăng ký, cộng điểm, bảng điểm, huy chương |
@@ -174,14 +175,32 @@ Cài một lần trong Firebase Console:
 
 ## Thông báo qua Gmail
 
-Người đăng nhập bằng Google bật **Gửi thông báo về Gmail** trong Hồ sơ › Cài đặt để nhận thư khi **có contest mới** và khi **contest đã đăng ký sắp bắt đầu** (≤ 15 phút). Web là trang tĩnh nên không tự gửi email; việc gửi do một **Google Apps Script** chạy bằng Gmail của chủ web đảm nhận (miễn phí, khoảng 100 thư / ngày). Luật Firebase chỉ cho mỗi người đăng ký đúng Gmail đã xác minh của chính mình, nên không ai dùng được để gửi thư cho người khác.
+Người chơi bật **Gửi thông báo về Gmail** trong Hồ sơ › Cài đặt để nhận thư khi: admin đăng **thông báo toàn web** có tick "Gửi cả về Gmail", **có contest mới**, và **contest đã đăng ký sắp bắt đầu** (≤ 15 phút). Tài khoản Google dùng luôn Gmail đăng nhập; tài khoản tên + mật khẩu cần thêm **Gmail khôi phục** trước (xem mục dưới). Web là trang tĩnh nên không tự gửi email; việc gửi do một **Google Apps Script** chạy bằng Gmail của chủ web đảm nhận (miễn phí, khoảng 100 thư / ngày). Luật Firebase chỉ cho mỗi người đăng ký đúng Gmail đã xác minh của chính mình, nên không ai dùng được để gửi thư cho người khác. Thư được gửi trong vòng 5 phút sau khi đăng.
 
-Cài script (một lần):
-1. Vào <https://script.google.com> › **New project**, dán toàn bộ `tools/email-notify.gs` vào `Code.gs`, bấm Save.
-2. **Project Settings › Script properties**: thêm `DB_URL` (giống `databaseURL`), `DB_SECRET` (Firebase Console › Project settings › Service accounts › **Database secrets** › Show) và `SITE_URL` (địa chỉ web).
-3. Chọn hàm **setup**, bấm **Run**, cho phép quyền. Script tự chạy mỗi 5 phút; chạy **testEmail** để gửi thử cho chính bạn.
+## Quên mật khẩu và Gmail khôi phục
 
-`DB_SECRET` là khoá quản trị cơ sở dữ liệu: chỉ để trong Script properties, không dán vào file web.
+Tài khoản tên + mật khẩu dùng email nội bộ (`ten@rg-user.app`) nên cần một Gmail thật để lấy lại mật khẩu:
+- **Thêm Gmail khôi phục**: Hồ sơ › Cài đặt › **Gmail khôi phục** › Thêm › nhập Gmail › nhập mã 6 số được gửi về Gmail đó. Có thể đổi hoặc gỡ bất cứ lúc nào.
+- **Quên mật khẩu**: ở màn hình đăng nhập bấm **Quên mật khẩu?** › nhập tên đăng nhập › nhập mã 6 số gửi về Gmail khôi phục cùng mật khẩu mới. Sau khi đổi, Gmail nhận thêm một thư báo "mật khẩu đã được đặt lại".
+- Mã hết hạn sau 10 phút, sai 5 lần là huỷ; mỗi tài khoản tối đa 1 mã / phút và 5 mã / giờ. Tài khoản chưa thêm Gmail khôi phục thì không lấy lại được qua email (admin hỗ trợ trong Firebase Console › Authentication).
+- Tài khoản Google không có mật khẩu riêng, cứ bấm "Đăng nhập bằng Google".
+- Chưa điền `mailApi` trong `config.js` thì web ẩn các tính năng này.
+
+## Cài Apps Script (thông báo Gmail + quên mật khẩu)
+
+Làm một lần (đã cài bản cũ thì dán code mới đè lên rồi làm tiếp từ bước 2):
+1. Vào <https://script.google.com> › **New project**, dán toàn bộ `tools/email-notify.gs` vào `Code.gs`, bấm Save. **Phải dùng tài khoản Google là chủ (Owner) project Firebase.**
+2. **Project Settings** (bánh răng) › tick **Show "appsscript.json" manifest file in editor**. Quay lại Editor, mở `appsscript.json`, thay toàn bộ bằng nội dung `tools/appsscript.json`, bấm Save.
+3. **Project Settings › Script properties**: thêm `DB_URL` (giống `databaseURL`), `DB_SECRET` (Firebase Console › Project settings › Service accounts › **Database secrets** › Show) và `SITE_URL` (địa chỉ web).
+4. Chọn hàm **setup**, bấm **Run**, cho phép quyền (màn hình "Google hasn't verified this app" thì bấm Advanced › Go to … (unsafe), vì đây là script của chính bạn). Script tự chạy mỗi 5 phút.
+5. Chọn hàm **testAdmin**, bấm **Run**: Execution log phải hiện `OK – project …`. Báo lỗi 403 thì kiểm tra lại bước 1 (tài khoản chủ project).
+6. **Deploy › New deployment** › biểu tượng bánh răng › **Web app** › Execute as: **Me** › Who has access: **Anyone** › Deploy. Copy **Web app URL** (`https://script.google.com/macros/s/…/exec`) dán vào `mailApi` trong `config.js`, rồi up `config.js` lên.
+7. Dán lại `firebase-rules.json` mới (có mục `recovery`) vào Firebase › Realtime Database › Rules › Publish.
+8. (Tuỳ chọn) chạy **testEmail** để gửi thử thư cho chính bạn.
+
+Sau này sửa code Apps Script: **Deploy › Manage deployments** › bút chì › Version: **New version** › Deploy (URL giữ nguyên).
+
+`DB_SECRET` là khoá quản trị cơ sở dữ liệu: chỉ để trong Script properties, không dán vào file web. Web app URL thì công khai được (nó chỉ nhận các yêu cầu đã kiểm tra ở trên).
 
 ## Chế độ khách
 

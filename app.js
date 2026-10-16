@@ -2786,7 +2786,8 @@ function renderProfileSide(p, rank) {
       box.checked = OFF_BY_DEFAULT.has(k) ? !!Profile.prefs()[k] : Profile.prefs()[k] !== false;
     }
     $('notifyToggle').checked = !!Profile.prefs().notify && typeof Notification !== 'undefined' && Notification.permission === 'granted';
-    renderMailNotify();
+    renderRecovery();
+    $('pwBtn').hidden = Profile.isGuest() || (Profile.remote && Profile.provider() === 'google');
     renderThemes();
   }
 }
@@ -3093,7 +3094,21 @@ const AUTH_ERRORS = {
   SESSION: 'Phiên đăng nhập đã hết, hãy đăng nhập lại.',
   NO_REMOTE: 'Đăng nhập bằng Google cần cấu hình Firebase (xem README).',
   DENIED: 'Máy chủ từ chối truy cập, kiểm tra lại luật Firebase (xem README).',
+  BAD_OLD: 'Mật khẩu hiện tại không đúng',
+  SAME: 'Mật khẩu mới phải khác mật khẩu hiện tại',
+  GOOGLE: 'Tài khoản Google không dùng mật khẩu riêng ở đây. Đổi mật khẩu trong tài khoản Google của bạn.',
+  EXPIRED: 'Mã đã hết hạn hoặc nhập sai quá nhiều lần. Bấm "Gửi lại mã" để nhận mã mới.',
+  BAD_CODE: 'Mã xác nhận không đúng',
+  NO_EMAIL: 'Tài khoản này chưa thêm Gmail khôi phục nên không gửi mã được. Hãy nhờ admin hỗ trợ.',
+  NO_ACCOUNT: 'Không tìm thấy tài khoản có tên này',
+  GOOGLE_ACC: 'Tài khoản này đăng nhập bằng Google, hãy bấm "Đăng nhập bằng Google".',
+  WAIT: 'Vừa gửi mã rồi, đợi 1 phút rồi thử lại.',
+  QUOTA: 'Hôm nay máy chủ đã gửi hết lượt email, hãy thử lại vào ngày mai.',
+  BAD_EMAIL: 'Địa chỉ email không hợp lệ',
+  NO_MAIL_API: 'Chủ web chưa bật máy chủ email (mailApi trong config.js, xem README).',
 };
+// Lỗi từ máy chủ email (kèm số lần thử còn lại khi sai mã)
+const mailErr = err => err.message === 'BAD_CODE' && err.left ? `Mã xác nhận không đúng (còn ${err.left} lần thử)` : AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
 let authMode = 'login';
 
 function setAuthMode(m) {
@@ -3103,6 +3118,7 @@ function setAuthMode(m) {
   $('authTabRegister').classList.toggle('on', reg);
   document.querySelector('.auth-tabs').classList.toggle('reg', reg);
   $('authPass2Wrap').hidden = !reg;
+  $('authMsg').classList.remove('ok');
   $('authPass2').required = reg;
   $('authPass').autocomplete = reg ? 'new-password' : 'current-password';
   $('authSubmit').textContent = reg ? 'Tạo tài khoản' : 'Đăng nhập';
@@ -3113,6 +3129,7 @@ function setAuthMode(m) {
   $('authMsg').textContent = '';
   const form = $('authForm');
   form.classList.remove('swap'); void form.offsetWidth; form.classList.add('swap'); // hiệu ứng nhẹ khi đổi chế độ
+  $('authForgotLink').hidden = m !== 'login' || !Profile.canRecover();
   authLive();
 }
 
@@ -3132,21 +3149,24 @@ function authLive() {
   hint.className = 'auth-hint' + (bad ? ' bad' : ok ? ' good' : '');
   $('authUserOk').hidden = !(ok && reg);
   // Độ mạnh mật khẩu
-  const box = $('authStrength');
-  box.hidden = !reg || !pass;
-  if (reg && pass) {
-    let sc = 0;
-    if (pass.length >= 6) sc++;
-    if (pass.length >= 10) sc++;
-    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) sc++;
-    if (/\d/.test(pass) && /[^A-Za-z0-9]/.test(pass)) sc++;
-    else if (/\d/.test(pass) && sc < 4) sc += pass.length >= 8 ? 1 : 0;
-    sc = pass.length < 6 ? 0 : Math.max(1, Math.min(4, sc));
-    const lv = ['Quá ngắn (cần ít nhất 6 ký tự)', 'Yếu', 'Tạm được', 'Mạnh', 'Rất mạnh'][sc];
-    box.dataset.lv = sc;
-    box.querySelector('small').textContent = 'Độ mạnh: ' + lv;
-  }
+  showStrength($('authStrength'), reg ? pass : '');
   $('authPass2Ok').hidden = !(reg && pass2 && pass2 === pass && pass.length >= 6);
+}
+
+// Thanh độ mạnh mật khẩu (4 vạch); pass rỗng thì ẩn
+function showStrength(box, pass) {
+  box.hidden = !pass;
+  if (!pass) return;
+  let sc = 0;
+  if (pass.length >= 6) sc++;
+  if (pass.length >= 10) sc++;
+  if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) sc++;
+  if (/\d/.test(pass) && /[^A-Za-z0-9]/.test(pass)) sc++;
+  else if (/\d/.test(pass) && sc < 4) sc += pass.length >= 8 ? 1 : 0;
+  sc = pass.length < 6 ? 0 : Math.max(1, Math.min(4, sc));
+  const lv = ['Quá ngắn (cần ít nhất 6 ký tự)', 'Yếu', 'Tạm được', 'Mạnh', 'Rất mạnh'][sc];
+  box.dataset.lv = sc;
+  box.querySelector('small').textContent = 'Độ mạnh: ' + lv;
 }
 
 function enterApp() {
@@ -3244,6 +3264,7 @@ $('authForm').addEventListener('submit', async e => {
   const user = $('authUser').value, pass = $('authPass').value;
   const msg = $('authMsg');
   msg.textContent = '';
+  msg.classList.remove('ok');
   if (authMode === 'register' && pass !== $('authPass2').value) { msg.textContent = AUTH_ERRORS.MISMATCH; return; }
   $('authSubmit').disabled = true;
   $('authSubmit').classList.add('busy');
@@ -3274,13 +3295,207 @@ for (const b of document.querySelectorAll('.auth-eye')) {
     inp.focus();
   });
 }
-for (const id of ['authPass', 'authPass2']) {
-  for (const ev of ['keydown', 'keyup']) $(id).addEventListener(ev, e => { if (e.getModifierState) $('authCaps').hidden = !e.getModifierState('CapsLock'); });
-  $(id).addEventListener('blur', () => { $('authCaps').hidden = true; });
+for (const [id, capsId] of [['authPass', 'authCaps'], ['authPass2', 'authCaps'], ['pwOld', 'pwCaps'], ['pwNew', 'pwCaps'], ['pwNew2', 'pwCaps']]) {
+  for (const ev of ['keydown', 'keyup']) $(id).addEventListener(ev, e => { if (e.getModifierState) $(capsId).hidden = !e.getModifierState('CapsLock'); });
+  $(id).addEventListener('blur', () => { $(capsId).hidden = true; });
 }
+$('authForgotLink').hidden = !Profile.canRecover();
 $('authSwitch').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) setAuthMode(b.dataset.go); });
 // Bàn cờ minh hoạ ở cột giới thiệu (ván Opera của Morphy, nước chiếu hết cuối)
 try { $('authBoard').innerHTML = Library.fenBoard('1n1Rkb1r/p4ppp/4q3/4p1B1/4P3/8/PPP2PPP/2K5 b k - 1 17', false, { from: sqIndex('d1'), to: sqIndex('d8') }); } catch {}
+
+// ----- Đổi mật khẩu (Hồ sơ › Cài đặt) -----
+$('pwBtn').addEventListener('click', () => {
+  for (const id of ['pwOld', 'pwNew', 'pwNew2']) { $(id).value = ''; $(id).type = 'password'; }
+  for (const b of document.querySelectorAll('#pwForm .auth-eye')) { b.querySelector('use').setAttribute('href', '#i-eye'); b.title = 'Hiện mật khẩu'; }
+  $('pwMsg').textContent = '';
+  $('pwStrength').hidden = $('pwCaps').hidden = true;
+  $('pwNote').textContent = Profile.remote ? 'Sau khi đổi, các thiết bị khác đang đăng nhập tài khoản này sẽ phải đăng nhập lại.' : 'Tài khoản cục bộ: mật khẩu mới chỉ áp dụng trên trình duyệt này.';
+  openModal('pwModal');
+  setTimeout(() => $('pwOld').focus(), 50);
+});
+$('pwNew').addEventListener('input', () => showStrength($('pwStrength'), $('pwNew').value));
+$('pwForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = $('pwMsg'), btn = $('pwSubmit');
+  const oldPw = $('pwOld').value, newPw = $('pwNew').value;
+  msg.textContent = '';
+  let err = !oldPw ? 'Nhập mật khẩu hiện tại' : newPw.length < 6 ? AUTH_ERRORS.WEAK : newPw !== $('pwNew2').value ? AUTH_ERRORS.MISMATCH : '';
+  if (!err) {
+    btn.disabled = true; btn.classList.add('busy'); btn.textContent = 'Đang đổi…';
+    try {
+      await Profile.changePassword(oldPw, newPw);
+      $('pwModal').hidden = true;
+      toast('Đã đổi mật khẩu');
+    } catch (ex) { err = AUTH_ERRORS[ex.message] || 'Có lỗi xảy ra, thử lại sau.'; }
+    btn.disabled = false; btn.classList.remove('busy'); btn.textContent = 'Đổi mật khẩu';
+  }
+  if (err) {
+    msg.textContent = err;
+    const box = document.querySelector('.pw-box');
+    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+  }
+});
+
+// ----- Quên mật khẩu: gửi mã về Gmail khôi phục rồi đặt mật khẩu mới -----
+let afStep = 1, afName = '', afTimer = 0;
+function showForgot(on) {
+  $('authForm').hidden = $('authAlt').hidden = on;
+  document.querySelector('.auth-tabs').hidden = on;
+  $('authWelcome').hidden = on;
+  $('authForgot').hidden = !on;
+  if (!on) return;
+  afSetStep(1);
+  $('afUser').value = $('authUser').value.trim();
+  $('afMsg').textContent = '';
+  setTimeout(() => $('afUser').focus(), 30);
+}
+function afSetStep(n) {
+  afStep = n;
+  $('afS1').hidden = n !== 1;
+  $('afS2').hidden = n !== 2;
+  $('afDot1').classList.toggle('on', n === 1);
+  $('afDot1').classList.toggle('done', n > 1);
+  $('afDot2').classList.toggle('on', n === 2);
+  $('afSubmit').textContent = n === 1 ? 'Gửi mã' : 'Đặt lại mật khẩu';
+  if (n === 2) {
+    for (const id of ['afCode', 'afNew', 'afNew2']) $(id).value = '';
+    $('afStrength').hidden = true;
+    setTimeout(() => $('afCode').focus(), 30);
+  }
+}
+// Nút "Gửi lại mã" đếm ngược 60 giây
+function afCooldown(btn, sec = 60) {
+  clearInterval(afTimer);
+  const label = 'Gửi lại mã';
+  const tick = () => {
+    btn.disabled = sec > 0;
+    btn.textContent = sec > 0 ? `${label} (${sec}s)` : label;
+    if (sec-- <= 0) clearInterval(afTimer);
+  };
+  tick();
+  afTimer = setInterval(tick, 1000);
+}
+async function afSend() {
+  const r = await Profile.resetStart(afName);
+  $('afSent').textContent = `Đã gửi mã 6 số tới ${r.to}`;
+  afCooldown($('afResend'));
+}
+function shakeBox(sel) { const box = document.querySelector(sel); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
+$('authForgotLink').addEventListener('click', () => showForgot(true));
+$('afBack').addEventListener('click', () => { clearInterval(afTimer); showForgot(false); });
+$('afNew').addEventListener('input', () => showStrength($('afStrength'), $('afNew').value));
+for (const id of ['afCode', 'recCode']) $(id).addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
+$('afResend').addEventListener('click', async () => {
+  $('afMsg').textContent = '';
+  try { await afSend(); } catch (err) { $('afMsg').textContent = mailErr(err); }
+});
+$('authForgot').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = $('afMsg'), btn = $('afSubmit');
+  msg.textContent = '';
+  let err = '';
+  if (afStep === 1) {
+    afName = $('afUser').value.trim();
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(afName)) err = AUTH_ERRORS.NAME;
+  } else {
+    const code = $('afCode').value.trim(), pw = $('afNew').value;
+    err = !/^\d{6}$/.test(code) ? 'Nhập đủ 6 số của mã xác nhận' : pw.length < 6 ? AUTH_ERRORS.WEAK : pw !== $('afNew2').value ? AUTH_ERRORS.MISMATCH : '';
+  }
+  if (!err) {
+    btn.disabled = true; btn.classList.add('busy');
+    btn.textContent = afStep === 1 ? 'Đang gửi mã…' : 'Đang đặt lại…';
+    try {
+      if (afStep === 1) { await afSend(); afSetStep(2); }
+      else {
+        await Profile.resetConfirm(afName, $('afCode').value.trim(), $('afNew').value);
+        clearInterval(afTimer);
+        showForgot(false);
+        setAuthMode('login');
+        $('authUser').value = afName;
+        $('authPass').value = '';
+        authLive();
+        $('authMsg').textContent = 'Đã đặt lại mật khẩu. Hãy đăng nhập bằng mật khẩu mới.';
+        $('authMsg').classList.add('ok');
+        $('authPass').focus();
+      }
+    } catch (ex) { err = mailErr(ex); }
+    btn.disabled = false; btn.classList.remove('busy');
+    if (!$('authForgot').hidden) btn.textContent = afStep === 1 ? 'Gửi mã' : 'Đặt lại mật khẩu';
+  }
+  if (err) { msg.textContent = err; shakeBox('.auth-box'); }
+});
+// Thông báo lỗi đăng nhập bình thường thì bỏ kiểu "thành công"
+for (const id of ['authUser', 'authPass']) $(id).addEventListener('input', () => $('authMsg').classList.remove('ok'));
+
+// ----- Gmail khôi phục (Hồ sơ › Cài đặt) -----
+async function renderRecovery() {
+  const row = $('recRow');
+  const show = Profile.canRecover() && Profile.signedIn() && !Profile.isGuest() && Profile.provider() !== 'google';
+  row.hidden = !show;
+  if (show) {
+    $('recEmailText').textContent = 'Đang tải…';
+    const email = await Profile.loadRecovery();
+    $('recEmailText').textContent = email || 'Chưa có – thêm để lấy lại mật khẩu khi quên';
+    row.classList.toggle('set', !!email);
+    $('recBtn').textContent = email ? 'Đổi' : 'Thêm';
+  }
+  renderMailNotify();
+}
+let recStep = 1;
+function recSetStep(n) {
+  recStep = n;
+  $('recS1').hidden = n !== 1;
+  $('recS2').hidden = n !== 2;
+  $('recSubmit').textContent = n === 1 ? 'Gửi mã xác nhận' : 'Xác nhận';
+  setTimeout(() => $(n === 1 ? 'recEmailIn' : 'recCode').focus(), 50);
+}
+$('recBtn').addEventListener('click', () => {
+  const cur = Profile.recoveryEmail();
+  $('recCurrent').hidden = !cur;
+  $('recCurrent').textContent = cur ? 'Đang dùng: ' + cur : '';
+  $('recRemove').hidden = !cur;
+  $('recEmailIn').value = ''; $('recCode').value = ''; $('recMsg').textContent = '';
+  openModal('recModal');
+  recSetStep(1);
+});
+$('recForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = $('recMsg'), btn = $('recSubmit');
+  msg.textContent = '';
+  let err = '';
+  const email = $('recEmailIn').value.trim();
+  if (recStep === 1 && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) err = AUTH_ERRORS.BAD_EMAIL;
+  if (recStep === 2 && !/^\d{6}$/.test($('recCode').value.trim())) err = 'Nhập đủ 6 số của mã xác nhận';
+  if (!err) {
+    btn.disabled = true; btn.classList.add('busy');
+    btn.textContent = recStep === 1 ? 'Đang gửi mã…' : 'Đang xác nhận…';
+    try {
+      if (recStep === 1) {
+        const r = await Profile.recoveryStart(email);
+        $('recSent').textContent = `Đã gửi mã 6 số tới ${r.to}. Mở Gmail rồi nhập mã vào đây.`;
+        recSetStep(2);
+      } else {
+        const saved = await Profile.recoveryConfirm($('recCode').value);
+        $('recModal').hidden = true;
+        toast('Đã lưu Gmail khôi phục: ' + saved);
+        renderRecovery();
+      }
+    } catch (ex) { err = mailErr(ex); }
+    btn.disabled = false; btn.classList.remove('busy');
+    btn.textContent = recStep === 1 ? 'Gửi mã xác nhận' : 'Xác nhận';
+  }
+  if (err) { msg.textContent = err; shakeBox('.rec-box'); }
+});
+$('recRemove').addEventListener('click', async () => {
+  if (!confirm('Gỡ Gmail khôi phục? Bạn sẽ không lấy lại được mật khẩu qua email và không nhận thông báo qua Gmail nữa.')) return;
+  try {
+    await Profile.recoveryRemove();
+    $('recModal').hidden = true;
+    toast('Đã gỡ Gmail khôi phục');
+    renderRecovery();
+  } catch (ex) { $('recMsg').textContent = mailErr(ex); }
+});
 
 // ----- Đăng nhập bằng Google (Gmail) và chế độ khách -----
 $('authGoogle').hidden = !Profile.remote; // cần Firebase
@@ -3344,7 +3559,7 @@ async function renderMailNotify() {
   if (!Profile.remote) return;
   const can = Profile.canEmail();
   box.disabled = !can;
-  if (!can) { box.checked = false; note.textContent = 'Đăng nhập bằng Google để nhận thông báo qua Gmail.'; return; }
+  if (!can) { box.checked = false; note.textContent = Profile.canRecover() && Profile.provider() !== 'google' ? 'Thêm Gmail khôi phục (ở dưới) để nhận thông báo qua Gmail.' : 'Đăng nhập bằng Google để nhận thông báo qua Gmail.'; return; }
   note.textContent = 'Gửi tới ' + Profile.email();
   box.checked = await Profile.getEmailNotify();
 }
@@ -3353,7 +3568,7 @@ $('mailNotifyToggle').addEventListener('change', async e => {
   e.target.disabled = true;
   try {
     await Profile.setEmailNotify(on);
-    toast(on ? 'Đã bật: thông báo contest sẽ được gửi về ' + Profile.email() : 'Đã tắt thông báo qua Gmail');
+    toast(on ? 'Đã bật: thông báo sẽ được gửi về ' + Profile.email() : 'Đã tắt thông báo qua Gmail');
   } catch (err) {
     e.target.checked = !on;
     $('mailNotifyNote').textContent = err.message === 'DENIED'
@@ -3695,8 +3910,9 @@ $('annPost').addEventListener('click', async () => {
   const h = Number($('annDur').value);
   $('annPost').disabled = true;
   try {
-    await Profile.setAnnounce({ text, kind: annKind, until: h ? Date.now() + h * 3600000 : 0 });
-    setContestMsg(msg, 'Đã đăng thông báo cho mọi người chơi.');
+    const mail = Profile.remote && $('annMail').checked;
+    await Profile.setAnnounce({ text, kind: annKind, until: h ? Date.now() + h * 3600000 : 0, mail });
+    setContestMsg(msg, mail ? 'Đã đăng thông báo. Email sẽ được gửi tới người đã bật thông báo Gmail trong vòng 5 phút.' : 'Đã đăng thông báo cho mọi người chơi.');
     $('annText').value = '';
     renderAnnounceAdmin();
     refreshAnnounce(true);
@@ -3721,7 +3937,7 @@ for (const b of document.querySelectorAll('#adminTabs button')) {
     for (const x of document.querySelectorAll('#adminTabs button')) x.classList.toggle('on', x === b);
     $('adminPlayers').hidden = b.dataset.tab !== 'players';
     $('adminAnnounce').hidden = b.dataset.tab !== 'announce';
-    if (b.dataset.tab === 'announce') renderAnnounceAdmin();
+    if (b.dataset.tab === 'announce') { $('annMailRow').hidden = !Profile.remote; renderAnnounceAdmin(); }
   });
 }
 $('adminSort').addEventListener('change', renderAdminList);

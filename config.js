@@ -7,4 +7,7 @@ window.LEADERBOARD = {
   // Đăng nhập bằng Google: tên miền xác thực của project (Firebase Console › Project settings › authDomain).
   // Bỏ trống thì web tự suy ra từ databaseURL: <project-id>.firebaseapp.com
   authDomain: 'chess-ab046.firebaseapp.com',
+  // Quên mật khẩu / Gmail khôi phục: địa chỉ "Web app URL" của Apps Script tools/email-notify.gs (xem README).
+  // Dạng https://script.google.com/macros/s/XXXX/exec. Bỏ trống thì ẩn tính năng Quên mật khẩu.
+  mailApi: '',
 };

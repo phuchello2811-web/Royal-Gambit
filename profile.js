@@ -470,6 +470,34 @@ const Profile = (() => {
     notify();
   }
 
+  // Đổi mật khẩu (tài khoản tên đăng nhập + mật khẩu; tài khoản Google đổi mật khẩu ở Google)
+  async function changePassword(oldPw, newPw) {
+    if (!signedIn || isGuest()) throw new Error('SESSION');
+    if (auth && auth.provider === 'google' && remote) throw new Error('GOOGLE');
+    newPw = checkPassword(newPw);
+    if (String(oldPw || '') === newPw) throw new Error('SAME');
+    if (remote) {
+      // Kiểm tra mật khẩu cũ bằng cách đăng nhập lại (lấy luôn token mới để Firebase cho đổi)
+      const name = (auth && auth.name) || me.name;
+      let r;
+      try {
+        r = await call(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${cfg.apiKey}`,
+          postJson({ email: toEmail(name), password: String(oldPw || ''), returnSecureToken: true }));
+      } catch (e) { throw new Error(e.message === 'BAD_LOGIN' ? 'BAD_OLD' : e.message); }
+      setAuth(r, name);
+      const u = await call(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${cfg.apiKey}`,
+        postJson({ idToken: auth.idToken, password: newPw, returnSecureToken: true }));
+      setAuth(u, name); // Firebase cấp token mới; các thiết bị khác phải đăng nhập lại
+    } else {
+      const users = read(USERS_KEY, {});
+      const u = users[localKey];
+      if (!u) throw new Error('SESSION');
+      if (u.hash !== await hash(localKey + ':' + String(oldPw || ''))) throw new Error('BAD_OLD');
+      u.hash = await hash(localKey + ':' + newPw);
+      write(USERS_KEY, users);
+    }
+  }
+
   // Tự đăng nhập lại bằng phiên đã lưu. Trả về true nếu thành công.
   async function restore() {
     // Lần trước vào bằng chế độ khách. `await` để app.js khởi tạo xong rồi mới báo thay đổi (tránh dùng biến chưa khai báo)
@@ -499,7 +527,7 @@ const Profile = (() => {
   async function logout() {
     await queue.catch(() => {}); // đợi ghi nốt dữ liệu đang chờ
     signedIn = false;
-    auth = null; localKey = null; adminFlag = false; guestMode = false; pendingGoogle = null;
+    auth = null; localKey = null; adminFlag = false; guestMode = false; pendingGoogle = null; recovery = '';
     drop(AUTH_KEY); drop(SESSION_KEY); drop(GUEST_KEY);
     try { if (window.firebase && firebase.apps && firebase.apps.length) await firebase.auth().signOut(); } catch {}
     me = guest();
@@ -627,14 +655,49 @@ const Profile = (() => {
   // ---------- Thông báo qua Gmail (tài khoản Google) ----------
   // Lưu /notify/<uid> = { email, on, name, at }. Luật Firebase chỉ cho ghi đúng Gmail đã xác minh của chính mình,
   // nên không ai đăng ký nhận thư hộ người khác được. Email được gửi bởi Google Apps Script (tools/email-notify.gs).
-  const canEmail = () => remote && signedIn && !!auth && auth.provider === 'google' && !!auth.email;
+  // Tài khoản tên + mật khẩu dùng Gmail khôi phục đã xác minh (/recovery/<uid>) để nhận thư.
+  const notifyEmail = () => (auth && auth.provider === 'google' && auth.email) || recovery || '';
+  const canEmail = () => remote && signedIn && !!auth && !!notifyEmail();
   async function getEmailNotify() {
     if (!canEmail()) return false;
-    try { const r = await call(`${db}/notify/${auth.uid}.json?auth=${await token()}`); return !!(r && r.on); } catch { return false; }
+    try { const r = await call(`${db}/notify/${auth.uid}.json?auth=${await token()}`); return !!(r && r.on && r.email === notifyEmail()); } catch { return false; }
   }
   async function setEmailNotify(on) {
     if (!canEmail()) throw new Error('NO_GOOGLE');
-    await call(`${db}/notify/${auth.uid}.json?auth=${await token()}`, { method: 'PUT', body: JSON.stringify({ email: auth.email, on: !!on, name: me.name, at: { '.sv': 'timestamp' } }) });
+    await call(`${db}/notify/${auth.uid}.json?auth=${await token()}`, { method: 'PUT', body: JSON.stringify({ email: notifyEmail(), on: !!on, name: me.name, at: { '.sv': 'timestamp' } }) });
+  }
+
+  // ---------- Gmail khôi phục & Quên mật khẩu (qua Google Apps Script: tools/email-notify.gs, mailApi trong config.js) ----------
+  const mailApi = String(cfg.mailApi || '').trim();
+  const canRecover = () => remote && /^https:\/\//.test(mailApi);
+  let recovery = '';  // Gmail khôi phục của tài khoản đang đăng nhập
+  async function mailCall(body) {
+    if (!canRecover()) throw new Error('NO_MAIL_API');
+    let res;
+    try { res = await fetch(mailApi, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }); }
+    catch { throw new Error('NETWORK'); }
+    const d = await res.json().catch(() => null);
+    if (!d) throw new Error('SERVER');
+    if (!d.ok) { const e = new Error(d.err || 'SERVER'); e.left = d.left; throw e; }
+    return d;
+  }
+  const signedCall = async (action, extra) => mailCall({ action, uid: auth.uid, idToken: await token(), name: me.name, ...extra });
+  async function loadRecovery() {
+    recovery = '';
+    if (!remote || !signedIn || !auth || isGuest()) return '';
+    try { const r = await call(`${db}/recovery/${auth.uid}.json?auth=${await token()}`); recovery = (r && typeof r.email === 'string') ? r.email : ''; } catch {}
+    return recovery;
+  }
+  async function recoveryStart(email) { return signedCall('linkStart', { email: String(email || '').trim() }); }
+  async function recoveryConfirm(code) {
+    const d = await signedCall('linkConfirm', { code: String(code || '').trim() });
+    recovery = d.email || '';
+    return recovery;
+  }
+  async function recoveryRemove() { await signedCall('unlink'); recovery = ''; }
+  async function resetStart(username) { return mailCall({ action: 'resetStart', username: checkName(username) }); }
+  async function resetConfirm(username, code, password) {
+    return mailCall({ action: 'resetConfirm', username: checkName(username), code: String(code || '').trim(), password: checkPassword(password) });
   }
 
   // ---------- Ảnh đại diện công khai (lưu riêng /photos, không nằm trong /players) ----------
@@ -895,7 +958,7 @@ const Profile = (() => {
   }
   async function setAnnounce(a) {
     if (!isAdmin()) throw new Error('DENIED');
-    const body = a ? { text: String(a.text).trim().slice(0, 300), kind: a.kind || 'info', by: me.name.slice(0, 20), at: Date.now(), ...(a.until ? { until: a.until } : {}) } : null;
+    const body = a ? { text: String(a.text).trim().slice(0, 300), kind: a.kind || 'info', by: me.name.slice(0, 20), at: Date.now(), ...(a.until ? { until: a.until } : {}), ...(a.mail && remote ? { mail: true } : {}) } : null;
     if (remote) await call(`${db}/announce.json?auth=${await token()}`, body ? { method: 'PUT', body: JSON.stringify(body) } : { method: 'DELETE' });
     else if (body) write(ANNOUNCE_KEY, body); else drop(ANNOUNCE_KEY);
     return body;
@@ -963,9 +1026,10 @@ const Profile = (() => {
     uid, dbCall,
     remote,
     signedIn: () => signedIn,
-    isGuest, enterGuest, loginGoogle, chooseName, cancelGoogle, canEmail, getEmailNotify, setEmailNotify,
-    email: () => (auth && auth.email) || '', provider: () => (auth && auth.provider) || '',
-    register, login, restore, logout,
+    isGuest, enterGuest, loginGoogle, chooseName, cancelGoogle, canEmail, getEmailNotify, setEmailNotify, notifyEmail,
+    canRecover, loadRecovery, recoveryEmail: () => recovery, recoveryStart, recoveryConfirm, recoveryRemove, resetStart, resetConfirm,
+    email: () => notifyEmail(), provider: () => (auth && auth.provider) || (signedIn && !isGuest() ? 'password' : ''),
+    register, login, restore, logout, changePassword,
     leaderboard, player, eloHistory, getAnnounce, setAnnounce,
     isOwner, isAdmin, refreshAdmin, listPlayers, setAdmin, setMute, setMuteByName, isMuted, mutesMap, setTitle, titlesMap, loadMyTitle, TITLES,
     rankOf,

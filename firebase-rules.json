@@ -161,7 +161,7 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['email', 'on']) && newData.child('email').val() === auth.token.email && auth.token.email_verified === true",
+        ".validate": "newData.hasChildren(['email', 'on']) && ((newData.child('email').val() === auth.token.email && auth.token.email_verified === true) || newData.child('email').val() === root.child('recovery').child($uid).child('email').val())",
         "email": {
           ".validate": "newData.isString() && newData.val().length <= 120"
         },
@@ -177,6 +177,11 @@
         "$other": {
           ".validate": false
         }
+      }
+    },
+    "recovery": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
       }
     },
     "history": {
