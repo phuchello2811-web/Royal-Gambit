@@ -160,7 +160,8 @@ const GameHistory = (() => {
     return syncing;
   }
 
-  // Dòng trạng thái đồng bộ trong hộp Nhật ký
+  // Dòng trạng thái đồng bộ trong hộp Nhật ký: hiện tên tài khoản và số ván (để biết hai máy có dùng cùng một tài khoản),
+  // bấm vào thì đồng bộ ngay
   function renderSyncNote() {
     const el = $('histSync');
     if (!el) return;
@@ -168,13 +169,17 @@ const GameHistory = (() => {
     if (el.hidden) return;
     const { state, at, error } = syncInfo;
     el.className = 'hist-sync ' + state;
-    el.textContent = state === 'syncing' ? 'Đang đồng bộ với tài khoản…'
+    const who = Profile.me().name + (Profile.provider() === 'google' ? ' (Google)' : '');
+    const text = state === 'syncing' ? 'Đang đồng bộ với tài khoản…'
       : state === 'error' ? (error === 'DENIED'
         ? 'Chưa đồng bộ được: máy chủ chưa cho lưu nhật ký. Chủ web cần dán lại firebase-rules.json (có mục "history") rồi bấm Publish.'
         : error === 'NETWORK' ? 'Chưa đồng bộ được (mất mạng). Ván vẫn lưu trên máy này và sẽ đồng bộ lại sau.'
         : 'Chưa đồng bộ được, sẽ thử lại sau.')
-      : at ? 'Đã đồng bộ với tài khoản: xem được trên mọi máy bạn đăng nhập' : 'Nhật ký được đồng bộ với tài khoản';
+      : at ? `Đã đồng bộ với tài khoản ${who} · ${read().length} ván · bấm để đồng bộ lại` : 'Nhật ký được đồng bộ với tài khoản';
+    el.innerHTML = '<svg class="ic"><use href="#i-cloud"/></svg><span></span>';
+    el.querySelector('span').textContent = text;
   }
+
 
   const pad = n => String(n).padStart(2, '0');
   function fmtTime(ts) { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
@@ -519,7 +524,7 @@ const GameHistory = (() => {
     renderRatedNote();
     render();
     if (game.history.length) setViewPly(review && g.rev ? 1 : 0);
-    toast(g.rev ? 'Đã tải ván kèm phân tích · dùng ◀ ▶ hoặc phím ← → để xem từng nước' : 'Đã tải ván · dùng ◀ ▶ hoặc phím ← → để xem từng nước');
+    toast(g.rev ? 'Đã tải ván kèm phân tích · dùng nút Nước trước / Nước sau hoặc phím ← → để xem từng nước' : 'Đã tải ván · dùng nút Nước trước / Nước sau hoặc phím ← → để xem từng nước');
   }
 
   // Tải toàn bộ nhật ký (đang lọc) thành một file .pgn
@@ -563,6 +568,7 @@ const GameHistory = (() => {
     $('histImportCancel').addEventListener('click', () => { $('histImport').hidden = true; importMsg(''); });
     $('histImportGo').addEventListener('click', () => { doImport().catch(() => { $('histImportGo').disabled = false; importMsg('Có lỗi khi nhập ván, thử lại.', true); }); });
     $('histImportText').addEventListener('input', guessSide);
+    $('histSync').addEventListener('click', () => { if (!syncing) sync().then(ok => { if (ok && !$('histModal').hidden) render(); }); });
   }
 
   return { save, update, read, open, bind, render, remove, clear, replay, resultLabel, outcome, label, normalFen, sync, onChange: f => listeners.push(f) };

@@ -6,7 +6,7 @@
 //   2. TPL: mẫu câu có biến, viết {0}, {1}… ở chỗ thay đổi; phần biến cũng được dịch nếu có trong EN;
 //   3. câu ghép bằng " · " được tách ra dịch từng đoạn.
 // Câu chưa có bản dịch thì giữ nguyên tiếng Việt. Thêm bản dịch: thêm một dòng vào EN hoặc TPL.
-// Nội dung 106 bài Học cờ (lessons.js) hiện chỉ có tiếng Việt.
+// Nội dung 106 bài Học cờ (lessons.js) có bản tiếng Anh trong lessons-en.js.
 
 const I18N = (() => {
   const KEY = 'rg-lang';
@@ -33,7 +33,7 @@ const I18N = (() => {
     'Chế độ': 'Mode', 'Xem lại trên bàn cờ': 'Replay on the board', 'Xóa ván này': 'Delete this game', 'Không có ván nào khớp bộ lọc.': 'No games match the filter.',
     'Chấm từng nước bằng Stockfish, thêm nước hớ vào Sổ luyện lỗi': 'Grade every move with Stockfish and add blunders to the Mistake Notebook',
     'Không đọc được PGN của ván này.': 'Could not read this game\'s PGN.', 'Không phân tích được ván này.': 'Could not analyse this game.',
-    'Không có ván nào để tải.': 'No games to download.', 'Đã tải ván · dùng ◀ ▶ hoặc phím ← → để xem từng nước': 'Game loaded · use ◀ ▶ or ← → to step through it',
+    'Không có ván nào để tải.': 'No games to download.', 'Đã tải ván · dùng nút Nước trước / Nước sau hoặc phím ← → để xem từng nước': 'Game loaded · use Previous / Next move or ← → to step through it',
     'cầm Trắng': 'played White', 'cầm Đen': 'played Black',
     // ----- Bảng xếp hạng (v15) -----
     'Huy chương': 'Medals', 'Vị trí của bạn': 'Your position', 'Tổng': 'Total', 'dẫn đầu bảng!': 'top of the board!',
@@ -139,6 +139,9 @@ const I18N = (() => {
     'Tên miền của web chưa được thêm vào Firebase (Authentication › Settings › Authorized domains).': 'This site\'s domain is not added in Firebase (Authentication › Settings › Authorized domains).',
     'Phiên đăng nhập đã hết, hãy đăng nhập lại.': 'Your session expired, please sign in again.', 'Đăng nhập bằng Google cần cấu hình Firebase (xem README).': 'Google sign-in requires Firebase to be configured (see README).',
     'hoặc': 'or',
+    'Bấm để đồng bộ ngay': 'Tap to sync now',
+    'Đang tìm nước gợi ý…': 'Finding a hint…', 'ván tập': 'practice game', 'vừa xong': 'just now',
+    'hết nước đi (pat)': 'stalemate', 'không đủ quân để chiếu hết': 'insufficient material', 'lặp lại thế cờ 3 lần': 'threefold repetition', 'luật 50 nước': '50-move rule',
     'Trắng thắng': 'White won', 'Đen thắng': 'Black won', 'Ván nhập': 'Imported', 'Nhập PGN': 'Import PGN',
     'Dán PGN / FEN từ chess.com, lichess… để phân tích': 'Paste a PGN / FEN from chess.com, lichess… to analyse',
     'Dán PGN của một ván (từ chess.com, lichess…) hoặc một thế cờ FEN': 'Paste the PGN of a game (from chess.com, lichess…) or a FEN position',
@@ -159,12 +162,12 @@ const I18N = (() => {
     'là nước lý thuyết khai cuộc': 'is a book move', 'là nước thiếu chính xác': 'is an inaccuracy', 'là một sai lầm': 'is a mistake',
     'bỏ lỡ cơ hội trừng phạt sai lầm của đối thủ': 'misses the chance to punish the opponent\'s mistake', 'là nước hớ': 'is a blunder',
     'là nước bắt buộc (duy nhất)': 'is forced (the only legal move)', 'Nước tốt nhất:': 'Best move:', 'Phân tích ván': 'Game review',
-    'Tắt phân tích': 'Close review', 'Thế xuất phát · bấm ▶ hoặc phím → để xem từng nước': 'Starting position · press ▶ or → to step through the moves',
+    'Tắt phân tích': 'Close review', 'Thế xuất phát · bấm Nước sau hoặc phím → để xem từng nước': 'Starting position · press Next move or → to step through the moves',
     'Nước này chưa được phân tích': 'This move has not been analysed', 'Xem lại từng nước': 'Review move by move',
     'Stockfish đang phân tích từng nước của ván…': 'Stockfish is analysing every move of the game…',
     'Bạn không có nước hớ hay sai lầm nào. Rất tốt!': 'You made no blunders or mistakes. Well played!', 'Xem phân tích': 'View review',
     'Xem lại từng nước kèm xếp loại (thiên tài, tốt nhất, nước hớ…)': 'Step through the moves with their classification (brilliant, best, blunder…)',
-    'Đã tải ván kèm phân tích · dùng ◀ ▶ hoặc phím ← → để xem từng nước': 'Game loaded with its review · use ◀ ▶ or ← → to step through it',
+    'Đã tải ván kèm phân tích · dùng nút Nước trước / Nước sau hoặc phím ← → để xem từng nước': 'Game loaded with its review · use Previous / Next move or ← → to step through it',
     
 
     // ----- Kết quả & nhận xét -----
@@ -313,6 +316,7 @@ const I18N = (() => {
     'Chuột phải': 'Right click', 'Đánh dấu ô trên bàn cờ': 'Mark a square', 'Chọn đáp án / kiểm tra khi học cờ': 'Pick answer / check in lessons',
 
     // ----- Đăng nhập -----
+    'Chào mừng trở lại! Đăng nhập để tiếp tục.': 'Welcome back! Log in to continue.', 'Tạo tài khoản miễn phí để có rank, Elo và chơi Online.': 'Create a free account to get a rank, Elo and play online.', 'Chơi cờ vua, học cờ và leo rank ngay trên trình duyệt': 'Play chess, learn and climb the ranks right in your browser', 'Online & Contest': 'Online & Contests', 'ví dụ: magnus_vn': 'e.g. magnus_vn', '3–20 ký tự: chữ không dấu, số và dấu _': '3–20 characters: letters, digits and _', 'Chỉ dùng chữ không dấu, số và dấu _ (không dấu cách)': 'Use only letters, digits and _ (no spaces)', 'Tên bắt đầu bằng "admin" chỉ dành cho chủ web': 'Names starting with "admin" are reserved for the site owner', 'Tên hợp lệ': 'Username looks good', 'Quá ngắn (cần ít nhất 6 ký tự)': 'Too short (at least 6 characters)', 'Yếu': 'Weak', 'Tạm được': 'Fair', 'Mạnh': 'Strong', 'Rất mạnh': 'Very strong', 'Caps Lock đang bật': 'Caps Lock is on', 'Chưa có tài khoản?': 'No account yet?', 'Đăng ký miễn phí': 'Sign up free', 'Đã có tài khoản?': 'Already have an account?', 'Đang đăng nhập…': 'Logging in…', 'Đang tạo tài khoản…': 'Creating account…', 'Hiện mật khẩu': 'Show password', 'Ẩn mật khẩu': 'Hide password', 'Stockfish 3 mức độ, có gợi ý': 'Stockfish at 3 levels, with hints', 'Tìm trận, rank, huy chương': 'Matchmaking, ranks, medals', 'Nước thiên tài, nước hớ, độ chính xác': 'Brilliant moves, blunders, accuracy', '106 bài từ cơ bản tới nâng cao': '106 lessons from basic to advanced',
     'Đăng nhập': 'Log in', 'Đăng ký': 'Sign up', 'Tên đăng nhập': 'Username', 'Mật khẩu': 'Password', 'Nhập lại mật khẩu': 'Repeat password', 'Tạo tài khoản': 'Create account',
     'Bạn là ai?': 'Who are you?', 'Chọn trình độ cờ của bạn để có Elo khởi điểm. Sau đó Elo tăng giảm theo kết quả từng ván, nên hãy chọn đúng sức nhé!': 'Pick your level to get a starting Elo. It then goes up and down with every game, so choose honestly!',
     'Chưa chơi bao giờ hoặc vừa mới học luật': 'Never played or just learned the rules', 'Biết cách đi các quân nhưng hay bị mất quân': 'Knows how pieces move but often loses material',
@@ -432,10 +436,11 @@ const I18N = (() => {
 
   // Mẫu câu có biến: [tiếng Việt, tiếng Anh], {0} {1}… là phần thay đổi
   const TPL = [
+    ['Độ mạnh: {0}', 'Strength: {0}'], ['Cần ít nhất 3 ký tự (còn thiếu {=0})', 'Needs at least 3 characters ({0} more)'],
     ['Lượt {0} đi', '{0} to move'], ['Chiếu hết! {0} thắng', 'Checkmate! {0} wins'], ['{0} – {1} thắng', '{0} – {1} wins'], ['Hòa – {0}', 'Draw – {0}'],
     ['{0} hết giờ', '{0} ran out of time'], ['{0} hết giờ nhưng {1} không đủ quân chiếu hết', '{0} ran out of time but {1} cannot mate'],
     ['{0} thắng!', '{0} wins!'], ['{0} xin thua', '{0} resigns'], ['{0} xin thua?', 'Does {0} resign?'],
-    ['Khai cuộc: {0} ({1})', 'Opening: {0} ({1})'], ['Thay phiên nhau đi', 'Take turns'], ['Đang đấu với {0}', 'Playing {0}'], ['{0} Elo', '{0} Elo'],
+    ['Thay phiên nhau đi', 'Take turns'], ['Đang đấu với {0}', 'Playing {0}'], ['{0} Elo', '{0} Elo'],
     ['Bạn cầm {0}', 'You play {0}'], ['{0} · Máy', '{0} · Computer'], ['Máy {0}', 'Computer {0}'], ['Máy · {0}', 'Computer · {0}'],
     ['Đánh giá thế cờ (ước lượng): {0} {1}', 'Evaluation (estimate): {0} {1}'], ['cân bằng', 'equal'],
     ['Đấu với máy {0} ({1} Elo) có tính Elo, không tính rank', 'Rated vs computer {0} ({1} Elo), Elo only, no rank'],
@@ -484,7 +489,25 @@ const I18N = (() => {
     ['Đã nhập {=0} nước. Stockfish đang phân tích… {=1}%', 'Imported {0} moves. Stockfish is analysing… {1}%'],
     ['Đã nhập {=0} nước. Stockfish đang phân tích… 0%', 'Imported {0} moves. Stockfish is analysing… 0%'],
     ['Đã khôi phục ván đang dở ({=0} nước)', 'Restored your unfinished game ({0} moves)'],
-    ['Gửi tới {=0}', 'Sent to {0}'], ['Đã bật: thông báo contest sẽ được gửi về {=0}', 'On: contest notifications will be sent to {0}'],
+    ['Hòa – {0}', 'Draw – {0}'], ['Lượt {0} đi – đang bị chiếu!', '{0} to move – in check!'],
+    ['{0} Chuỗi câu đố hôm nay: {1} ngày.', '{0} Daily puzzle streak: {1} days.'],
+    ['{0} ngày {1} giờ', '{0} d {1} h'], ['{0} phút trước', '{0} min ago'], ['{0} giờ trước', '{0} h ago'], ['{0} ngày trước', '{0} days ago'],
+    ['Khai cuộc: {0} ({=1})', 'Opening: {1}'], ['Máy {0}', 'Computer {0}'], ['Online với {=0}', 'Online vs {0}'],
+    ['{0} (mở)', '{0} (open)'], ['{0} (đã xong)', '{0} (done)'], ['{0} (đang khoá)', '{0} (locked)'],
+    ['Xoá contest "{=0}" cùng toàn bộ bảng điểm? Không thể hoàn tác.', 'Delete contest "{0}" and all its standings? This cannot be undone.'],
+    ['Xoá contest "{=0}" cùng toàn bộ bảng điểm? Không thể hoàn tác.\n\nContest đang diễn ra: các ván đang đấu sẽ không được tính nữa.', 'Delete contest "{0}" and all its standings? This cannot be undone.\n\nThe contest is live: games in progress will no longer count.'],
+    ['Xoá contest "{=0}" cùng toàn bộ bảng điểm? Không thể hoàn tác.\n\nHuy chương của contest này cũng sẽ bị xoá khỏi hồ sơ người chơi.', 'Delete contest "{0}" and all its standings? This cannot be undone.\n\nIts medals will also be removed from players\' profiles.'],
+    ['Đã xoá contest "{=0}".', 'Contest "{0}" deleted.'], ['Đã xoá contest "{=0}"', 'Contest "{0}" deleted'],
+    ['Ván Online với {=0} lần trước bị tính thua vì bạn thoát trang giữa ván.', 'Your last online game against {0} was counted as a loss because you left the page mid-game.'],
+    ['còn {0}', '{0} left'],
+    ['{0} Nếu không quay lại trong {1} giây, đối thủ sẽ bị xử thua.', '{0} If they are not back within {1} seconds, they lose by forfeit.'],
+    ['huỷ ván sau {0} giây', 'game cancelled in {0} s'], ['xử thắng sau {0} giây', 'you win in {0} s'],
+    ['Mute chat của {=0}?\n(Tuỳ chọn) Lý do:', 'Mute {0}\'s chat?\n(Optional) Reason:'],
+    ['{0} thế cờ đến hạn ôn hôm nay', '{0} positions due today'], ['{0} thế cờ lấy từ ván của bạn', '{0} positions from your games'], ['{0} đã thuộc', '{0} mastered'],
+    ['độ chính xác TB {0}%', 'avg accuracy {0}%'], ['Ôn ngay ({0})', 'Review now ({0})'], ['Bài {0}/{1}', 'Lesson {0}/{1}'], ['{0} thử thách', '{0} challenges'],
+    ['Giờ chiếu hết trong {0} nước!', 'Now mate in {0}!'],
+    ['Gửi tới {=0}', 'Sent to {0}'],
+    ['Đã đồng bộ với tài khoản {=0} · {1} ván · bấm để đồng bộ lại', 'Synced with account {0} · {1} games · tap to sync again'], ['Đã bật: thông báo contest sẽ được gửi về {=0}', 'On: contest notifications will be sent to {0}'],
     ['Chế độ khách không {0} được. Đăng nhập hoặc đăng ký tài khoản (miễn phí)?', 'Guests cannot {0}. Sign in or create a free account?'],
     ['Lỗi đáng tiếc nhất của bạn: nước {=0} {=1}, nên đi', 'Your most costly mistake: move {0} {1}; better was'],
     ['Đã phân tích xong · độ chính xác Trắng {=0}% · Đen {=1}%', 'Analysis done · accuracy White {0}% · Black {1}%'],
@@ -499,7 +522,7 @@ const I18N = (() => {
     ['Bắt đầu ván mới – bạn cầm quân {0}.', 'New game – you play {0}.'], ['Mute chat của {=0}?', 'Mute {0}\'s chat?'],
     ['{0} đi', '{0} to move'], ['{0} nước', '{0} moves'], ['Ôn ngay ({0})', 'Review now ({0})'], ['{0} thế cờ đến hạn ôn hôm nay', '{0} positions due today'],
     ['{0} thế cờ lấy từ ván của bạn', '{0} positions from your games'], ['{0} đã thuộc', '{0} mastered'], ['độ chính xác TB {0}%', 'avg accuracy {0}%'],
-    ['Nước {0} · {=1}', 'Move {0} · {1}'], ['Nước {0}: {1}', 'Move {0}: {1}'], ['Câu đố hôm nay', 'Daily puzzle'], ['Câu đố hôm nay · {0}', 'Daily puzzle · {0}'], ['/{0} đã giải', '/{0} solved'],
+    ['Nước {0} · {1}', 'Move {0} · {1}'], ['Nước {0}: {1}', 'Move {0}: {1}'], ['Câu đố hôm nay', 'Daily puzzle'], ['Câu đố hôm nay · {0}', 'Daily puzzle · {0}'], ['/{0} đã giải', '/{0} solved'],
     ['{0}/{1} đã giải', '{0}/{1} solved'], ['Sổ luyện lỗi', 'Mistake Notebook'], ['nước hớ', 'blunder'], ['nước sai', 'mistake'], ['hộp {0}/{1}', 'box {0}/{1}'],
     ['Trong ván "{=0}", bạn cầm {1} và đã đi {2}. Hãy tìm nước tốt hơn.', 'In "{0}" you played {1} and chose {2}. Find a better move.'],
     ['{0} đi. Chiếu hết trong {1} nước.', '{0} to move. Mate in {1}.'], ['{0} đi. Tìm nước mạnh nhất.', '{0} to move. Find the strongest move.'],
@@ -546,9 +569,13 @@ const I18N = (() => {
       for (const p of PUZZLES) if (p.en) { EN[p.title] = p.en.title; EN[p.hint] = p.en.hint; }
     }
     if (typeof OPENING_BOOK !== 'undefined' && OPENING_BOOK.pairs) for (const [vi, en] of OPENING_BOOK.pairs()) if (!EN[vi]) EN[vi] = en;
+    // Nội dung khoá Học cờ (lessons-en.js)
+    if (typeof LESSONS_EN !== 'undefined') for (const [vi, en] of LESSONS_EN) { const k = vi.normalize('NFC'); if (!EN[k]) EN[k] = en; }
   }
 
   const VI = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+  // Chữ chỉ có trong tiếng Việt (không tính é, á… có trong tên tiếng Anh / Pháp như "Réti")
+  const VI_ONLY = /[ăâđêôơưạảãầấậẩẫằắặẳẵẹẻẽềếệểễỉịĩọỏõồốộổỗờớợởỡụủũừứựửữỳỵỷỹ]/i;
   const esc = s => s.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
   // {0} = phần biến phải dịch được (nếu không, bỏ qua mẫu này), {=0} = tên riêng, giữ nguyên
   const compiled = TPL.map(([vi, en]) => {
@@ -559,7 +586,8 @@ const I18N = (() => {
     for (let i = 0; i < parts.length; i += 3) {
       src += esc(parts[i]);
       literal += parts[i].length;
-      if (i + 2 < parts.length) { src += '(.+?)'; free.push(parts[i + 1] === '='); order.push(Number(parts[i + 2])); }
+      // chỗ trống không vượt qua dấu " · " (để câu ghép được dịch từng đoạn)
+      if (i + 2 < parts.length) { src += '([^·]+?)'; free.push(parts[i + 1] === '='); order.push(Number(parts[i + 2])); }
     }
     return { re: new RegExp(src + '$'), order, free, en, literal };
   }).sort((a, b) => b.literal - a.literal); // mẫu cụ thể (nhiều chữ cố định) được thử trước
@@ -574,7 +602,7 @@ const I18N = (() => {
       let ok = true;
       c.order.forEach((idx, k) => {
         const v = c.free[k] ? m[k + 1] : translateCore(m[k + 1]);
-        if (!c.free[k] && VI.test(v)) ok = false; // phần biến chưa dịch được: không dịch nửa vời
+        if (!c.free[k] && VI_ONLY.test(v)) ok = false; // phần biến chưa dịch được: không dịch nửa vời
         vals[idx] = v;
       });
       if (!ok) continue;

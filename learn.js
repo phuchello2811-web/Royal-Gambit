@@ -523,7 +523,18 @@ const Learn = (() => {
     $('lsMascot').src = `pieces/${run.test ? 'wN' : unitIcon(entry.u)}.svg`;
     $('lsUnit').textContent = run.test ? (run.test.practice ? 'Luyện tập' : 'Nhảy cóc') : entry.lesson.review ? `Phần ${entry.u + 1} · Ôn tập` : `Phần ${entry.u + 1} · Bài ${entry.k + 1}`;
     $('lsTitle').textContent = entry.lesson.title;
-    $('lsText').textContent = s.t === 'quiz' ? s.q : (st.coach && !st.done ? st.coach + ' — ' : '') + s.text;
+    // Lời nhắc của huấn luyện viên và nội dung bài để ở hai đoạn riêng (mỗi đoạn dịch được sang tiếng Anh)
+    const txt = $('lsText');
+    txt.textContent = '';
+    if (s.t !== 'quiz' && st.coach && !st.done) {
+      const c = document.createElement('span');
+      c.className = 'ls-coach';
+      c.textContent = st.coach;
+      txt.append(c, ' — ');
+    }
+    const body = document.createElement('span');
+    body.textContent = s.t === 'quiz' ? s.q : s.text;
+    txt.appendChild(body);
     $('lsBar').style.width = (100 * (run.si + (st.done ? 1 : 0)) / run.steps.length) + '%';
     $('lsHearts').textContent = run.hearts;
 
@@ -729,7 +740,9 @@ const Learn = (() => {
       b.className = 'toc-item' + (!unlocked(unitStart[u]) ? ' locked' : '') + (cur >= 0 && FLAT[cur].u === u ? ' cur' : '') + (n === items.length ? ' full' : '');
       b.style.setProperty('--uc', unit.color);
       b.innerHTML = `<img src="pieces/${unitIcon(u)}.svg" alt=""><span class="toc-name"><b></b><i style="width:${100 * n / items.length}%"></i></span><small>${n}/${items.length}</small>`;
-      b.querySelector('b').textContent = `${u + 1}. ${unit.title}`;
+      const nb = b.querySelector('b'); // số thứ tự và tên phần để riêng (tên phần dịch được)
+      nb.append(`${u + 1}. `);
+      nb.appendChild(Object.assign(document.createElement('span'), { textContent: unit.title }));
       b.addEventListener('click', () => $('unit-' + u).scrollIntoView({ behavior: 'smooth', block: 'start' }));
       box.appendChild(b);
     });

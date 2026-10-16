@@ -1586,7 +1586,7 @@ function renderReviewBox() {
   if (!rv) { box.innerHTML = ''; return; }
   let body;
   if (ply === 0 || ply > rv.upto) {
-    body = ply === 0 ? '<p class="rvb-say">Thế xuất phát · bấm ▶ hoặc phím → để xem từng nước</p>'
+    body = ply === 0 ? '<p class="rvb-say">Thế xuất phát · bấm Nước sau hoặc phím → để xem từng nước</p>'
       : '<p class="rvb-say">Nước này chưa được phân tích</p>';
   } else {
     const id = rv.cls[ply - 1], h = game.history[ply - 1];
@@ -3098,13 +3098,55 @@ let authMode = 'login';
 
 function setAuthMode(m) {
   authMode = m;
-  $('authTabLogin').classList.toggle('on', m === 'login');
-  $('authTabRegister').classList.toggle('on', m === 'register');
-  $('authPass2Wrap').hidden = m !== 'register';
-  $('authPass2').required = m === 'register';
-  $('authPass').autocomplete = m === 'login' ? 'current-password' : 'new-password';
-  $('authSubmit').textContent = m === 'login' ? 'Đăng nhập' : 'Tạo tài khoản';
+  const reg = m === 'register';
+  $('authTabLogin').classList.toggle('on', !reg);
+  $('authTabRegister').classList.toggle('on', reg);
+  document.querySelector('.auth-tabs').classList.toggle('reg', reg);
+  $('authPass2Wrap').hidden = !reg;
+  $('authPass2').required = reg;
+  $('authPass').autocomplete = reg ? 'new-password' : 'current-password';
+  $('authSubmit').textContent = reg ? 'Tạo tài khoản' : 'Đăng nhập';
+  $('authWelcome').textContent = reg ? 'Tạo tài khoản miễn phí để có rank, Elo và chơi Online.' : 'Chào mừng trở lại! Đăng nhập để tiếp tục.';
+  $('authSwitch').innerHTML = reg
+    ? '<span>Đã có tài khoản?</span> <button type="button" class="auth-link" data-go="login">Đăng nhập</button>'
+    : '<span>Chưa có tài khoản?</span> <button type="button" class="auth-link" data-go="register">Đăng ký miễn phí</button>';
   $('authMsg').textContent = '';
+  const form = $('authForm');
+  form.classList.remove('swap'); void form.offsetWidth; form.classList.add('swap'); // hiệu ứng nhẹ khi đổi chế độ
+  authLive();
+}
+
+// Kiểm tra ngay khi gõ: tên đăng nhập, độ mạnh mật khẩu (đăng ký), hai mật khẩu khớp nhau
+function authLive() {
+  const reg = authMode === 'register';
+  const name = $('authUser').value.trim(), pass = $('authPass').value, pass2 = $('authPass2').value;
+  const hint = $('authUserHint');
+  let ok = false, text = '3–20 ký tự: chữ không dấu, số và dấu _', bad = false;
+  if (name) {
+    if (!/^[A-Za-z0-9_]*$/.test(name)) { text = 'Chỉ dùng chữ không dấu, số và dấu _ (không dấu cách)'; bad = true; }
+    else if (name.length < 3) text = `Cần ít nhất 3 ký tự (còn thiếu ${3 - name.length})`;
+    else if (reg && /^admin/i.test(name) && name.toLowerCase() !== 'admin') { text = 'Tên bắt đầu bằng "admin" chỉ dành cho chủ web'; bad = true; }
+    else { ok = true; text = reg ? 'Tên hợp lệ' : ''; }
+  }
+  hint.textContent = text;
+  hint.className = 'auth-hint' + (bad ? ' bad' : ok ? ' good' : '');
+  $('authUserOk').hidden = !(ok && reg);
+  // Độ mạnh mật khẩu
+  const box = $('authStrength');
+  box.hidden = !reg || !pass;
+  if (reg && pass) {
+    let sc = 0;
+    if (pass.length >= 6) sc++;
+    if (pass.length >= 10) sc++;
+    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) sc++;
+    if (/\d/.test(pass) && /[^A-Za-z0-9]/.test(pass)) sc++;
+    else if (/\d/.test(pass) && sc < 4) sc += pass.length >= 8 ? 1 : 0;
+    sc = pass.length < 6 ? 0 : Math.max(1, Math.min(4, sc));
+    const lv = ['Quá ngắn (cần ít nhất 6 ký tự)', 'Yếu', 'Tạm được', 'Mạnh', 'Rất mạnh'][sc];
+    box.dataset.lv = sc;
+    box.querySelector('small').textContent = 'Độ mạnh: ' + lv;
+  }
+  $('authPass2Ok').hidden = !(reg && pass2 && pass2 === pass && pass.length >= 6);
 }
 
 function enterApp() {
@@ -3204,6 +3246,8 @@ $('authForm').addEventListener('submit', async e => {
   msg.textContent = '';
   if (authMode === 'register' && pass !== $('authPass2').value) { msg.textContent = AUTH_ERRORS.MISMATCH; return; }
   $('authSubmit').disabled = true;
+  $('authSubmit').classList.add('busy');
+  $('authSubmit').textContent = authMode === 'login' ? 'Đang đăng nhập…' : 'Đang tạo tài khoản…';
   try {
     if (authMode === 'login') await Profile.login(user, pass);
     else await Profile.register(user, pass);
@@ -3211,9 +3255,32 @@ $('authForm').addEventListener('submit', async e => {
     enterApp();
   } catch (err) {
     msg.textContent = AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
+    const box = document.querySelector('.auth-box');
+    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
   }
   $('authSubmit').disabled = false;
+  $('authSubmit').classList.remove('busy');
+  $('authSubmit').textContent = authMode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản';
 });
+// Gõ tới đâu kiểm tra tới đó; nút con mắt hiện / ẩn mật khẩu; báo Caps Lock; link chuyển Đăng nhập ↔ Đăng ký
+for (const id of ['authUser', 'authPass', 'authPass2']) $(id).addEventListener('input', authLive);
+for (const b of document.querySelectorAll('.auth-eye')) {
+  b.addEventListener('click', () => {
+    const inp = $(b.dataset.for), show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    b.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye');
+    b.title = show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu';
+    b.setAttribute('aria-label', b.title);
+    inp.focus();
+  });
+}
+for (const id of ['authPass', 'authPass2']) {
+  for (const ev of ['keydown', 'keyup']) $(id).addEventListener(ev, e => { if (e.getModifierState) $('authCaps').hidden = !e.getModifierState('CapsLock'); });
+  $(id).addEventListener('blur', () => { $('authCaps').hidden = true; });
+}
+$('authSwitch').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) setAuthMode(b.dataset.go); });
+// Bàn cờ minh hoạ ở cột giới thiệu (ván Opera của Morphy, nước chiếu hết cuối)
+try { $('authBoard').innerHTML = Library.fenBoard('1n1Rkb1r/p4ppp/4q3/4p1B1/4P3/8/PPP2PPP/2K5 b k - 1 17', false, { from: sqIndex('d1'), to: sqIndex('d8') }); } catch {}
 
 // ----- Đăng nhập bằng Google (Gmail) và chế độ khách -----
 $('authGoogle').hidden = !Profile.remote; // cần Firebase

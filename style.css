@@ -4583,10 +4583,11 @@ body[data-relief="on"] .eval-label { z-index: 2; }
   body:not([data-mode="learn"]) .panel .moves { flex: 1 1 0; min-height: 140px; max-height: none; overflow-y: auto; }
 }
 
-/* Nhật ký: dòng trạng thái đồng bộ với tài khoản */
+/* Nhật ký: dòng trạng thái đồng bộ với tài khoản (bấm để đồng bộ ngay) */
 .hist-sync[hidden] { display: none; }
-.hist-sync { margin: 4px 0 0; color: #8b8987; font-size: 0.74rem; line-height: 1.4; }
-.hist-sync::before { content: "☁ "; }
+.hist-sync { display: inline-flex; align-items: flex-start; gap: 5px; margin: 4px 0 0; padding: 0; border: none; background: none; box-shadow: none; color: #8b8987; font-size: 0.74rem; font-weight: 600; line-height: 1.4; text-align: left; cursor: pointer; }
+.hist-sync:hover { background: none; text-decoration: underline; }
+.hist-sync .ic { width: 14px; height: 14px; margin-top: 1px; }
 .hist-sync.ok { color: #a6d36b; }
 .hist-sync.syncing { color: #8ec5ff; }
 .hist-sync.error { color: #f0b730; }
@@ -4610,3 +4611,99 @@ body[data-relief="on"] .eval-label { z-index: 2; }
 .hm-guest small { color: #c3c2c1; font-size: 0.78rem; line-height: 1.4; }
 .small-note { margin: -6px 0 8px 28px; font-size: 0.76rem; }
 .auth-name-email { margin: -4px 0 4px; color: #8ec5ff; font-size: 0.84rem; font-weight: 700; word-break: break-all; }
+
+/* Nút điều hướng nước đi dùng biểu tượng vẽ (ký tự ⏮ ◀ ▶ ⏭ bị điện thoại đổi thành emoji) */
+.nav-row button .ic, .lib-step button .ic { width: 16px; height: 16px; stroke-width: 2.4; }
+
+/* ================= Màn hình đăng nhập / đăng ký (nâng cấp) ================= */
+#authModal {
+  background:
+    radial-gradient(900px 600px at 15% 10%, #81b64c26, transparent 60%),
+    radial-gradient(800px 600px at 90% 90%, #5aa9ff1f, transparent 60%),
+    repeating-conic-gradient(#ffffff05 0 25%, transparent 0 50%) 0 0 / 64px 64px,
+    #121110;
+  backdrop-filter: none;
+  overflow-y: auto;
+  align-items: safe center;
+}
+.auth-shell { display: flex; align-items: stretch; width: min(100%, 980px); margin: auto; border-radius: 26px; box-shadow: 0 30px 80px #000c, 0 0 0 1px #ffffff12; overflow: hidden; }
+.auth-hero { display: none; }
+#authModal .auth-box { width: min(100%, 420px); margin: 0 auto; max-height: none; border-radius: 26px; padding: 26px 26px 22px; background: linear-gradient(180deg, #2a2825, #1f1e1b); border: none; box-shadow: none; }
+@media (min-width: 900px) {
+  .auth-hero {
+    display: flex; flex-direction: column; gap: 18px; flex: 1.15; padding: 34px 34px 30px;
+    background: linear-gradient(160deg, #2f3d22 0%, #1d2416 55%, #161913 100%);
+    border-right: 1px solid #ffffff0f;
+  }
+  #authModal .auth-box { flex: 1; width: auto; border-radius: 0; padding: 34px 34px 26px; }
+  #authModal .auth-box .auth-brand { display: none; } /* logo đã ở cột trái */
+}
+.ah-brand { display: flex; align-items: center; gap: 12px; }
+.ah-brand img { width: 46px; height: 46px; filter: drop-shadow(0 6px 14px #000a); }
+.ah-brand .wordmark { font-family: "Cinzel", serif; font-size: 1.35rem; letter-spacing: 0.12em; color: #f3f1ea; }
+.ah-title { margin: 0; color: #fff; font-size: 1.55rem; line-height: 1.3; font-weight: 800; }
+.ah-board { width: min(100%, 300px); align-self: center; border-width: 4px; border-radius: 10px; box-shadow: 0 18px 40px #000b; transform: perspective(900px) rotateX(10deg); }
+.ah-feats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: auto 0 0; padding: 0; list-style: none; }
+.ah-feats li { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border-radius: 12px; background: #ffffff0a; border: 1px solid #ffffff0d; }
+.ah-feats .ic { flex: none; width: 20px; height: 20px; color: #a6d36b; margin-top: 2px; }
+.ah-feats span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ah-feats b { color: #fff; font-size: 0.84rem; }
+.ah-feats small { color: #b9c2ad; font-size: 0.72rem; line-height: 1.35; }
+
+.auth-welcome { margin: -4px 0 14px; color: #c3c2c1; font-size: 0.9rem; text-align: center; line-height: 1.45; }
+@media (min-width: 900px) { .auth-welcome { text-align: left; font-size: 0.95rem; } }
+
+/* Tab có viên trượt */
+.auth-tabs { position: relative; padding: 4px; border-radius: 12px; background: #161513; }
+.auth-tabs button { position: relative; z-index: 1; background: transparent !important; box-shadow: none !important; color: #8b8987; transition: color 0.2s; }
+.auth-tabs button.on { color: #fff; }
+.auth-tab-pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 7px); border-radius: 9px; background: linear-gradient(180deg, #8cc256, var(--accent)); box-shadow: 0 3px 0 var(--accent-dark); transition: transform 0.25s cubic-bezier(0.3, 0.8, 0.3, 1); }
+.auth-tabs.reg .auth-tab-pill { transform: translateX(calc(100% + 6px)); }
+
+/* Ô nhập có biểu tượng */
+.auth-form { gap: 8px; }
+.auth-form.swap { animation: auth-swap 0.25s ease; }
+@keyframes auth-swap { from { opacity: 0.4; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.auth-field-label { margin: 6px 0 0; color: #c3c2c1; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em; }
+.auth-group { display: flex; flex-direction: column; gap: 8px; }
+.auth-group[hidden] { display: none; }
+.auth-field { position: relative; display: flex; align-items: center; }
+.auth-field > .ic { position: absolute; left: 13px; width: 18px; height: 18px; color: #8b8987; pointer-events: none; transition: color 0.15s; }
+.auth-field input { width: 100%; padding: 13px 44px 13px 42px; border-radius: 12px; border: 1px solid #ffffff1a; background: #161513; color: #fff; font-size: 0.95rem; transition: border-color 0.15s, box-shadow 0.15s; }
+.auth-field input::placeholder { color: #6f6b64; }
+.auth-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px #81b64c33; }
+.auth-field:focus-within > .ic { color: #a6d36b; }
+.auth-eye { position: absolute; right: 6px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: none; border-radius: 8px; background: transparent !important; box-shadow: none !important; color: #8b8987; }
+.auth-eye:hover { color: #fff; }
+.auth-ok { position: absolute; right: 12px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #81b64c; color: #fff; }
+.auth-ok[hidden] { display: none; }
+.auth-ok .ic { width: 13px; height: 13px; stroke-width: 3; }
+.auth-hint { margin: 0; min-height: 1.1em; color: #8b8987; font-size: 0.74rem; }
+.auth-hint.good { color: #a6d36b; }
+.auth-hint.bad { color: #f0907e; }
+.auth-hint:empty { min-height: 0; }
+
+/* Độ mạnh mật khẩu */
+.auth-strength { display: flex; align-items: center; gap: 10px; }
+.auth-strength[hidden] { display: none; }
+.as-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; flex: 1; }
+.as-bar i { height: 5px; border-radius: 99px; background: #ffffff14; transition: background 0.2s; }
+.auth-strength small { flex: none; color: #8b8987; font-size: 0.72rem; font-weight: 700; }
+.auth-strength[data-lv="1"] .as-bar i:nth-child(-n+1) { background: #e2533f; }
+.auth-strength[data-lv="2"] .as-bar i:nth-child(-n+2) { background: #f0b730; }
+.auth-strength[data-lv="3"] .as-bar i:nth-child(-n+3) { background: #a6d36b; }
+.auth-strength[data-lv="4"] .as-bar i { background: #81b64c; }
+.auth-strength[data-lv="0"] small { color: #f0907e; }
+
+.auth-caps { margin: 0; color: #f0b730; font-size: 0.76rem; font-weight: 700; }
+.auth-caps[hidden] { display: none; }
+.auth-caps::before { content: "⇪ "; }
+.auth-submit { margin-top: 6px; }
+.auth-submit.busy { opacity: 0.8; cursor: progress; }
+.auth-switch { margin: 4px 0 0; text-align: center; color: #8b8987; font-size: 0.84rem; }
+.auth-link { display: inline; padding: 0; border: none; background: none !important; box-shadow: none !important; color: #a6d36b; font-weight: 800; font-size: inherit; cursor: pointer; }
+.auth-link:hover { text-decoration: underline; }
+.auth-box.shake { animation: auth-shake 0.35s ease; }
+@keyframes auth-shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { .auth-box.shake, .auth-form.swap { animation: none; } .auth-tab-pill { transition: none; } }
+@media (max-width: 420px) { #authModal .auth-box { padding: 22px 18px 18px; } #authGoogle, #authGuest { font-size: 1rem; white-space: nowrap; } }
