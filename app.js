@@ -3108,7 +3108,10 @@ const AUTH_ERRORS = {
   NO_MAIL_API: 'Chủ web chưa bật máy chủ email (mailApi trong config.js, xem README).',
 };
 // Lỗi từ máy chủ email (kèm số lần thử còn lại khi sai mã)
-const mailErr = err => err.message === 'BAD_CODE' && err.left ? `Mã xác nhận không đúng (còn ${err.left} lần thử)` : AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
+const mailErr = err => err.message === 'BAD_CODE' && err.left ? `Mã xác nhận không đúng (còn ${err.left} lần thử)`
+  : err.message === 'SESSION' ? 'Không xác minh được tài khoản. Hãy đăng xuất rồi đăng nhập lại; nếu vẫn lỗi, chủ web cần dán firebase-rules.json mới (mục "recovery").'
+  : err.message === 'SERVER' ? 'Máy chủ email đang lỗi hoặc chưa cài xong (Apps Script), thử lại sau.'
+  : AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
 let authMode = 'login';
 
 function setAuthMode(m) {
@@ -3435,8 +3438,9 @@ async function renderRecovery() {
   row.hidden = !show;
   if (show) {
     $('recEmailText').textContent = 'Đang tải…';
-    const email = await Profile.loadRecovery();
-    $('recEmailText').textContent = email || 'Chưa có – thêm để lấy lại mật khẩu khi quên';
+    let email = Profile.recoveryEmail(), failed = false;
+    try { email = await Profile.loadRecovery(); } catch { failed = true; }
+    $('recEmailText').textContent = email || (failed ? 'Không tải được, kiểm tra mạng' : 'Chưa có – thêm để lấy lại mật khẩu khi quên');
     row.classList.toggle('set', !!email);
     $('recBtn').textContent = email ? 'Đổi' : 'Thêm';
   }
@@ -3487,6 +3491,7 @@ $('recForm').addEventListener('submit', async e => {
   }
   if (err) { msg.textContent = err; shakeBox('.rec-box'); }
 });
+$('recAgain').addEventListener('click', () => { $('recMsg').textContent = ''; $('recCode').value = ''; recSetStep(1); });
 $('recRemove').addEventListener('click', async () => {
   if (!confirm('Gỡ Gmail khôi phục? Bạn sẽ không lấy lại được mật khẩu qua email và không nhận thông báo qua Gmail nữa.')) return;
   try {

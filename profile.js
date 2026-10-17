@@ -681,11 +681,16 @@ const Profile = (() => {
     if (!d.ok) { const e = new Error(d.err || 'SERVER'); e.left = d.left; throw e; }
     return d;
   }
-  const signedCall = async (action, extra) => mailCall({ action, uid: auth.uid, idToken: await token(), name: me.name, ...extra });
+  async function signedCall(action, extra) {
+    if (!signedIn || !auth || isGuest()) throw new Error('SESSION');
+    return mailCall({ action, uid: auth.uid, idToken: await token(), name: me.name, ...extra });
+  }
+  // Trả về Gmail khôi phục ('' nếu chưa có); lỗi mạng thì giữ giá trị cũ và báo lỗi cho người gọi
   async function loadRecovery() {
-    recovery = '';
-    if (!remote || !signedIn || !auth || isGuest()) return '';
-    try { const r = await call(`${db}/recovery/${auth.uid}.json?auth=${await token()}`); recovery = (r && typeof r.email === 'string') ? r.email : ''; } catch {}
+    if (!remote || !signedIn || !auth || isGuest()) { recovery = ''; return ''; }
+    const uid = auth.uid;
+    const r = await call(`${db}/recovery/${uid}.json?auth=${await token()}`);
+    if (auth && auth.uid === uid) recovery = (r && typeof r.email === 'string') ? r.email : '';
     return recovery;
   }
   async function recoveryStart(email) { return signedCall('linkStart', { email: String(email || '').trim() }); }

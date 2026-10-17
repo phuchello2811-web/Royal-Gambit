@@ -9,5 +9,5 @@ window.LEADERBOARD = {
   authDomain: 'chess-ab046.firebaseapp.com',
   // Quên mật khẩu / Gmail khôi phục: địa chỉ "Web app URL" của Apps Script tools/email-notify.gs (xem README).
   // Dạng https://script.google.com/macros/s/XXXX/exec. Bỏ trống thì ẩn tính năng Quên mật khẩu.
-  mailApi: '',
+  mailApi: 'https://script.google.com/macros/s/AKfycby6Bv_2y916N4jyCO7TgSieB7HAN_-XS3yP1DoN_kiiUsJVp3Ca3qy_wj8Dz5YSMeYp/exec',
 };
