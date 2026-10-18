@@ -1,5 +1,8 @@
 # ♞ Royal Gambit
 
+![Uploading image.png…]()
+
+
 Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần build. Thư viện duy nhất là [PeerJS](https://peerjs.com/), chỉ được tải khi bạn dùng chế độ Online.
 
 ## Tính năng
