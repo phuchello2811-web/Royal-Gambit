@@ -1,4 +1,5 @@
-# ♞ Royal Gambit
+# <img width="64" height="64" alt="image" src="https://github.com/user-attachments/assets/78f0a244-6b0c-4638-8bcf-cd04c28ed057" />
+ Royal Gambit
 
 <img width="1774" height="887" alt="image" src="https://github.com/user-attachments/assets/f57a991c-6397-4ca3-bb62-2f321fc01434" />
 
