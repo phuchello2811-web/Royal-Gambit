@@ -314,7 +314,8 @@ function renderClocks() {
     el.hidden = mode === 'online' ? !oc : !clock || mode !== 'play' || puzzle;
     if (el.hidden) continue;
     const left = oc ? oc.left(c) : clockLeft(c);
-    el.textContent = fmtClock(left);
+    const txt = fmtClock(left);
+    if (el.textContent !== txt) el.textContent = txt; // đồng hồ vẽ 10 lần/giây nhưng chữ thường chỉ đổi mỗi giây
     el.classList.toggle('running', oc ? oc.running(c) : !!clock.at && clock.turn === c);
     el.classList.toggle('low', left < CLOCK_LOW);
     el.classList.toggle('flag', left <= 0);
@@ -585,7 +586,7 @@ function renderEngine(vg) {
     $('engineDepth').textContent = '';
     body.hidden = !on || st === 'hidden';
     const note = st === 'puzzle' ? '<p class="engine-note">Tạm tắt khi đang giải câu đố.</p>' : '';
-    if (body.dataset.note !== st) { body.dataset.note = st; body.innerHTML = note; }
+    if (body.dataset.note !== st) { body.dataset.note = st; setHtml(body, note); }
     return;
   }
   body.hidden = false;
@@ -633,25 +634,29 @@ function engineSan(L, pv) {
   return s;
 }
 
+// Chỉ ghi vào DOM khi nội dung thật sự đổi (mỗi lần ghi làm trình duyệt tính lại bố cục và bộ dịch quét lại chữ)
+function setHtml(el, html) { if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; } }
+function setText(el, text) { if (el.textContent !== text) el.textContent = text; }
+
 function renderEngineBody() {
   const el = $('engineBody'), L = engineLive;
   if (!L.g) return;
   const st = L.g.status();
   if (st !== 'playing') {
-    $('engineDepth').textContent = '';
-    el.innerHTML = `<p class="engine-note">${st === 'checkmate' ? 'Chiếu hết' : 'Ván hòa'}</p>`;
+    setText($('engineDepth'), '');
+    setHtml(el, `<p class="engine-note">${st === 'checkmate' ? 'Chiếu hết' : 'Ván hòa'}</p>`);
     return;
   }
-  $('engineDepth').textContent = L.depth ? `độ sâu ${L.depth}` : '';
-  if (!L.lines.length) { el.innerHTML = '<p class="engine-note"><span class="spinner"></span>Đang tính…</p>'; return; }
-  el.innerHTML = L.lines.map(l => {
+  setText($('engineDepth'), L.depth ? `độ sâu ${L.depth}` : '');
+  if (!L.lines.length) { setHtml(el, '<p class="engine-note"><span class="spinner"></span>Đang tính…</p>'); return; }
+  setHtml(el, L.lines.map(l => {
     const w = L.g.turn === 'w' ? l.cp : -l.cp;
     return `<div class="engine-line"><span class="engine-ev ${w >= 0 ? 'w' : 'b'}">${fmtEval(w)}</span><span class="engine-pv">${escapeHtml(engineSan(L, l.pv))}</span></div>`;
   }).join('') + (L.threat ? `<div class="engine-line threat"><span class="engine-ev t">Đe doạ</span><span class="engine-pv">${
-    !L.threat.lines ? '<span class="muted">đang tính…</span>' : L.threat.lines.length ? escapeHtml(engineSan(L.threat, L.threat.lines[0].pv.slice(0, 4))) : '—'}</span></div>` : '');
+    !L.threat.lines ? '<span class="muted">đang tính…</span>' : L.threat.lines.length ? escapeHtml(engineSan(L.threat, L.threat.lines[0].pv.slice(0, 4))) : '—'}</span></div>` : ''));
 }
 
-// Stockfish báo điểm rất dày (mỗi độ sâu, mỗi biến): gom lại vẽ ~8 lần / giây
+// Stockfish báo điểm rất dày (mỗi độ sâu, mỗi biến): gom lại vẽ ~4 lần / giây
 function scheduleEngine() {
   if (engineTimer) return;
   engineTimer = setTimeout(() => {
@@ -659,7 +664,7 @@ function scheduleEngine() {
     renderEngineBody();
     renderEval(lastEval.g, lastEval.key);
     renderArrows(activeReview(), isLiveView() ? game.history.length : viewPly);
-  }, 120);
+  }, 250);
 }
 
 function toggleEngine() {
@@ -918,6 +923,7 @@ function renderHeader() {
 // Mũi tên người chơi vẽ (chuột phải kéo) và mũi tên xanh "nước tốt nhất" khi xem lại bản phân tích.
 const OFF_BY_DEFAULT = new Set(['autoQueen', 'tilt']); // các tuỳ chọn trong Cài đặt mặc định tắt
 let arrowLayer = null, arrowKey = '', bestArrow = { key: '', move: null };
+let boardGlow = null; // quầng sáng của bàn toả sáng (CSS .board-glow), đặt đúng chỗ bàn cờ cùng lúc với lớp mũi tên
 
 function arrowSVG(from, to, color, w) {
   const c = i => { const [r, col] = rowCol(i); return [col + 0.5, r + 0.5]; };
@@ -940,6 +946,10 @@ function renderArrows(rv, rvPly) {
     arrowLayer.setAttribute('viewBox', '0 0 8 8');
     arrowLayer.setAttribute('aria-hidden', 'true');
     boardEl.parentElement.appendChild(arrowLayer);
+    boardGlow = document.createElement('div');
+    boardGlow.className = 'board-glow';
+    boardGlow.setAttribute('aria-hidden', 'true');
+    boardEl.parentElement.insertBefore(boardGlow, boardEl); // trước bàn cờ: vẽ phía dưới bàn
   }
   // Nước tốt nhất ở thế trước nước đang xem (bản phân tích): tính lại từ SAN, nhớ kết quả
   let best = null;
@@ -960,7 +970,9 @@ function renderArrows(rv, rvPly) {
   const thr = tu ? [sqIndex(tu.slice(0, 2)), sqIndex(tu.slice(2, 4))] : null; // đe doạ của đối thủ (mũi tên đỏ)
   const key = `${flipped}|${best ? best.from + '-' + best.to : ''}|${eng ? eng.join('-') : ''}|${thr ? thr.join('-') : ''}|${user.map(a => a.join('-')).join(',')}`;
   // Khớp vị trí với bàn cờ (bàn nằm cạnh thanh đánh giá trong .board-wrap)
-  Object.assign(arrowLayer.style, { left: boardEl.offsetLeft + 'px', top: boardEl.offsetTop + 'px', width: boardEl.offsetWidth + 'px', height: boardEl.offsetHeight + 'px' });
+  const box = { left: boardEl.offsetLeft + 'px', top: boardEl.offsetTop + 'px', width: boardEl.offsetWidth + 'px', height: boardEl.offsetHeight + 'px' };
+  Object.assign(arrowLayer.style, box);
+  Object.assign(boardGlow.style, box);
   if (key === arrowKey) return;
   arrowKey = key;
   arrowLayer.innerHTML = (best ? arrowSVG(best.from, best.to, '#81b64cd9', 0.2) : '')
@@ -1210,11 +1222,12 @@ function play(m, dragged = false) {
 }
 
 // Gợi ý nước đi (Stockfish 16), chỉ ở chế độ Chơi; ván Online không có Gợi ý cho ai cả.
-// Người thường dùng trong ván đấu máy tính Elo thì ván không tính Elo; admin và chủ web dùng thì ván vẫn tính Elo.
+// Ai dùng trong ván đấu máy tính Elo (kể cả admin, chủ web) thì ván không tính Elo. Admin xem bảng phân tích
+// Stockfish 19 thay cho Gợi ý; bảng phân tích không làm ván mất Elo / rank.
 async function showHint() {
   if (puzzleBusy()) return;
   if (mode !== 'play' || !canHumanMove()) return;
-  if (!Profile.isAdmin() && isRatedBotGame() && !assisted) {
+  if (isRatedBotGame() && !assisted) {
     if (!confirm('Dùng Gợi ý thì ván này sẽ không tính Elo. Tiếp tục?')) return;
     assisted = true;
     renderRatedNote();
@@ -1291,7 +1304,7 @@ function renderRatedNote() {
     : practice ? 'Ván tập từ Thư viện · không tính Elo'
     : !rated ? '2 người cùng máy không tính Elo'
     : assisted ? 'Ván này không tính Elo vì đã dùng Gợi ý / Đi lại'
-    : `Đấu với máy ${LEVEL_NAME[gameLevel]} (${BOT_ELO[gameLevel]} Elo) có tính Elo, không tính rank · ${Profile.isAdmin() ? 'Admin: Gợi ý vẫn tính, Đi lại thì không' : 'dùng Gợi ý hoặc Đi lại thì không tính'}`;
+    : ''; // ván đấu máy tính Elo bình thường: không cần dòng ghi chú
 }
 
 // start = false: chỉ dọn bàn theo lựa chọn mới, chờ người chơi bấm "Bắt đầu ván" (máy cầm Trắng chưa tự đi)
@@ -3374,7 +3387,8 @@ const AUTH_ERRORS = {
 };
 // Lỗi từ máy chủ email (kèm số lần thử còn lại khi sai mã)
 const mailErr = err => err.message === 'BAD_CODE' && err.left ? `Mã xác nhận không đúng (còn ${err.left} lần thử)`
-  : err.message === 'SESSION' ? 'Không xác minh được tài khoản. Hãy đăng xuất rồi đăng nhập lại; nếu vẫn lỗi, chủ web cần dán firebase-rules.json mới (mục "recovery").'
+  : err.message === 'SESSION' ? 'Không xác minh được tài khoản. Hãy đăng xuất rồi đăng nhập lại; nếu vẫn lỗi, chủ web cần dán firebase-rules.json mới (mục "recovery") vào Firebase rồi bấm Publish.'
+  : err.message === 'NETWORK' ? 'Không kết nối được máy chủ email, kiểm tra mạng rồi thử lại.'
   : err.message === 'SERVER' ? 'Máy chủ email đang lỗi hoặc chưa cài xong (Apps Script), thử lại sau.'
   : AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
 let authMode = 'login';
@@ -3703,9 +3717,15 @@ async function renderRecovery() {
   row.hidden = !show;
   if (show) {
     $('recEmailText').textContent = 'Đang tải…';
-    let email = Profile.recoveryEmail(), failed = false;
-    try { email = await Profile.loadRecovery(); } catch { failed = true; }
-    $('recEmailText').textContent = email || (failed ? 'Không tải được, kiểm tra mạng' : 'Chưa có – thêm để lấy lại mật khẩu khi quên');
+    let email = Profile.recoveryEmail(), failed = '';
+    try { email = await Profile.loadRecovery(); } catch (e) { failed = e.message || 'SERVER'; }
+    // Báo đúng lý do: trước đây lỗi gì cũng ghi "kiểm tra mạng", kể cả khi máy chủ chặn quyền đọc
+    $('recEmailText').textContent = email || (
+      failed === 'DENIED' ? 'Máy chủ chặn quyền đọc – chủ web cần dán firebase-rules.json mới (mục "recovery") vào Firebase rồi bấm Publish'
+      : failed === 'SESSION' ? 'Phiên đăng nhập đã hết hạn – đăng xuất rồi đăng nhập lại'
+      : failed === 'NETWORK' ? 'Không có mạng, thử lại sau'
+      : failed ? 'Không tải được, thử lại sau'
+      : 'Chưa có – thêm để lấy lại mật khẩu khi quên');
     row.classList.toggle('set', !!email);
     $('recBtn').textContent = email ? 'Đổi' : 'Thêm';
   }

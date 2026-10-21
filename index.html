@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=59">
+  <link rel="stylesheet" href="style.css?v=61">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -1040,7 +1040,7 @@
         <div id="adminFilters" class="lib-filters"></div>
         <p id="adminMsg" class="admin-msg" role="status"></p>
         <div class="admin-table"><div id="adminList"></div></div>
-        <p class="muted admin-hint">Chủ web cấp / thu hồi quyền admin và danh hiệu. Admin dùng Gợi ý khi đấu với máy vẫn được tính Elo và có thể <b>Mute chat</b> người chơi nói tục. Cần luật Firebase có mục <code>mutes</code> và <code>titles</code> (xem file firebase-rules.json).</p>
+        <p class="muted admin-hint">Chủ web cấp / thu hồi quyền admin và danh hiệu. Admin có bảng phân tích Stockfish 19 (ván vẫn tính Elo và rank; Gợi ý thì ai dùng cũng không tính Elo) và có thể <b>Mute chat</b> người chơi nói tục. Cần luật Firebase có mục <code>mutes</code> và <code>titles</code> (xem file firebase-rules.json).</p>
       </div>
 
       <div id="adminAnnounce" class="admin-pane" hidden>
@@ -1198,12 +1198,12 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=32"></script>
+  <script src="i18n.js?v=34"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=9"></script>
   <script src="config.js?v=15"></script>
-  <script src="profile.js?v=24"></script>
+  <script src="profile.js?v=25"></script>
   <script src="contest.js?v=15"></script>
   <script src="sound.js?v=13"></script>
   <script src="lessons.js?v=13"></script>
@@ -1215,6 +1215,6 @@
   <script src="puzzles.js?v=10"></script>
   <script src="history.js?v=9"></script>
   <script src="openings.js?v=5"></script>
-  <script src="app.js?v=57"></script>
+  <script src="app.js?v=61"></script>
 </body>
 </html>

@@ -132,51 +132,63 @@ body[data-pieces="cyber"] .drag-ghost[src*="/b"] {
 body[data-board="gradient"] { --glow-1: #8f6bff; --glow-2: #ff5fa2; }
 body[data-board="sunset"] { --glow-1: #ff8a3d; --glow-2: #9d4edd; }
 body[data-board="ocean"] { --glow-1: #00f5d4; --glow-2: #3a86ff; }
-/* Toả sáng gắn vào chính bàn cờ (không gắn vào khối bao cả thanh đánh giá, nếu không khe giữa thanh và bàn
-   thành một dải tối nối hai bên) */
-body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board {
-  animation: board-glow 3.6s ease-in-out infinite;
+/* Toả sáng: lớp .board-glow riêng nằm ngay dưới bàn cờ (app.js đặt đúng vị trí, kích thước của bàn), không gắn vào
+   khối bao cả thanh đánh giá (nếu không khe giữa thanh và bàn thành một dải tối nối hai bên).
+   Hiệu năng: trước đây quầng sáng đổi box-shadow của chính bàn cờ mỗi khung hình → trình duyệt vẽ lại cả 64 ô và quân cờ
+   liên tục kể cả khi không ai làm gì (máy yếu bị lag). Giờ quầng sáng màu 1 đứng yên, quầng màu 2 hiện / mờ bằng opacity
+   (card đồ hoạ tự làm, không phải vẽ lại). */
+.board-glow { display: none; position: absolute; z-index: 0; pointer-events: none; border-radius: 8px; }
+body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board-glow {
+  display: block;
+  box-shadow: 0 0 14px 1px var(--glow-1), 0 0 36px 6px color-mix(in srgb, var(--glow-2) 45%, transparent);
 }
-body[data-relief="on"]:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board {
-  animation-name: board-glow-relief;
-}
-@keyframes board-glow {
-  0%, 100% { box-shadow: 0 0 0 1px #0006, 0 0 14px 1px var(--glow-1), 0 0 36px 6px color-mix(in srgb, var(--glow-2) 45%, transparent), 0 18px 50px #000a; }
-  50%      { box-shadow: 0 0 0 1px #0006, 0 0 22px 3px var(--glow-2), 0 0 56px 12px color-mix(in srgb, var(--glow-1) 50%, transparent), 0 18px 50px #000a; }
-}
-/* Bàn nổi + toả sáng: giữ nguyên các lớp khung của bàn nổi rồi thêm quầng sáng bên ngoài */
-@keyframes board-glow-relief {
-  0%, 100% { box-shadow: 0 0 0 calc(var(--board-size) / 160) #57504a, 0 0 0 var(--frame) #2c2823, 0 calc(var(--board-size) / -300) 0 var(--frame) #ffffff26,
-    0 calc(var(--board-size) / 55) 0 var(--frame) #1a1714, 0 var(--frame-depth) 0 var(--frame) #0b0a08,
-    0 0 calc(var(--frame) + 14px) calc(var(--frame) + 1px) var(--glow-1), 0 0 calc(var(--frame) + 36px) calc(var(--frame) + 6px) color-mix(in srgb, var(--glow-2) 45%, transparent),
-    0 calc(var(--board-size) / 18) calc(var(--board-size) / 14) #000000c8; }
-  50% { box-shadow: 0 0 0 calc(var(--board-size) / 160) #57504a, 0 0 0 var(--frame) #2c2823, 0 calc(var(--board-size) / -300) 0 var(--frame) #ffffff26,
-    0 calc(var(--board-size) / 55) 0 var(--frame) #1a1714, 0 var(--frame-depth) 0 var(--frame) #0b0a08,
-    0 0 calc(var(--frame) + 22px) calc(var(--frame) + 3px) var(--glow-2), 0 0 calc(var(--frame) + 56px) calc(var(--frame) + 12px) color-mix(in srgb, var(--glow-1) 50%, transparent),
-    0 calc(var(--board-size) / 18) calc(var(--board-size) / 14) #000000c8; }
-}
-body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board { position: relative; }
-body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board::after {
+body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board-glow::after {
   content: "";
   position: absolute;
   inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 22px 3px var(--glow-2), 0 0 56px 12px color-mix(in srgb, var(--glow-1) 50%, transparent);
+  opacity: 0;
+  animation: board-glow-fade 3.6s ease-in-out infinite;
+  will-change: opacity;
+}
+/* Bàn nổi: quầng sáng nằm ngoài khung bàn */
+body[data-relief="on"]:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board-glow {
+  box-shadow: 0 0 calc(var(--frame) + 14px) calc(var(--frame) + 1px) var(--glow-1), 0 0 calc(var(--frame) + 36px) calc(var(--frame) + 6px) color-mix(in srgb, var(--glow-2) 45%, transparent);
+}
+body[data-relief="on"]:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board-glow::after {
+  box-shadow: 0 0 calc(var(--frame) + 22px) calc(var(--frame) + 3px) var(--glow-2), 0 0 calc(var(--frame) + 56px) calc(var(--frame) + 12px) color-mix(in srgb, var(--glow-1) 50%, transparent);
+}
+@keyframes board-glow-fade { 50% { opacity: 1; } }
+/* Bóng đổ tĩnh của bàn toả sáng khi không bật bàn nổi (bàn nổi đã có khung riêng) */
+body:not([data-relief="on"]):is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board { box-shadow: 0 0 0 1px #0006, 0 18px 50px #000a; }
+body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board { position: relative; }
+/* Vệt sáng lướt qua bàn: dải gradient trượt bằng transform (trước đây đổi background-position + mix-blend-mode
+   nên phải vẽ lại cả bàn mỗi khung hình) */
+body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 300%;
   z-index: 4;
   pointer-events: none;
-  background: linear-gradient(115deg, transparent 38%, #ffffff30 48%, #ffffff12 53%, transparent 62%);
-  background-size: 260% 100%;
-  mix-blend-mode: screen;
+  background: linear-gradient(115deg, transparent 38%, #ffffff22 48%, #ffffff0c 53%, transparent 62%);
+  transform: translateX(-61%);
   animation: board-sheen 7s ease-in-out infinite;
+  will-change: transform;
 }
 @keyframes board-sheen {
-  0% { background-position: 140% 0; }
-  45%, 100% { background-position: -140% 0; }
+  0% { transform: translateX(-61%); }
+  45%, 100% { transform: translateX(-1%); }
 }
+/* Bàn nghiêng 3D không cắt phần thừa (overflow: visible) nên dải sáng sẽ lòi ra ngoài: tắt ở góc nhìn này */
+body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .board-wrap.tilt .board::after { display: none; }
 body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"]) .sq.last {
   box-shadow: inset 0 0 calc(var(--board-size) / 30) #ffffffb0, inset 0 0 0 1px #ffffff80;
 }
 .theme.glow span { box-shadow: 0 0 8px #b388ff, 0 0 16px #ff5fa266, 0 2px 6px #0006; }
 @media (prefers-reduced-motion: reduce) {
-  body .board-wrap, body .board { animation: none !important; }
+  body .board-wrap, body .board, body .board-glow::after { animation: none !important; }
   body .board::after { animation: none !important; display: none; }
 }
 
@@ -519,7 +531,7 @@ body {
   background: transparent;
   margin-right: 6px;
 }
-.player.active .turn-dot { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); animation: blink 1.6s infinite; }
+.player.active .turn-dot { position: relative; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); }
 .player.active .avatar { box-shadow: 0 0 0 2px var(--accent); }
 @keyframes blink { 50% { box-shadow: 0 0 0 7px #81b64c00; } }
 
@@ -1249,7 +1261,7 @@ button.lh-ghost { display: flex; align-items: center; justify-content: center; g
 .node .ic { width: 26px; height: 26px; stroke-width: 2.5; }
 .node.locked { background: linear-gradient(180deg, #45423d, #3a3835 55%); box-shadow: 0 6px 0 #282624, inset 0 0 0 3px #ffffff0a; color: #75716a; }
 .node.locked img { opacity: 0.3; filter: grayscale(1); }
-.node.current { animation: ringPulse 2s ease-out infinite; }
+.node.current { box-shadow: 0 6px 0 var(--us), inset 0 0 0 3px #ffffff30, 0 10px 18px #0006; }
 @keyframes ringPulse {
   0% { box-shadow: 0 6px 0 var(--us), inset 0 0 0 3px #ffffff30, 0 0 0 0 color-mix(in srgb, var(--uc) 60%, transparent); }
   100% { box-shadow: 0 6px 0 var(--us), inset 0 0 0 3px #ffffff30, 0 0 0 14px transparent; }
@@ -3287,7 +3299,7 @@ button.lib-back:hover { color: #fff; background: #ffffff0d; }
 }
 .ol-hero-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ol-live { display: inline-flex; align-items: center; gap: 6px; color: #a6d36b; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; }
-.ol-live i { width: 8px; height: 8px; border-radius: 50%; background: #81b64c; box-shadow: 0 0 0 0 #81b64c88; animation: livePulse 1.8s infinite; }
+.ol-live i { position: relative; width: 8px; height: 8px; border-radius: 50%; background: #81b64c; }
 @keyframes livePulse { 70% { box-shadow: 0 0 0 8px #81b64c00; } 100% { box-shadow: 0 0 0 0 #81b64c00; } }
 .ol-me { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 99px; background: #ffffff0d; font-size: 0.78rem; font-weight: 700; }
 .ol-me .rb-medal { width: 20px; height: 20px; }
@@ -3835,7 +3847,7 @@ body[data-page="home"] .layout { display: none; }
 .hm-resume-main { position: relative; padding-left: 16px; }
 .hm-resume-main > .hm-live-dot { position: absolute; left: 0; top: 7px; }
 .hm-resume-go { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; }
-.hm-live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e2533f; box-shadow: 0 0 0 0 #e2533f88; animation: hmPulse 1.6s infinite; }
+.hm-live-dot { position: relative; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e2533f; }
 @keyframes hmPulse { 70% { box-shadow: 0 0 0 7px #e2533f00; } 100% { box-shadow: 0 0 0 0 #e2533f00; } }
 
 /* Bắt đầu nhanh */
@@ -4849,4 +4861,39 @@ body[data-puzzle="on"] #playPanel > #ratedNote { display: none; }
    700px = thanh bên 200 + khung phải 400 + lề trang 40 + khoảng hở giữa hai khối ~41 + dư một chút. */
 @media (min-width: 1180px) {
   :root { --board-size: min(94vw, calc(100vh - 170px), 760px, calc(100vw - 700px)); }
+}
+
+/* Ván đấu máy tính Elo bình thường: không có dòng ghi chú */
+.rated-note:empty { display: none; }
+
+/* ---------- Hiệu ứng nhấp nháy nhẹ máy: vòng phụ phóng to + mờ dần bằng transform / opacity ----------
+   Trước đây các chấm "đang tới lượt", "Online", "ván đang dở" và nút bài học hiện tại đổi box-shadow mỗi khung hình,
+   buộc trình duyệt vẽ lại liên tục (chấm cạnh tên người chơi chạy suốt ván). */
+.player.active .turn-dot::after, .ol-live i::after, .hm-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  pointer-events: none;
+  animation: dot-ping 1.6s ease-out infinite;
+  will-change: transform, opacity;
+}
+.player.active .turn-dot::after { color: var(--accent); }
+.ol-live i::after { color: #81b64c; animation-duration: 1.8s; }
+.hm-live-dot::after { color: #e2533f; }
+@keyframes dot-ping { 0% { transform: scale(1); opacity: 0.55; } 70%, 100% { transform: scale(2.6); opacity: 0; } }
+.node.current::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--uc) 60%, transparent);
+  pointer-events: none;
+  animation: node-ring 2s ease-out infinite;
+  will-change: transform, opacity;
+}
+@keyframes node-ring { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.35); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .player.active .turn-dot::after, .ol-live i::after, .hm-live-dot::after, .node.current::before, .node-start { animation: none; }
 }

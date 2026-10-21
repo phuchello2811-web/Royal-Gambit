@@ -36,7 +36,7 @@ Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần 
 - **Tài khoản**: phải đăng nhập hoặc đăng ký (tên đăng nhập + mật khẩu) mới vào chơi được; có ảnh đại diện, đăng xuất trong trang Hồ sơ
 - **Trang Hồ sơ** (bấm tên mình ở thanh bên, địa chỉ `#profile`): Elo và trình độ, rank kèm sao và tiến độ lên rank, tỉ lệ thắng / hòa / thua, biểu đồ diễn biến Elo, tủ huy chương contest, lịch sử contest, tiến độ học cờ, ván gần đây và cài đặt giao diện. **Bấm vào huy chương (hoặc một dòng lịch sử contest) là mở thẳng bảng điểm contest đó.** Bấm tên người khác trên bảng xếp hạng / bảng điểm contest để xem hồ sơ của họ (`#profile/<uid>`), kèm số Elo được / mất nếu đấu với họ. Biểu đồ Elo lấy từ lịch sử lưu trong trình duyệt nên chỉ có từ lúc cập nhật bản này, và chỉ hiện trên hồ sơ của chính mình
 - **Bảng xếp hạng toàn thế giới**: tab **Xếp hạng** cạnh tab Online, xếp theo exp rank, có thêm cột Elo
-- **Admin**: tài khoản tên **ADMIN** (chủ web) có thêm tab **Admin** cạnh tab Online để cấp / thu hồi quyền admin cho người khác. Admin (và chủ web) dùng **Gợi ý** khi đấu với máy vẫn được tính Elo. Ván Online không có Gợi ý cho ai cả. Tên đăng nhập không được trùng nhau (không phân biệt hoa thường)
+- **Admin**: tài khoản tên **ADMIN** (chủ web) có thêm tab **Admin** cạnh tab Online để cấp / thu hồi quyền admin cho người khác. Admin (và chủ web) có **bảng phân tích Stockfish 19**, dùng vẫn được tính Elo và rank (cả Online lẫn đấu máy). **Gợi ý** thì ai dùng cũng làm ván không tính Elo; ván Online không có Gợi ý cho ai cả. Tên đăng nhập không được trùng nhau (không phân biệt hoa thường)
 - **Rank kiểu Free Fire** (chỉ tính ván Online): thắng +15 exp, hòa +5 exp, thua -10 exp. Cứ 30 exp được 1 sao, đủ 3 sao thì lên rank tiếp theo: Đồng → Bạc → Vàng → Bạch Kim → Kim Cương → Cao Thủ → Thách Đấu. Ván Online dưới 4 nước không tính; rời ván giữa chừng bị tính thua
 - **Elo kiểu chess.com** (hệ thống riêng, không ảnh hưởng rank): lần đầu đăng nhập phải chọn trình độ (ví dụ Expert = 1200 Elo). Cả ván Online lẫn ván đấu với máy đều tính Elo; thắng đối thủ mạnh hơn được nhiều hơn
 - Biên bản ván đấu theo ký hiệu đại số (SAN), hiện quân đã ăn và chênh lệch lực lượng
@@ -143,14 +143,14 @@ Elo mới        = Elo cũ + K × (kết quả − E)      (thắng 1, hòa 0.5,
 - **Elo khởi điểm**: lần đầu đăng nhập web hỏi bạn là ai: Người mới 400, Cơ bản 700, Trung cấp 1000, Expert 1200, Cao thủ 1500.
 - **Elo của máy**: Dễ 800, Trung bình 1200, Khó 1600 (hằng số `BOT_ELO` trong `profile.js`; ô "Độ khó" trong `index.html` ghi cùng số này).
 - **Ván Online**: đổi cả rank (exp) lẫn Elo, dùng Elo của đối thủ (hai bên gửi Elo cho nhau lúc vào phòng; bản Firebase còn lấy Elo, exp và danh hiệu của đối thủ từ máy chủ khi khớp được tài khoản, thay cho số do trình duyệt đối thủ tự khai). **Ván đấu máy**: chỉ đổi Elo.
-- **Không tính Elo** nếu: ván dưới 4 nước, 2 người cùng máy, hoặc ván đấu máy có dùng **Gợi ý** (trừ admin và chủ web) / **Đi lại**. Bỏ ván đấu máy giữa chừng (bấm Ván mới, đổi chế độ) bị tính thua.
+- **Không tính Elo** nếu: ván dưới 4 nước, 2 người cùng máy, hoặc ván đấu máy có dùng **Gợi ý** / **Đi lại** (kể cả admin và chủ web). Bỏ ván đấu máy giữa chừng (bấm Ván mới, đổi chế độ) bị tính thua.
 
 Các hằng số Elo (K, Elo khởi điểm, các mức trình độ, Elo của máy) nằm ở đầu `profile.js`. Nếu đổi mức trình độ hay K lớn nhất thì sửa luôn `firebase-rules.json` (con số 400, 1500 và 40) cho khớp.
 
 ## Admin
 
 - **ADMIN** là tên đăng nhập của chủ web (so sánh không phân biệt hoa thường). Chỉ tài khoản này thấy tab **Admin**, và chỉ tài khoản này cấp / thu hồi được quyền admin cho người khác.
-- Người được cấp quyền là **admin**: dùng nút **Gợi ý** (Stockfish 16) khi đấu với máy thì ván vẫn được tính Elo; **Đi lại** thì vẫn làm ván không tính Elo như mọi người. Ván Online không có Gợi ý cho admin lẫn người thường; admin và chủ web thấy bảng phân tích Stockfish 19, kể cả khi đang đánh Online. Admin mới được cấp quyền chỉ cần vào lại tab Online (hoặc tải lại trang) là thấy nút.
+- Người được cấp quyền là **admin**: có bảng phân tích Stockfish 19, dùng vẫn được tính Elo và rank; nút **Gợi ý** (Stockfish 16) và **Đi lại** khi đấu máy thì vẫn làm ván không tính Elo như mọi người. Ván Online không có Gợi ý cho admin lẫn người thường; admin và chủ web thấy bảng phân tích Stockfish 19, kể cả khi đang đánh Online. Admin mới được cấp quyền chỉ cần vào lại tab Online (hoặc tải lại trang) là thấy nút.
 - **Hãy tự đăng ký tài khoản `ADMIN` trước khi gửi link web cho ai**, vì ai đăng ký tên này trước sẽ là chủ web. Tên bắt đầu bằng `admin` (ví dụ `admin2`, `Admin_VN`) bị chặn với mọi người khác để không ai mạo danh.
 - Tên đăng nhập luôn duy nhất: `ADMIN`, `Admin` và `admin` là cùng một tên.
 - Chế độ Firebase: quyền admin lưu ở `/admins/<uid>`, luật server chỉ cho tài khoản có email `admin@rg-user.app` đọc cả danh sách và ghi vào đó, nên không ai tự cấp quyền cho mình được. **Nếu bạn đã dán luật cũ thì phải dán lại toàn bộ `firebase-rules.json` mới rồi bấm Publish.** Nếu đổi tên chủ web (hằng số `OWNER` trong `profile.js`) thì sửa luôn email `admin@rg-user.app` trong `firebase-rules.json` cho khớp.

@@ -16,7 +16,7 @@
 //
 // Quyền admin: tài khoản tên ADMIN (OWNER) là chủ web, chỉ chủ web cấp / thu hồi được quyền admin.
 //   Firebase: quyền lưu ở /admins/<uid> = true, luật server chỉ cho email admin@rg-user.app ghi vào đó.
-//   Admin dùng Gợi ý khi đấu với máy vẫn được tính Elo. Ván Online không có Gợi ý cho ai.
+//   Admin có bảng phân tích Stockfish 19 (vẫn tính Elo / rank). Gợi ý thì ai dùng cũng không tính Elo; ván Online không có Gợi ý.
 
 const Profile = (() => {
   const PREFS_KEY = 'covua-prefs';
