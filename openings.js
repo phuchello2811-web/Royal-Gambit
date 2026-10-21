@@ -135,10 +135,5 @@ const OPENING_BOOK = (() => {
     }
     return best;
   }
-  // Chuỗi nước (từ thế xuất phát) còn nằm trong lý thuyết khai cuộc: là phần đầu của ít nhất một biến trong sách
-  function inBook(sans) {
-    const ms = sans.map(clean);
-    return ms.length > 0 && book.some(o => o.moves.length >= ms.length && ms.every((m, i) => clean(o.moves[i]) === m));
-  }
-  return { name, inBook, size: book.length, pairs: () => book.map(o => [o.vi, o.en]) };
+  return { name, size: book.length, pairs: () => book.map(o => [o.vi, o.en]) };
 })();

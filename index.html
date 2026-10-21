@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=43">
+  <link rel="stylesheet" href="style.css?v=29">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -76,14 +76,6 @@
     <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v12h5v-6h4v6h5V9"/></symbol>
     <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></symbol>
     <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8.5V20l-4-2v-4.5L3 5Z"/></symbol>
-    <symbol id="i-first" viewBox="0 0 24 24"><path d="M6 5v14"/><path fill="currentColor" d="M18 6.2v11.6L9.3 12 18 6.2Z"/></symbol>
-    <symbol id="i-prev" viewBox="0 0 24 24"><path fill="currentColor" d="M16 6.2v11.6L7.3 12 16 6.2Z"/></symbol>
-    <symbol id="i-next" viewBox="0 0 24 24"><path fill="currentColor" d="M8 6.2v11.6l8.7-5.8L8 6.2Z"/></symbol>
-    <symbol id="i-last" viewBox="0 0 24 24"><path d="M18 5v14"/><path fill="currentColor" d="M6 6.2v11.6l8.7-5.8L6 6.2Z"/></symbol>
-    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
-    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10.5 10.5 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
-    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-8 6 6 0 0 0-11.5 1.6A3.3 3.3 0 0 0 7 18.5Z"/></symbol>
-    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
     <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></symbol>
   </svg>
 
@@ -165,6 +157,7 @@
         <div class="lh-path" id="lhUnits"></div>
       </div>
       <aside class="lh-side">
+        <p class="lang-note">Nội dung các bài Học cờ hiện chỉ có tiếng Việt. Giao diện vẫn hiển thị tiếng Anh.</p>
         <div class="lh-card">
           <div class="lh-card-head"><b>Hoạt động 7 ngày</b><small id="lhWeek"></small></div>
           <div class="lh-chart" id="lhChart"></div>
@@ -390,17 +383,17 @@
           <div class="record-actions">
             <button type="button" id="copyPgn" class="ghost tiny" title="Sao chép PGN để phân tích ở web khác">PGN</button>
             <button type="button" id="copyFen" class="ghost tiny" title="Sao chép FEN thế cờ hiện tại">FEN</button>
+            <button type="button" id="pasteGame" class="ghost tiny" title="Dán PGN (một ván) hoặc FEN (một thế cờ) để mở lên bàn">Dán</button>
           </div>
         </div>
-        <div id="reviewBox" class="review-box" hidden></div>
         <div id="moves" class="moves"></div>
         <p id="viewHint" class="view-hint" hidden>Đang xem lại · bấm «Live» hoặc đi nước mới để về ván hiện tại</p>
         <div class="nav-row" id="moveNav">
-          <button type="button" id="navStart" title="Đầu ván"><svg class="ic"><use href="#i-first"/></svg></button>
-          <button type="button" id="navPrev" title="Nước trước"><svg class="ic"><use href="#i-prev"/></svg></button>
+          <button type="button" id="navStart" title="Đầu ván">⏮</button>
+          <button type="button" id="navPrev" title="Nước trước">◀</button>
           <button type="button" id="navLive" title="Về hiện tại">Live</button>
-          <button type="button" id="navNext" title="Nước sau"><svg class="ic"><use href="#i-next"/></svg></button>
-          <button type="button" id="navEnd" title="Cuối ván"><svg class="ic"><use href="#i-last"/></svg></button>
+          <button type="button" id="navNext" title="Nước sau">▶</button>
+          <button type="button" id="navEnd" title="Cuối ván">⏭</button>
         </div>
       </div>
     </aside>
@@ -549,18 +542,8 @@
             <label class="switch"><input type="checkbox" data-pref="dots"><span>Chấm các nước đi hợp lệ</span></label>
             <label class="switch"><input type="checkbox" data-pref="anim"><span>Hiệu ứng trượt quân</span></label>
             <label class="switch"><input type="checkbox" data-pref="autoQueen"><span>Tự phong Hậu (không hỏi)</span></label>
-            <label class="switch"><input type="checkbox" data-pref="relief"><span>Bàn cờ nổi 3D (ánh sáng, bóng đổ, quân nhấc lên)</span></label>
-            <label class="switch"><input type="checkbox" data-pref="tilt"><span>Góc nhìn nghiêng 3D (quân đứng trên bàn)</span></label>
-            <label class="switch" id="mailNotifyRow"><input type="checkbox" id="mailNotifyToggle"><span>Gửi thông báo về Gmail (thông báo toàn web, contest mới, contest đã đăng ký sắp bắt đầu)</span></label>
-            <p id="mailNotifyNote" class="muted small-note" hidden></p>
             <label class="switch"><input type="checkbox" id="notifyToggle"><span>Thông báo khi contest đã đăng ký sắp bắt đầu</span></label>
           </div>
-          <div id="recRow" class="rec-row" hidden>
-            <svg class="ic"><use href="#i-mail"/></svg>
-            <span class="rec-info"><b>Gmail khôi phục</b><small id="recEmailText">Chưa có</small></span>
-            <button id="recBtn" type="button" class="ghost small">Thêm</button>
-          </div>
-          <button id="pwBtn" type="button" class="pf-link"><svg class="ic"><use href="#i-lock"/></svg>Đổi mật khẩu</button>
           <button id="keysBtn" type="button" class="pf-link"><svg class="ic"><use href="#i-keyboard"/></svg>Phím tắt</button>
           <button id="logoutBtn" type="button" class="pf-logout"><svg class="ic"><use href="#i-exit"/></svg>Đăng xuất</button>
         </section>
@@ -620,117 +603,27 @@
 
   <!-- Đăng nhập / đăng ký (bắt buộc) -->
   <div id="authModal" class="modal auth-gate">
-    <div class="auth-shell">
-      <!-- Cột giới thiệu (máy tính) -->
-      <aside class="auth-hero" aria-hidden="true">
-        <div class="ah-brand"><img src="img/logo.svg?v=2" alt=""><span class="wordmark">Royal Gambit</span></div>
-        <h2 class="ah-title">Chơi cờ vua, học cờ và leo rank ngay trên trình duyệt</h2>
-        <div id="authBoard" class="ah-board lib-card-board lib-frame"></div>
-        <ul class="ah-feats">
-          <li><svg class="ic"><use href="#i-cpu"/></svg><span><b>Đấu với máy</b><small>Stockfish 3 mức độ, có gợi ý</small></span></li>
-          <li><svg class="ic"><use href="#i-globe"/></svg><span><b>Online &amp; Contest</b><small>Tìm trận, rank, huy chương</small></span></li>
-          <li><svg class="ic"><use href="#i-target"/></svg><span><b>Phân tích ván</b><small>Nước thiên tài, nước hớ, độ chính xác</small></span></li>
-          <li><svg class="ic"><use href="#i-cap"/></svg><span><b>Học cờ</b><small>106 bài từ cơ bản tới nâng cao</small></span></li>
-        </ul>
-      </aside>
-      <div class="modal-box auth-box">
+    <div class="modal-box auth-box">
       <div class="auth-lang" role="group" aria-label="Ngôn ngữ / Language"><button type="button" data-lang="vi">Tiếng Việt</button><button type="button" data-lang="en">English</button></div>
       <div class="auth-brand"><img src="img/logo.svg?v=2" alt=""><h1 class="wordmark">Royal Gambit</h1></div>
-      <p id="authWelcome" class="auth-welcome">Chào mừng trở lại! Đăng nhập để tiếp tục.</p>
-      <div class="auth-tabs" role="tablist">
-        <button id="authTabLogin" class="on" type="button" role="tab">Đăng nhập</button>
-        <button id="authTabRegister" type="button" role="tab">Đăng ký</button>
-        <span class="auth-tab-pill" aria-hidden="true"></span>
+      <div class="auth-tabs">
+        <button id="authTabLogin" class="on" type="button">Đăng nhập</button>
+        <button id="authTabRegister" type="button">Đăng ký</button>
       </div>
-      <form id="authForm" class="auth-form" novalidate>
-        <label class="auth-field-label" for="authUser">Tên đăng nhập</label>
-        <div class="auth-field">
-          <svg class="ic"><use href="#i-user"/></svg>
-          <input id="authUser" maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="ví dụ: magnus_vn" required>
-          <span id="authUserOk" class="auth-ok" hidden><svg class="ic"><use href="#i-check"/></svg></span>
-        </div>
-        <p id="authUserHint" class="auth-hint">3–20 ký tự: chữ không dấu, số và dấu _</p>
-        <div class="auth-label-row"><label class="auth-field-label" for="authPass">Mật khẩu</label><button type="button" id="authForgotLink" class="auth-link auth-forgot" hidden>Quên mật khẩu?</button></div>
-        <div class="auth-field">
-          <svg class="ic"><use href="#i-lock"/></svg>
-          <input id="authPass" type="password" autocomplete="current-password" placeholder="Mật khẩu" required>
-          <button type="button" class="auth-eye" data-for="authPass" title="Hiện mật khẩu" aria-label="Hiện mật khẩu"><svg class="ic"><use href="#i-eye"/></svg></button>
-        </div>
-        <div id="authStrength" class="auth-strength" hidden><span class="as-bar"><i></i><i></i><i></i><i></i></span><small></small></div>
-        <div id="authPass2Wrap" class="auth-group" hidden>
-          <label class="auth-field-label" for="authPass2">Nhập lại mật khẩu</label>
-          <div class="auth-field">
-            <svg class="ic"><use href="#i-lock"/></svg>
-            <input id="authPass2" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu">
-            <span id="authPass2Ok" class="auth-ok" hidden><svg class="ic"><use href="#i-check"/></svg></span>
-          </div>
-        </div>
-        <p id="authCaps" class="auth-caps" hidden>Caps Lock đang bật</p>
-        <p id="authMsg" class="auth-msg" role="alert"></p>
-        <button id="authSubmit" class="primary big auth-submit" type="submit"><span>Đăng nhập</span></button>
-        <p id="authSwitch" class="auth-switch">Chưa có tài khoản? <button type="button" class="auth-link" data-go="register">Đăng ký miễn phí</button></p>
-      </form>
-      <div id="authAlt" class="auth-alt">
-        <div class="divider"><span>hoặc</span></div>
-        <button id="authGoogle" type="button" class="auth-google big" hidden>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.2 14.6 2.2 12 2.2 6.6 2.2 2.2 6.6 2.2 12s4.4 9.8 9.8 9.8c5.7 0 9.4-4 9.4-9.6 0-.6-.1-1.1-.2-1.6H12z"/><path fill="#34A853" d="M3.3 7.4l3.2 2.4C7.4 7.7 9.5 6.1 12 6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.2 14.6 2.2 12 2.2 8.2 2.2 4.9 4.3 3.3 7.4z" opacity=".001"/><path fill="#4285F4" d="M21.2 10.4H12v3.9h5.5c-.3 1.4-1.1 2.5-2.3 3.3l3.1 2.4c1.8-1.7 2.9-4.2 2.9-7.4 0-.8-.1-1.5-.2-2.2z"/><path fill="#FBBC05" d="M6.1 14.1A6 6 0 0 1 6 12c0-.7.1-1.4.3-2.1L3.1 7.4A9.8 9.8 0 0 0 2.2 12c0 1.6.4 3.1 1 4.4l2.9-2.3z"/><path fill="#34A853" d="M12 21.8c2.6 0 4.8-.9 6.4-2.4l-3.1-2.4c-.8.6-1.9 1-3.3 1-2.5 0-4.6-1.7-5.4-4l-3.2 2.4c1.6 3.2 4.9 5.4 8.6 5.4z"/></svg>
-          <span>Đăng nhập bằng Google</span>
-        </button>
-        <button id="authGuest" type="button" class="auth-guest big"><svg class="ic"><use href="#i-user"/></svg><span>Chơi với tư cách khách</span></button>
-        <p class="auth-guest-note">Khách: đấu máy, 2 người, câu đố, học cờ. Không có rank / Elo, không chơi Online, không tham gia contest.</p>
-      </div>
-      <form id="authNameForm" class="auth-form" hidden>
-        <p class="auth-name-intro">Chào bạn! Hãy chọn tên hiển thị cho tài khoản Google này. Tên hiện trên bảng xếp hạng và không đổi được.</p>
-        <p id="authGEmail" class="auth-name-email"></p>
-        <label>Tên hiển thị
-          <input id="authGName" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+      <form id="authForm" class="auth-form">
+        <label>Tên đăng nhập
+          <input id="authUser" maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" required>
         </label>
-        <p id="authGMsg" class="auth-msg" role="alert"></p>
-        <button id="authGSubmit" class="primary big" type="submit">Vào chơi</button>
-        <button id="authGCancel" type="button" class="ghost">Dùng tài khoản khác</button>
-      </form>
-      <form id="authForgot" class="auth-form" novalidate hidden>
-        <div class="af-head">
-          <button type="button" id="afBack" class="af-back" title="Quay lại đăng nhập" aria-label="Quay lại đăng nhập"><svg class="ic"><use href="#i-chevron-left"/></svg></button>
-          <h2>Quên mật khẩu</h2>
-        </div>
-        <ol class="af-steps"><li id="afDot1" class="on">Tên đăng nhập</li><li id="afDot2">Mã &amp; mật khẩu mới</li></ol>
-        <div id="afS1" class="auth-group">
-          <p class="af-text">Nhập tên đăng nhập. Chúng tôi sẽ gửi mã 6 số tới Gmail khôi phục của tài khoản.</p>
-          <label class="auth-field-label" for="afUser">Tên đăng nhập</label>
-          <div class="auth-field">
-            <svg class="ic"><use href="#i-user"/></svg>
-            <input id="afUser" maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="ví dụ: magnus_vn">
-          </div>
-        </div>
-        <div id="afS2" class="auth-group" hidden>
-          <p id="afSent" class="af-sent"></p>
-          <label class="auth-field-label" for="afCode">Mã xác nhận</label>
-          <div class="auth-field">
-            <svg class="ic"><use href="#i-mail"/></svg>
-            <input id="afCode" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
-          </div>
-          <label class="auth-field-label" for="afNew">Mật khẩu mới</label>
-          <div class="auth-field">
-            <svg class="ic"><use href="#i-lock"/></svg>
-            <input id="afNew" type="password" autocomplete="new-password" placeholder="Ít nhất 6 ký tự">
-            <button type="button" class="auth-eye" data-for="afNew" title="Hiện mật khẩu" aria-label="Hiện mật khẩu"><svg class="ic"><use href="#i-eye"/></svg></button>
-          </div>
-          <div id="afStrength" class="auth-strength" hidden><span class="as-bar"><i></i><i></i><i></i><i></i></span><small></small></div>
-          <label class="auth-field-label" for="afNew2">Nhập lại mật khẩu mới</label>
-          <div class="auth-field">
-            <svg class="ic"><use href="#i-lock"/></svg>
-            <input id="afNew2" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới">
-            <button type="button" class="auth-eye" data-for="afNew2" title="Hiện mật khẩu" aria-label="Hiện mật khẩu"><svg class="ic"><use href="#i-eye"/></svg></button>
-          </div>
-          <p class="af-resend">Không thấy thư? Xem cả mục Spam. <button type="button" id="afResend" class="auth-link">Gửi lại mã</button></p>
-        </div>
-        <p id="afMsg" class="auth-msg" role="alert"></p>
-        <button id="afSubmit" class="primary big auth-submit" type="submit">Gửi mã</button>
-        <p class="af-help">Chỉ dùng được khi tài khoản đã thêm Gmail khôi phục (Hồ sơ › Cài đặt). Tài khoản Google thì bấm “Đăng nhập bằng Google”.</p>
+        <label>Mật khẩu
+          <input id="authPass" type="password" autocomplete="current-password" required>
+        </label>
+        <label id="authPass2Wrap" hidden>Nhập lại mật khẩu
+          <input id="authPass2" type="password" autocomplete="new-password">
+        </label>
+        <p id="authMsg" class="auth-msg" role="alert"></p>
+        <button id="authSubmit" class="primary big" type="submit">Đăng nhập</button>
       </form>
       <p id="authNote" class="muted"></p>
-      </div>
     </div>
   </div>
 
@@ -766,11 +659,11 @@
           <div class="lib-board-col">
             <div id="libBoard" class="lib-board lib-frame" aria-label="Minh họa thế cờ"></div>
             <div id="libStepRow" class="lib-step">
-              <button type="button" id="libFirst" title="Thế xuất phát"><svg class="ic"><use href="#i-first"/></svg></button>
-              <button type="button" id="libPrev" title="Nước trước (←)"><svg class="ic"><use href="#i-prev"/></svg></button>
+              <button type="button" id="libFirst" title="Thế xuất phát">⏮</button>
+              <button type="button" id="libPrev" title="Nước trước (←)">◀</button>
               <span id="libStepLabel"></span>
-              <button type="button" id="libNext" title="Nước sau (→)"><svg class="ic"><use href="#i-next"/></svg></button>
-              <button type="button" id="libLast" title="Nước cuối"><svg class="ic"><use href="#i-last"/></svg></button>
+              <button type="button" id="libNext" title="Nước sau (→)">▶</button>
+              <button type="button" id="libLast" title="Nước cuối">⏭</button>
             </div>
           </div>
           <div class="lib-info">
@@ -814,7 +707,6 @@
         <div>
           <h2>Nhật ký ván đấu</h2>
           <p class="muted">Tự lưu sau mỗi ván · xem lại từng nước · phân tích · tải PGN</p>
-          <button type="button" id="histSync" class="hist-sync" hidden title="Bấm để đồng bộ ngay"></button>
         </div>
       </div>
       <div id="histSummary" class="hist-summary"></div>
@@ -827,24 +719,8 @@
             <option value="play">Đấu máy</option>
             <option value="online">Online</option>
             <option value="human">2 người</option>
-            <option value="import">Ván nhập</option>
           </select>
         </label>
-        <button id="histImportBtn" type="button" class="hist-import-btn" title="Dán PGN / FEN từ chess.com, lichess… để phân tích"><svg class="ic"><use href="#i-plus"/></svg><span>Nhập PGN</span></button>
-      </div>
-      <div id="histImport" class="hist-import" hidden>
-        <textarea id="histImportText" rows="6" spellcheck="false" placeholder="Dán PGN của một ván (từ chess.com, lichess…) hoặc một thế cờ FEN"></textarea>
-        <div class="hist-import-row">
-          <label for="histImportSide">Bạn cầm</label>
-          <select id="histImportSide">
-            <option value="">Không (chỉ phân tích)</option>
-            <option value="w">Trắng</option>
-            <option value="b">Đen</option>
-          </select>
-          <button id="histImportGo" type="button" class="primary">Nhập &amp; phân tích</button>
-          <button id="histImportCancel" type="button">Hủy</button>
-        </div>
-        <p id="histImportMsg" class="admin-msg"></p>
       </div>
       <div id="histFilters" class="lib-filters hist-filters"></div>
       <div id="histList" class="hist-list"></div>
@@ -1027,7 +903,6 @@
             <option value="0">Không tự ẩn</option>
           </select>
         </label>
-        <label class="switch" id="annMailRow" hidden><input type="checkbox" id="annMail" checked><span>Gửi cả về Gmail cho người chơi đã bật thông báo (Apps Script gửi trong vòng 5 phút)</span></label>
         <div class="buttons two">
           <button id="annPost" type="button" class="primary"><svg class="ic"><use href="#i-megaphone"/></svg>Đăng thông báo</button>
           <button id="annClear" type="button" class="danger-outline">Gỡ thông báo</button>
@@ -1055,75 +930,6 @@
   </div>
 
   <!-- Phím tắt -->
-  <!-- Gmail khôi phục -->
-  <div id="recModal" class="modal" hidden>
-    <div class="modal-box pw-box rec-box">
-      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
-      <div class="rank-head">
-        <svg class="ic big-ic"><use href="#i-mail"/></svg>
-        <div><h2>Gmail khôi phục</h2><p class="muted">Dùng để lấy lại mật khẩu khi quên và nhận thông báo qua Gmail</p></div>
-      </div>
-      <form id="recForm" class="auth-form" novalidate>
-        <p id="recCurrent" class="af-sent" hidden></p>
-        <div id="recS1" class="auth-group">
-          <label class="auth-field-label" for="recEmailIn">Gmail</label>
-          <div class="auth-field">
-            <svg class="ic"><use href="#i-mail"/></svg>
-            <input id="recEmailIn" type="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="ten.ban@gmail.com">
-          </div>
-        </div>
-        <div id="recS2" class="auth-group" hidden>
-          <p id="recSent" class="af-sent"></p>
-          <label class="auth-field-label" for="recCode">Mã xác nhận</label>
-          <div class="auth-field">
-            <svg class="ic"><use href="#i-check"/></svg>
-            <input id="recCode" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
-          </div>
-          <p class="af-resend">Không thấy thư? Xem cả mục Spam. <button type="button" id="recAgain" class="auth-link">Gửi lại / nhập Gmail khác</button></p>
-        </div>
-        <p id="recMsg" class="auth-msg" role="alert"></p>
-        <button id="recSubmit" type="submit" class="primary big auth-submit">Gửi mã xác nhận</button>
-        <button id="recRemove" type="button" class="danger-outline" hidden>Gỡ Gmail khôi phục</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Đổi mật khẩu -->
-  <div id="pwModal" class="modal" hidden>
-    <div class="modal-box pw-box">
-      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
-      <div class="rank-head">
-        <svg class="ic big-ic"><use href="#i-lock"/></svg>
-        <div><h2>Đổi mật khẩu</h2><p class="muted" id="pwSub">Nhập mật khẩu hiện tại rồi chọn mật khẩu mới</p></div>
-      </div>
-      <form id="pwForm" class="auth-form" novalidate>
-        <label class="auth-field-label" for="pwOld">Mật khẩu hiện tại</label>
-        <div class="auth-field">
-          <svg class="ic"><use href="#i-lock"/></svg>
-          <input id="pwOld" type="password" autocomplete="current-password" placeholder="Mật khẩu hiện tại" required>
-          <button type="button" class="auth-eye" data-for="pwOld" title="Hiện mật khẩu" aria-label="Hiện mật khẩu"><svg class="ic"><use href="#i-eye"/></svg></button>
-        </div>
-        <label class="auth-field-label" for="pwNew">Mật khẩu mới</label>
-        <div class="auth-field">
-          <svg class="ic"><use href="#i-lock"/></svg>
-          <input id="pwNew" type="password" autocomplete="new-password" placeholder="Ít nhất 6 ký tự" required>
-          <button type="button" class="auth-eye" data-for="pwNew" title="Hiện mật khẩu" aria-label="Hiện mật khẩu"><svg class="ic"><use href="#i-eye"/></svg></button>
-        </div>
-        <div id="pwStrength" class="auth-strength" hidden><span class="as-bar"><i></i><i></i><i></i><i></i></span><small></small></div>
-        <label class="auth-field-label" for="pwNew2">Nhập lại mật khẩu mới</label>
-        <div class="auth-field">
-          <svg class="ic"><use href="#i-lock"/></svg>
-          <input id="pwNew2" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới" required>
-          <button type="button" class="auth-eye" data-for="pwNew2" title="Hiện mật khẩu" aria-label="Hiện mật khẩu"><svg class="ic"><use href="#i-eye"/></svg></button>
-        </div>
-        <p id="pwCaps" class="auth-caps" hidden>Caps Lock đang bật</p>
-        <p id="pwMsg" class="auth-msg"></p>
-        <button id="pwSubmit" type="submit" class="primary big auth-submit">Đổi mật khẩu</button>
-        <p id="pwNote" class="muted small-note"></p>
-      </form>
-    </div>
-  </div>
-
   <div id="keysModal" class="modal" hidden>
     <div class="modal-box keys-box">
       <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
@@ -1144,7 +950,7 @@
     </div>
   </div>
 
-  <footer class="footer">Viết bằng HTML, CSS và JavaScript thuần · Quân cờ: cburnett (Colin M.L. Burnett, GPLv2+)</footer>
+  <footer class="footer">Viết bằng HTML, CSS và JavaScript thuần · Quân cờ: cburnett (Colin M.L. Burnett, GPLv2+) và các bộ quân từ lichess (xem pieces/CREDITS.md)</footer>
 
   <script>
     // Hiện lỗi JavaScript ngay trên trang để dễ báo lỗi
@@ -1159,23 +965,22 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=22"></script>
-  <script src="chess.js?v=15"></script>
+  <script src="i18n.js?v=8"></script>
+  <script src="chess.js?v=14"></script>
   <script src="ai.js?v=13"></script>
-  <script src="engine.js?v=5"></script>
-  <script src="config.js?v=15"></script>
-  <script src="profile.js?v=21"></script>
+  <script src="engine.js?v=2"></script>
+  <script src="config.js?v=13"></script>
+  <script src="profile.js?v=17"></script>
   <script src="contest.js?v=15"></script>
   <script src="sound.js?v=13"></script>
   <script src="lessons.js?v=13"></script>
-  <script src="lessons-en.js?v=1"></script>
-  <script src="learn.js?v=18"></script>
-  <script src="online.js?v=21"></script>
-  <script src="library.js?v=8"></script>
-  <script src="coach.js?v=3"></script>
-  <script src="puzzles.js?v=9"></script>
-  <script src="history.js?v=9"></script>
-  <script src="openings.js?v=5"></script>
-  <script src="app.js?v=43"></script>
+  <script src="learn.js?v=15"></script>
+  <script src="online.js?v=20"></script>
+  <script src="library.js?v=7"></script>
+  <script src="coach.js?v=1"></script>
+  <script src="puzzles.js?v=8"></script>
+  <script src="history.js?v=4"></script>
+  <script src="openings.js?v=3"></script>
+  <script src="app.js?v=30"></script>
 </body>
 </html>

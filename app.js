@@ -35,15 +35,8 @@ const THEMES = [
   ['ocean', 'Đại dương', 'linear-gradient(145deg,#00f5d4,#00bbf9)', 'linear-gradient(145deg,#0096c7,#023e8a)'],
 ];
 
-// Skin quân cờ. Skin có `true` là bộ quân SVG riêng (pieces/<skin>/, tạo bằng: node tools/make-skins.js),
-// các skin còn lại dùng bộ gốc kèm bộ lọc màu trong style.css
 const PIECE_SKINS = [
   ['default', 'Mặc định'],
-  ['royal', 'Hoàng gia', true],
-  ['crystal', 'Pha lê', true],
-  ['walnut', 'Gỗ khắc', true],
-  ['jewel', 'Ngọc', true],
-  ['cyber', 'Cyber', true],
   ['gold', 'Vàng'],
   ['neon', 'Neon'],
   ['mono', 'Đen trắng'],
@@ -51,8 +44,12 @@ const PIECE_SKINS = [
   ['fire', 'Lửa'],
   ['soft', 'Mềm'],
 ];
-const SVG_SKINS = new Set(PIECE_SKINS.filter(s => s[2]).map(s => s[0]));
-const GLOW_BOARDS = new Set(['gradient', 'sunset', 'ocean']); // bàn gradient có viền toả sáng (style.css)
+// Bộ quân có hình dáng riêng: thư mục pieces/<key>/ (nguồn & giấy phép: pieces/CREDITS.md)
+const PIECE_SETS = [
+  ['merida', 'Merida'], ['chessnut', 'Chessnut'], ['fantasy', 'Fantasy'], ['spatial', 'Spatial'], ['celtic', 'Celtic'],
+  ['pixel', 'Pixel'], ['mpchess', 'MPChess'], ['papercut', 'Cắt giấy'], ['rhosgfx', 'Gỗ'], ['totoy', 'Totoy'],
+];
+const PIECE_SET_KEYS = new Set(PIECE_SETS.map(x => x[0]));
 
 const game = new Chess();
 const $ = id => document.getElementById(id);
@@ -77,7 +74,6 @@ let seenMove = null, seenLen = 0; // để nhận ra nước mới cần hiệu 
 let skipAnim = false;   // nước vừa đi bằng kéo thả thì không cần trượt
 let viewPly = null;     // null = đang ở thế cờ live; số = đang xem lại sau N nước
 let redoStack = [];     // các nước đã undo, dùng cho "Đi tiếp"
-let gameReview = null;  // bản phân tích kiểu chess.com của ván trên bàn (xem phần "Phân tích ván")
 let showEval = true;    // hiện thanh đánh giá
 let drag = null;
 const contestById = new Map(); // tra contest theo id (kể cả khi đang chơi ván contest)
@@ -91,8 +87,10 @@ const Auto = {
   retryAt: 0,        // tìm lỗi (mạng...) thì chờ tới lúc này mới thử lại
 };
 
-const skinSrc = (skin, p) => SVG_SKINS.has(skin) ? `pieces/${skin}/${p}.svg` : `pieces/${p}.svg`;
-const pieceSrc = p => skinSrc(Profile.prefs().pieces, p);
+const pieceSrc = p => {
+  const set = document.body.dataset.pieces;
+  return PIECE_SET_KEYS.has(set) ? `pieces/${set}/${p}.svg` : `pieces/${p}.svg`;
+};
 const disp = i => flipped ? 63 - i : i; // vị trí hiển thị của ô i
 const rowCol = i => [disp(i) >> 3, disp(i) & 7];
 
@@ -144,13 +142,11 @@ function render() {
   const targets = live ? new Map(selectedMoves.map(m => [m.to, m])) : new Map();
   const deco = mode === 'learn' ? Learn.deco() : null; // { stars, ok, bad, focus }: tô ô cho bài học
   const stars = deco ? deco.stars : new Set();
-  // Đang có bản phân tích: hiện biểu tượng loại nước (!!, ??, ★…) ở ô đích của nước đang xem
-  const rv = activeReview();
-  const rvPly = live ? h.length : viewPly;
-  const badge = rv && rvPly > 0 && rvPly <= rv.upto ? { sq: h[rvPly - 1].move.to, id: rv.cls[rvPly - 1] } : null;
 
   // Chỉ cập nhật ô nào thay đổi (trước đây dựng lại cả 64 ô mỗi lần bấm → giật trên điện thoại)
-  const rebuild = boardEl.children.length !== 64 || boardEl.dataset.flip !== String(flipped);
+  if ((premove || preSel >= 0) && !premoveColor() && !canHumanMove()) clearPremove(); // ván xong / đối thủ rời: bỏ nước đi trước
+  const kids = boardEl.children;
+  const rebuild = !(kids.length === 64 || (kids.length === 65 && kids[64].tagName.toLowerCase() === 'svg')) || boardEl.dataset.flip !== String(flipped);
   if (rebuild) { boardEl.innerHTML = ''; boardEl.dataset.flip = String(flipped); }
   for (let k = 0; k < 64; k++) {
     const i = flipped ? 63 - k : k;
@@ -162,6 +158,7 @@ function render() {
     if (live && marks.has(i)) cls += ' marked';
     if (targets.has(i)) cls += targets.get(i).captured ? ' capture' : ' target';
     if (live && hint && (i === hint.from || i === hint.to)) cls += ' hint';
+    if (live && (i === preSel || (premove && (i === premove.from || i === premove.to)))) cls += ' premove';
     if (deco) {
       if (deco.focus.has(i)) cls += ' focus';
       if (deco.ok.has(i)) cls += ' tap-ok';
@@ -169,8 +166,7 @@ function render() {
     }
     const p = vg.board[i];
     const dragging = !!(p && drag && drag.moved && drag.from === i);
-    const bdg = badge && badge.sq === i ? badge.id : '';
-    const content = (p ? pieceSrc(p) : '') + (stars.has(i) ? '*' : '') + (bdg ? '#' + bdg : '');
+    const content = (p ? pieceSrc(p) : '') + (stars.has(i) ? '*' : '');
     const sq = rebuild ? document.createElement('div') : boardEl.children[k];
     if (sq.className !== cls) sq.className = cls;
     if (rebuild || sq.dataset.c !== content) {
@@ -185,7 +181,6 @@ function render() {
         sq.appendChild(img);
       }
       if (stars.has(i)) sq.insertAdjacentHTML('beforeend', '<span class="star">★</span>');
-      if (bdg) sq.insertAdjacentHTML('beforeend', clsBadge(bdg, 'mv-badge'));
       if ((k & 7) === 0) sq.insertAdjacentHTML('beforeend', `<span class="coord rank">${8 - r}</span>`);
       if (k >= 56) sq.insertAdjacentHTML('beforeend', `<span class="coord file">${'abcdefgh'[c]}</span>`);
     }
@@ -193,6 +188,7 @@ function render() {
     if (img && img.classList.contains('dragging') !== dragging) img.classList.toggle('dragging', dragging);
     if (rebuild) boardEl.appendChild(sq);
   }
+  renderArrows();
 
   if (isNew) {
     if (!skipAnim && Profile.prefs().anim !== false) animate(last);
@@ -205,10 +201,7 @@ function render() {
   renderMoves();
   renderPlayers();
   const sans = h.map(x => x.san).join(' ');
-  renderEval(live ? null : vg, `${game.startFen}|${sans}|${live ? 'L' : viewPly}|${flipped}|${rv ? rv.upto : ''}`);
-  renderReviewBox();
-  renderArrows(rv, rvPly);
-  autosave();
+  renderEval(live ? null : vg, `${game.startFen}|${sans}|${live ? 'L' : viewPly}|${flipped}`);
   renderOpening(live ? h.length : viewPly, sans);
   clockSync(isNew ? last : null);
   renderSetup();
@@ -419,7 +412,6 @@ setInterval(() => {
   thinking = false;
   const human = aiColor === 'none' ? null : opposite(aiColor);
   const draw = onlyKing(opposite(c));
-  $('promo').hidden = true;
   playResult = draw
     ? { winner: null, reason: `${COLOR_NAME[c]} hết giờ nhưng ${COLOR_NAME[opposite(c)]} không đủ quân chiếu hết`, score: human ? 0.5 : null }
     : { winner: opposite(c), reason: `${COLOR_NAME[c]} hết giờ`, score: human ? (opposite(c) === human ? 1 : 0) : null };
@@ -431,26 +423,16 @@ setInterval(() => {
 let evalKey = '';
 function renderEval(g, key = '') {
   const bar = $('evalBar');
-  if (!bar || bar.hidden || (mode !== 'play' && mode !== 'online') || typeof quiesce !== 'function') { evalKey = ''; return; }
+  if (!bar || bar.hidden || mode !== 'play' || typeof quiesce !== 'function') { evalKey = ''; return; }
   const puzzle = typeof Puzzles !== 'undefined' && Puzzles.isActive && Puzzles.isActive();
   bar.classList.toggle('off', !!puzzle); // đang giải câu đố: không lộ đáp án
   if (puzzle) { evalKey = ''; return; }
-  // Online: thanh chỉ hiện khi xem lại / phân tích ván đã xong (đang lùi xem các nước, Stockfish đang phân tích hoặc
-  // đã có bản phân tích). Ở sảnh chờ và trong lúc đang đánh thì ẩn (vẫn giữ chỗ để bàn cờ không co giãn).
-  const reviewing = mode !== 'online' || (!Online.inGame() && game.history.length > 0 && (!isLiveView() || !!coachRun || !!activeReview()));
-  bar.classList.toggle('concealed', !reviewing);
-  if (!reviewing) { evalKey = ''; return; }
   if (key && key === evalKey) return; // thế cờ không đổi (chỉ chọn quân…): giữ kết quả cũ
   evalKey = key;
-  if (!g) g = game; // quiesce đi thử rồi hoàn tác (_apply/_undo) nên không làm đổi ván đang chơi
+  if (!g) g = boardAt(game.history.length);
   let white, label;
   const st = g.status();
-  const rv = activeReview(), rvPly = isLiveView() ? game.history.length : viewPly;
-  const rvCp = rv && rvPly <= rv.upto ? rv.evals[rvPly] : null;
-  if (st === 'playing' && rvCp != null) { // điểm Stockfish lúc phân tích ván (chính xác hơn ước lượng nhanh)
-    white = Math.abs(rvCp) >= 9000 ? (rvCp > 0 ? 100 : 0) : 100 / (1 + Math.pow(10, -rvCp / 400));
-    label = fmtEval(rvCp).replace(/^[+−]/, '');
-  } else if (st === 'checkmate') {
+  if (st === 'checkmate') {
     white = g.turn === 'w' ? 0 : 100;
     label = g.turn === 'w' ? '0-1' : '1-0';
   } else if (st !== 'playing') {
@@ -478,7 +460,6 @@ function renderEval(g, key = '') {
 }
 
 // Trượt quân từ ô cũ sang ô mới (và Xe khi nhập thành)
-const CAN_TRANSLATE = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('translate', '1px 1px');
 function animate(m) {
   const slide = (from, to) => {
     const img = boardEl.children[disp(to)].querySelector('.piece');
@@ -486,13 +467,9 @@ function animate(m) {
     const [fr, fc] = rowCol(from), [tr, tc] = rowCol(to);
     img.classList.add('moving');
     img.style.transition = 'none';
-    // Dùng thuộc tính `translate` (tính theo mặt bàn) thay cho transform: ở góc nhìn nghiêng 3D quân đã xoay đứng lên,
-    // trượt bằng transform sẽ đi theo trục đã xoay nên quân "chìm" xuống dưới bàn trong lúc trượt
-    if (CAN_TRANSLATE) img.style.translate = `${(fc - tc) * 100}% ${(fr - tr) * 100}%`;
-    else img.style.transform = `translate(${(fc - tc) * 100}%, ${(fr - tr) * 100}%)`;
+    img.style.transform = `translate(${(fc - tc) * 100}%, ${(fr - tr) * 100}%)`;
     img.getBoundingClientRect(); // ép trình duyệt áp vị trí đầu
     img.style.transition = '';
-    img.style.translate = '';
     img.style.transform = '';
     img.addEventListener('transitionend', () => img.classList.remove('moving'), { once: true });
   };
@@ -537,8 +514,7 @@ function renderMoves() {
   const h = game.history;
   const live = isLiveView();
   const focus = live ? h.length : viewPly;
-  const rv = activeReview();
-  const key = `${live}|${focus}|${h.map(x => x.san).join(' ')}|${rv ? rv.cls.join('') + rv.upto : ''}`;
+  const key = `${live}|${focus}|${h.map(x => x.san).join(' ')}`;
   if (key === movesKey && box.childElementCount) return;
   movesKey = key;
   box.innerHTML = '';
@@ -550,7 +526,6 @@ function renderMoves() {
     const addMv = (el, ply) => {
       if (ply >= h.length) return;
       el.textContent = h[ply].san;
-      if (rv && ply < rv.upto) el.insertAdjacentHTML('afterbegin', clsBadge(rv.cls[ply], 'sm'));
       el.dataset.ply = String(ply + 1); // xem sau nước ply+1
       if (focus === ply + 1) el.classList.add('viewing');
       if (live && ply >= h.length - 2) el.classList.add('current');
@@ -589,7 +564,7 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function titleBadge(title) {
-  const t = escapeHtml(String(title || '').trim().toUpperCase()); // danh hiệu có thể do đối thủ Online tự gửi tới
+  const t = String(title || '').trim().toUpperCase();
   if (!t) return '';
   return `<span class="title-badge" title="Danh hiệu ${t}">${t}</span>`;
 }
@@ -704,8 +679,7 @@ function renderHeader() {
   const badgeEl = $('meRankBadge');
   if (badgeEl) badgeEl.innerHTML = medal;
   const ratingEl = $('meRating');
-  if (ratingEl) ratingEl.innerHTML = Profile.isGuest() ? '<span class="me-rank-line">Chế độ khách</span>'
-    : `<span class="me-rank-line"><span style="color:${rank.color}">${rank.text}</span></span> · ${me.elo} Elo`;
+  if (ratingEl) ratingEl.innerHTML = `<span class="me-rank-line"><span style="color:${rank.color}">${rank.text}</span></span> · ${me.elo} Elo`;
   const rankBtn = $('rankBtn');
   if (rankBtn) rankBtn.title = `${rank.name} · ${me.elo} Elo`;
   setAvatar($('meAvatar'), { name: me.name, photo: me.photo, me: true }, 'w');
@@ -713,8 +687,6 @@ function renderHeader() {
   document.body.dataset.pieces = Profile.prefs().pieces || 'default';
   document.body.dataset.coords = Profile.prefs().coords === false ? 'off' : 'on';
   document.body.dataset.dots = Profile.prefs().dots === false ? 'off' : 'on';
-  document.body.dataset.relief = Profile.prefs().relief === false ? 'off' : 'on'; // bàn cờ nổi 3D (mặc định bật)
-  document.body.dataset.tilt = Profile.prefs().tilt ? 'on' : 'off';            // góc nhìn nghiêng 3D (mặc định tắt)
   // Chỉ tài khoản ADMIN thấy tab Admin; admin được dùng Gợi ý trong ván Online
   const staff = Profile.isAdmin();
   $('adminTab').hidden = !Profile.isOwner();
@@ -722,111 +694,79 @@ function renderHeader() {
   $('onlineTools').classList.toggle('three', !staff);
 }
 
-// ---------------- Mũi tên trên bàn cờ ----------------
-// Mũi tên người chơi vẽ (chuột phải kéo) và mũi tên xanh "nước tốt nhất" khi xem lại bản phân tích.
-const OFF_BY_DEFAULT = new Set(['autoQueen', 'tilt']); // các tuỳ chọn trong Cài đặt mặc định tắt
-let arrowLayer = null, arrowKey = '', bestArrow = { key: '', move: null };
-
-function arrowSVG(from, to, color, w) {
-  const c = i => { const [r, col] = rowCol(i); return [col + 0.5, r + 0.5]; };
-  const [x1, y1] = c(from), [x2, y2] = c(to);
-  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
-  if (!len) return '';
-  const ux = dx / len, uy = dy / len, head = 0.42, hw = w * 2.3;
-  const bx = x2 - ux * head, by = y2 - uy * head;          // gốc đầu mũi tên
-  const sx = x1 + ux * 0.28, sy = y1 + uy * 0.28;          // bắt đầu cách tâm ô một chút
-  const px = -uy, py = ux;
-  const pts = [[sx + px * w / 2, sy + py * w / 2], [bx + px * w / 2, by + py * w / 2], [bx + px * hw / 2, by + py * hw / 2], [x2, y2],
-    [bx - px * hw / 2, by - py * hw / 2], [bx - px * w / 2, by - py * w / 2], [sx - px * w / 2, sy - py * w / 2]];
-  return `<polygon points="${pts.map(p => p.map(v => v.toFixed(3)).join(',')).join(' ')}" fill="${color}"/>`;
-}
-
-function renderArrows(rv, rvPly) {
-  if (!arrowLayer) {
-    arrowLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    arrowLayer.setAttribute('class', 'arrow-layer');
-    arrowLayer.setAttribute('viewBox', '0 0 8 8');
-    arrowLayer.setAttribute('aria-hidden', 'true');
-    boardEl.parentElement.appendChild(arrowLayer);
-  }
-  // Nước tốt nhất ở thế trước nước đang xem (bản phân tích): tính lại từ SAN, nhớ kết quả
-  let best = null;
-  const san = rv && rvPly > 0 && rvPly <= rv.upto ? rv.best[rvPly - 1] : '';
-  if (san) {
-    const k = `${rv.startFen}|${rvPly}|${san}`;
-    if (bestArrow.key !== k) {
-      const g = boardAt(rvPly - 1), legal = g.legalMoves(), want = san.replace(/[+#]/g, '');
-      bestArrow = { key: k, move: legal.find(m => g._san(m, legal) === want) || null };
-    }
-    best = bestArrow.move;
-  }
-  const user = [...marks].filter(x => typeof x === 'string').map(x => x.split('>').map(Number));
-  const key = `${flipped}|${best ? best.from + '-' + best.to : ''}|${user.map(a => a.join('-')).join(',')}`;
-  // Khớp vị trí với bàn cờ (bàn nằm cạnh thanh đánh giá trong .board-wrap)
-  Object.assign(arrowLayer.style, { left: boardEl.offsetLeft + 'px', top: boardEl.offsetTop + 'px', width: boardEl.offsetWidth + 'px', height: boardEl.offsetHeight + 'px' });
-  if (key === arrowKey) return;
-  arrowKey = key;
-  arrowLayer.innerHTML = (best ? arrowSVG(best.from, best.to, '#81b64cd9', 0.2) : '') + user.map(([a, b]) => arrowSVG(a, b, '#f0a024d0', 0.17)).join('');
-}
-window.addEventListener('resize', () => { if (arrowLayer) renderArrows(activeReview(), isLiveView() ? game.history.length : viewPly); });
-
-// ---------------- Tự lưu ván đang dở ----------------
-// Ván đấu máy / 2 người / ván tập đang đánh được lưu sau mỗi nước; tải lại trang hay tắt trình duyệt rồi vào lại
-// thì ván được khôi phục (ván tính Elo vẫn tính Elo, nên không "thoát hiểm" bằng cách tải lại trang được).
-const savedKey = () => 'rg-saved-game:' + (Profile.uid() || 'guest');
-let savedSig = null;
-function autosave() {
-  if (!entered) return;
-  const puzzle = typeof Puzzles !== 'undefined' && Puzzles.isActive();
-  const live = mode === 'play' && !puzzle && !ratedDone && game.history.length > 0 && !game.isGameOver() && !playResult;
-  const sig = live ? `${game.startFen}|${game.history.map(h => h.san).join(' ')}|${aiColor}|${gameLevel}|${assisted}|${practice}` : '';
-  if (sig === savedSig) return;
-  savedSig = sig;
-  try {
-    if (!live) { localStorage.removeItem(savedKey()); return; }
-    localStorage.setItem(savedKey(), JSON.stringify({
-      at: Date.now(), startFen: game.startFen,
-      moves: game.history.map(h => sqName(h.move.from) + sqName(h.move.to) + (h.move.promotion || '')),
-      aiColor, level: gameLevel, practice, assisted, flipped,
-      clock: clock ? { base: clock.base, inc: clock.inc, w: clockLeft('w'), b: clockLeft('b') } : null,
-    }));
-  } catch {}
-}
-
-let restoringGame = false;
-function restoreSavedGame() {
-  restoringGame = true;
-  try { return restoreSavedGameNow(); } finally { restoringGame = false; }
-}
-function restoreSavedGameNow() {
-  let s = null;
-  try { s = JSON.parse(localStorage.getItem(savedKey())); } catch {}
-  if (!s || !Array.isArray(s.moves) || Date.now() - s.at > 7 * 86400000 || mode !== 'play' || game.history.length) return false;
-  $('mode').value = ['w', 'b', 'none'].includes(s.aiColor) ? s.aiColor : 'none';
-  $('level').value = String([1, 2, 3].includes(s.level) ? s.level : 2);
-  newGame();
-  try { game.load(s.startFen || START_FEN); } catch { game.reset(); }
-  for (const u of s.moves) {
-    if (!game.move({ from: sqIndex(u.slice(0, 2)), to: sqIndex(u.slice(2, 4)), promotion: u[4] || undefined })) break;
-  }
-  if (!game.history.length || game.isGameOver()) { game.reset(); render(); return false; }
-  practice = !!s.practice;
-  assisted = !!s.assisted;
-  ratedDone = false;
-  flipped = !!s.flipped;
-  // Đồng hồ: giữ thời gian còn lại, dừng tới nước đi tiếp theo
-  if (s.clock && s.clock.base) clock = { base: s.clock.base, inc: s.clock.inc || 0, w: s.clock.w, b: s.clock.b, turn: game.turn, at: 0 };
-  else clockOff();
-  seenLen = game.history.length;
-  seenMove = game.history[seenLen - 1].move;
-  renderRatedNote();
-  render();
-  maybeAiMove();
-  toast(`Đã khôi phục ván đang dở (${Math.ceil(game.history.length / 2)} nước)`);
-  return true;
-}
-
 // ---------------- Thao tác trên bàn cờ ----------------
+
+// ---------------- Đi trước (premove) & mũi tên ----------------
+// Đi trước: đang chờ đối thủ (Online / máy) vẫn chọn sẵn một nước; đối thủ đi xong thì nước đó tự đi (nếu còn hợp lệ).
+let premove = null; // { from, to }
+let preSel = -1;    // quân đang chọn để đi trước
+
+// Màu của mình nếu đang được đi trước (đang là lượt đối thủ), ngược lại null
+function premoveColor() {
+  if (!isLiveView()) return null;
+  if (mode === 'online') {
+    const c = Online.myColor();
+    return c && game.turn !== c ? c : null;
+  }
+  if (mode === 'play' && aiColor !== 'none' && !playResult && !game.isGameOver() && game.turn === aiColor &&
+      !(typeof Puzzles !== 'undefined' && Puzzles.isActive())) return opposite(aiColor);
+  return null;
+}
+
+function clearPremove() { premove = null; preSel = -1; }
+
+// Bấm ô khi đang đi trước
+function premoveTap(i, color) {
+  const p = game.board[i];
+  if (preSel >= 0) {
+    if (i === preSel) preSel = -1;
+    else if (p && p[0] === color) preSel = i;
+    else { premove = { from: preSel, to: i }; preSel = -1; }
+  } else if (premove) {
+    premove = null; // bấm lần nữa: huỷ nước đi trước
+    if (p && p[0] === color) preSel = i;
+  } else if (p && p[0] === color) {
+    preSel = i;
+  }
+  render();
+}
+
+// Đối thủ vừa đi xong: thực hiện nước đi trước nếu còn hợp lệ
+function tryPremove() {
+  if (!premove) {
+    if (preSel >= 0 && canHumanMove()) { const s = preSel; preSel = -1; select(s); render(); }
+    return;
+  }
+  const pm = premove;
+  clearPremove();
+  if (!canHumanMove()) return render();
+  const ms = game.legalMoves().filter(m => m.from === pm.from && m.to === pm.to);
+  if (!ms.length) return render(); // không còn hợp lệ: bỏ
+  play(ms.find(m => m.promotion === 'Q') || ms[0]);
+}
+
+// Mũi tên phân tích (giữ chuột phải kéo từ ô này sang ô khác): lưu chung trong `marks` dạng "từ>tới"
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function renderArrows() {
+  let svg = boardEl.children[64] && boardEl.children[64].tagName.toLowerCase() === 'svg' ? boardEl.children[64] : null;
+  const list = [...marks].filter(x => typeof x === 'string');
+  if (!list.length || !isLiveView()) { if (svg) svg.remove(); return; }
+  if (!svg) {
+    svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'arrows');
+    svg.setAttribute('viewBox', '0 0 8 8');
+    boardEl.appendChild(svg);
+  }
+  const pt = i => [(disp(i) & 7) + 0.5, (disp(i) >> 3) + 0.5];
+  svg.innerHTML = '<defs><marker id="arrowHead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0 10 5 0 10Z" fill="currentColor"/></marker></defs>' +
+    list.map(k => {
+      const [a, b] = k.split('>').map(Number);
+      const [x1, y1] = pt(a), [x2, y2] = pt(b);
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      const ex = x2 - (x2 - x1) / len * 0.38, ey = y2 - (y2 - y1) / len * 0.38; // dừng trước tâm ô để đầu mũi tên nằm trong ô
+      return `<line x1="${x1}" y1="${y1}" x2="${ex.toFixed(3)}" y2="${ey.toFixed(3)}" marker-end="url(#arrowHead)"/>`;
+    }).join('');
+}
 
 function canHumanMove() {
   if (!isLiveView()) return false; // đang xem lại biên bản thì không đi nước
@@ -844,9 +784,7 @@ function onSquare(i, dragged = false) {
   if (!canHumanMove()) return;
   const matches = selectedMoves.filter(m => m.to === i);
   if (matches.length) {
-    // "Tự phong Hậu" chỉ áp dụng khi đánh ván: bài học / câu đố có thể yêu cầu phong Mã (phong dưới cấp)
-    const autoQueen = Profile.prefs().autoQueen && mode !== 'learn' && !(typeof Puzzles !== 'undefined' && Puzzles.isActive());
-    if (matches.length > 1 && autoQueen) play(matches.find(m => m.promotion === 'Q') || matches[0], dragged);
+    if (matches.length > 1 && Profile.prefs().autoQueen) play(matches.find(m => m.promotion === 'Q') || matches[0], dragged);
     else if (matches.length > 1) askPromotion(matches, dragged);
     else play(matches[0], dragged);
     return;
@@ -862,15 +800,7 @@ function clearSelection() {
   selectedMoves = [];
 }
 
-// Bàn nghiêng 3D (Hồ sơ › Cài đặt): toạ độ màn hình không còn tỉ lệ thẳng với ô, nên tìm ô ngay dưới con trỏ
-const tiltOn = () => document.body.dataset.tilt === 'on' && (mode === 'play' || mode === 'online');
 function squareAt(e) {
-  if (tiltOn()) {
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const sq = el && el.closest && el.closest('#board > .sq');
-    const k = sq ? Array.prototype.indexOf.call(boardEl.children, sq) : -1;
-    return k < 0 ? -1 : flipped ? 63 - k : k;
-  }
   const r = boardEl.getBoundingClientRect();
   const col = Math.floor((e.clientX - r.left) / r.width * 8);
   const row = Math.floor((e.clientY - r.top) / r.height * 8);
@@ -891,15 +821,33 @@ function endDrag() {
   drag = null;
 }
 
+let rightDown = null, rightAt = 0; // chuột phải: bấm = đánh dấu ô, kéo = vẽ mũi tên
 boardEl.addEventListener('pointerdown', e => {
-  if (e.button !== 0 || !e.isPrimary) return; // ngón tay thứ hai trên màn cảm ứng: bỏ qua
-  if (drag) endDrag(); // không để sót quân "bóng ma" của lần kéo trước
+  if (e.button === 2) {
+    const i = squareAt(e);
+    rightAt = Date.now();
+    if (premove || preSel >= 0) { clearPremove(); render(); } // chuột phải huỷ nước đi trước
+    rightDown = i >= 0 ? i : null;
+    return;
+  }
+  if (e.button !== 0) return;
   Sound.unlock();
   const i = squareAt(e);
   if (i < 0) return;
   if (mode === 'learn' && Learn.tapMode()) return Learn.tap(i); // bài "bấm vào ô"
   if (marks.size) { marks.clear(); render(); }
-  if (!canHumanMove()) return;
+  if (!canHumanMove()) {
+    const pc = premoveColor();
+    if (!pc) return;
+    const p = game.board[i];
+    if (p && p[0] === pc) { // có thể kéo quân để đi trước
+      drag = { from: i, x: e.clientX, y: e.clientY, moved: false, wasSelected: preSel === i, over: -1, ghost: null, pre: pc };
+      boardEl.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+    return premoveTap(i, pc);
+  }
   const p = game.board[i];
   if (!p || p[0] !== game.turn) return onSquare(i);
   const wasSelected = selected === i;
@@ -930,10 +878,28 @@ boardEl.addEventListener('pointermove', e => {
 });
 
 boardEl.addEventListener('pointerup', e => {
+  if (e.button === 2) {
+    const from = rightDown;
+    rightDown = null;
+    rightAt = Date.now();
+    const to = squareAt(e);
+    if (from == null || to < 0) return;
+    if (from === to) { if (marks.has(to)) marks.delete(to); else marks.add(to); }
+    else { const k = `${from}>${to}`; if (marks.has(k)) marks.delete(k); else marks.add(k); }
+    render();
+    return;
+  }
   if (!drag) return;
   const d = drag;
   endDrag();
   const i = squareAt(e);
+  if (d.pre) { // kéo / bấm quân khi đang đi trước
+    if (d.moved) {
+      if (i >= 0 && i !== d.from) { premove = { from: d.from, to: i }; preSel = -1; }
+      render();
+    } else premoveTap(d.from, d.pre);
+    return;
+  }
   if (d.moved) {
     if (selectedMoves.some(m => m.to === i)) onSquare(i, true);
     else render(); // thả ra ngoài: quân về chỗ cũ, vẫn giữ chọn
@@ -946,18 +912,12 @@ boardEl.addEventListener('pointerup', e => {
 boardEl.addEventListener('pointercancel', () => { endDrag(); render(); });
 
 // Chuột phải: đánh dấu ô (như khi phân tích)
-// Chuột phải: bấm vào một ô = đánh dấu ô, kéo từ ô này sang ô khác = vẽ mũi tên (như khi phân tích trên lichess / chess.com).
-// Mũi tên lưu chung trong `marks` dưới dạng chuỗi "từ>tới", nên bấm chuột trái / đi nước là xoá hết như các ô đánh dấu.
-let rightFrom = -1;
-boardEl.addEventListener('contextmenu', e => e.preventDefault());
-boardEl.addEventListener('pointerdown', e => { if (e.button === 2) rightFrom = squareAt(e); });
-boardEl.addEventListener('pointerup', e => {
-  if (e.button !== 2) return;
-  const from = rightFrom, to = squareAt(e);
-  rightFrom = -1;
-  if (from < 0 || to < 0) return;
-  const k = from === to ? from : `${from}>${to}`;
-  if (marks.has(k)) marks.delete(k); else marks.add(k);
+boardEl.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (Date.now() - rightAt < 600) return; // đã xử lý ở pointerdown / pointerup chuột phải
+  const i = squareAt(e); // nhấn giữ trên điện thoại: đánh dấu ô như cũ
+  if (i < 0) return;
+  if (marks.has(i)) marks.delete(i); else marks.add(i);
   render();
 });
 
@@ -965,16 +925,10 @@ function askPromotion(moves, dragged) {
   const modal = $('promo');
   const box = $('promoChoices');
   box.innerHTML = '';
-  const ply = game.history.length;
   for (const m of moves) {
     const btn = document.createElement('button');
     btn.innerHTML = `<img src="${pieceSrc(m.piece[0] + m.promotion)}" alt="${m.promotion}">`;
-    btn.addEventListener('click', () => {
-      modal.hidden = true;
-      // Trong lúc chọn quân, ván có thể đã đổi (hết giờ, đối thủ xin thua, ván mới…): bỏ nước này
-      if (game.history.length !== ply || !canHumanMove()) { clearSelection(); render(); return; }
-      play(m, dragged);
-    });
+    btn.addEventListener('click', () => { modal.hidden = true; play(m, dragged); });
     box.appendChild(btn);
   }
   modal.hidden = false;
@@ -988,7 +942,7 @@ function play(m, dragged = false) {
   viewPly = null; // về live khi đi nước mới
   redoStack = []; // nước mới → hết nhánh redo
   if (mode === 'learn') return Learn.onMove(m);
-  if (!game.move(m)) { render(); return; } // nước không còn hợp lệ: không gửi cho đối thủ
+  game.move(m);
   if (typeof Puzzles !== 'undefined' && Puzzles.isActive()) {
     Puzzles.onMove();
     render();
@@ -1003,7 +957,6 @@ function play(m, dragged = false) {
 // ván Online: chỉ admin. Admin dùng Gợi ý vẫn được tính Elo và rank (không đặt `assisted`).
 async function showHint() {
   const staff = Profile.isAdmin();
-  if (puzzleBusy()) return;
   if (!(mode === 'play' || (mode === 'online' && staff)) || !canHumanMove()) return;
   if (!staff && isRatedBotGame() && !assisted) {
     if (!confirm('Dùng Gợi ý thì ván này sẽ không tính Elo. Tiếp tục?')) return;
@@ -1012,12 +965,12 @@ async function showHint() {
   }
   // Stockfish depth ~18 — rất mạnh; fallback ai.js nếu engine chưa sẵn sàng
   if (typeof toast === 'function') toast('Đang tính gợi ý (Stockfish)…');
-  const id = gameId, ply = game.history.length;
+  const id = gameId;
   let m = null;
   try {
     if (typeof Engine !== 'undefined' && Engine.hintMove) m = await Engine.hintMove(game);
   } catch (e) { console.warn('hint engine', e); }
-  if (id !== gameId || ply !== game.history.length) return; // thế cờ đã đổi trong lúc tính: gợi ý cũ không còn đúng
+  if (id !== gameId) return;
   if (!m && typeof findBestMove === 'function') m = findBestMove(game, 3);
   if (m) {
     hint = { from: m.from, to: m.to };
@@ -1043,8 +996,9 @@ function maybeAiMove() {
     if (id !== gameId) return;
     if (!m && typeof findBestMove === 'function') m = findBestMove(game, gameLevel);
     thinking = false;
-    if (m && game.move(m)) redoStack = []; // máy đi nước mới: nhánh "Đi tiếp" cũ không còn dùng được
+    if (m) game.move(m);
     render();
+    tryPremove();
   }, 200);
 }
 
@@ -1052,8 +1006,7 @@ function maybeAiMove() {
 
 function startRatedGame() {
   showBoard();
-  gameReview = null; // ván mới (kể cả ván Online chơi lại): bỏ bản phân tích của ván trước
-  coachRun = null;
+  clearPremove();
   ratedDone = false;
   assisted = false;
   playResult = null;
@@ -1062,7 +1015,7 @@ function startRatedGame() {
 
 // Đang đấu với máy (ván có thể tính Elo)
 function isRatedBotGame() {
-  return mode === 'play' && aiColor !== 'none' && !practice && !Profile.isGuest() && !ratedDone && !playResult && !game.isGameOver();
+  return mode === 'play' && aiColor !== 'none' && !practice && !ratedDone && !playResult && !game.isGameOver();
 }
 
 // Bỏ ván giữa chừng khi đấu với máy bị tính thua (như chess.com). Trả về false nếu người chơi hủy.
@@ -1077,9 +1030,8 @@ function abandonBotGame() {
 function renderRatedNote() {
   const el = $('ratedNote');
   const rated = aiColor !== 'none';
-  el.classList.toggle('off', !rated || assisted || practice || Profile.isGuest());
-  el.textContent = Profile.isGuest() ? 'Chế độ khách: không tính Elo, không xếp hạng · đăng nhập để có Elo và rank'
-    : practice ? 'Ván tập từ Thư viện · không tính Elo'
+  el.classList.toggle('off', !rated || assisted || practice);
+  el.textContent = practice ? 'Ván tập từ Thư viện · không tính Elo'
     : !rated ? '2 người cùng máy không tính Elo'
     : assisted ? (Profile.isAdmin() ? 'Ván này không tính Elo vì đã dùng Đi lại' : 'Ván này không tính Elo vì đã dùng Gợi ý / Đi lại')
     : `Đấu với máy ${LEVEL_NAME[gameLevel]} (${BOT_ELO[gameLevel]} Elo) có tính Elo, không tính rank · ${Profile.isAdmin() ? 'Admin: Gợi ý vẫn tính, Đi lại thì không' : 'dùng Gợi ý hoặc Đi lại thì không tính'}`;
@@ -1097,8 +1049,6 @@ function newGame() {
   marks.clear();
   viewPly = null;
   redoStack = [];
-  gameReview = null;
-  $('promo').hidden = true;
   aiColor = $('mode').value;
   gameLevel = Number($('level').value);
   flipped = aiColor === 'w';
@@ -1118,17 +1068,10 @@ function changeSetup() {
   }
 }
 
-// Đang giải câu đố: các nút Đi lại / Đi tiếp / Gợi ý / Xin thua của bàn chính làm lệch tiến độ câu đố,
-// nên tạm khoá (câu đố có nút Gợi ý / Đáp án riêng)
-function puzzleBusy() {
-  if (mode !== 'play' || typeof Puzzles === 'undefined' || !Puzzles.isActive()) return false;
-  toast('Đang giải câu đố: dùng nút Gợi ý hoặc Đáp án trong khung câu đố.');
-  return true;
-}
-
 function undo() {
   if (thinking || playResult || !game.history.length) return;
-  if (mode !== 'play' || puzzleBusy()) return; // online / học cờ không đi lại
+  if (mode === 'online') return; // online không đi lại
+  clearPremove();
   if (isRatedBotGame() && !assisted) {
     if (!confirm('Đi lại thì ván này sẽ không tính Elo. Tiếp tục?')) return;
     assisted = true;
@@ -1145,8 +1088,10 @@ function undo() {
     const h2 = game.undo();
     if (h2) pulled.push(h2.move || h2);
   }
-  // pulled = [nước mới nhất, nước trước đó]: đẩy nước mới nhất vào trước để đỉnh ngăn xếp là nước đi tiếp đầu tiên
-  for (const m of pulled) redoStack.push(m);
+  if (pulled.length) {
+    // redo theo thứ tự đi lại: push từng nước (nước cuối undo là nước đi tiếp trước)
+    for (const m of pulled.reverse()) redoStack.push(m);
+  }
   clearSelection();
   render();
   // Không gọi maybeAiMove — đã về lượt người (hoặc 2 người)
@@ -1154,21 +1099,27 @@ function undo() {
 
 function redo() {
   if (thinking || playResult || !redoStack.length) return;
-  if (mode !== 'play' || puzzleBusy()) return;
+  if (mode === 'online') return;
   hint = null;
   viewPly = null;
-  // Đi lại nước vừa lùi; đấu máy thì đi lại luôn nước của máy để về lượt người như trước khi bấm Đi lại
-  do {
+  // Đi lại các nước đã undo
+  while (redoStack.length) {
     const m = redoStack.pop();
-    if (!game.move({ from: m.from, to: m.to, promotion: m.promotion || undefined })) { redoStack = []; break; }
-  } while (redoStack.length && aiColor !== 'none' && game.turn === aiColor);
+    if (!m) break;
+    const ok = game.move(typeof m === 'object' && m.from != null
+      ? { from: m.from, to: m.to, promotion: m.promotion || undefined }
+      : m);
+    if (!ok) break;
+    // Đấu máy: sau nước người, nếu tới lượt máy thì để maybeAiMove xử lý (không auto redo nước máy từ stack)
+    if (aiColor !== 'none' && game.turn === aiColor) break;
+  }
   clearSelection();
   render();
-  maybeAiMove(); // hết nước để đi tiếp mà tới lượt máy: máy tự tính nước mới
+  maybeAiMove();
 }
 
 function resignPlay() {
-  if (playResult || game.isGameOver() || !game.history.length || puzzleBusy()) return;
+  if (playResult || game.isGameOver() || !game.history.length) return;
   const loser = aiColor === 'none' ? game.turn : opposite(aiColor);
   if (!confirm(aiColor === 'none' ? `${COLOR_NAME[loser]} xin thua?` : 'Bạn chắc chắn muốn xin thua?')) return;
   gameId++;
@@ -1200,7 +1151,6 @@ function checkResult() {
   let change = null, note = null;
   if (o.score != null) {
     if (mode === 'play' && practice) note = 'Ván tập từ Thư viện không tính Elo';
-    else if (Profile.isGuest()) note = 'Chế độ khách không tính Elo';
     else if (mode === 'play' && assisted) note = Profile.isAdmin() ? 'Ván có dùng Đi lại nên không tính Elo' : 'Ván có dùng Gợi ý / Đi lại nên không tính Elo';
     else if (game.history.length < MIN_RANKED_PLIES) note = mode === 'online' ? 'Ván quá ngắn nên không tính rank và Elo' : 'Ván quá ngắn nên không tính Elo';
     else change = mode === 'online' ? Profile.record(o.score, Online.oppElo()) : Profile.recordBot(o.score, BOT_ELO[gameLevel]);
@@ -1269,8 +1219,7 @@ function buildGameReview(o) {
   const hist = game.history;
   if (!hist.length) return null;
 
-  let g;
-  try { g = new Chess(game.startFen || START_FEN); } catch { g = new Chess(); } // ván tập tàn cuộc bắt đầu từ thế riêng
+  const g = new Chess();
   const human = humanColorForReview();
   const tags = [];
   const lines = [];
@@ -1460,165 +1409,18 @@ function renderGameReview(o) {
 }
 
 // ---------------- Sổ luyện lỗi: phân tích ván vừa xong (coach.js) ----------------
-// ---------------- Phân tích ván kiểu chess.com: xếp loại từng nước, xem lại trên bàn ----------------
-
-// Nhận dữ liệu `review` của coach.js (hoặc bản lưu trong Nhật ký) cho ván đang trên bàn
-function setReview(rev) {
-  if (!rev || typeof rev.cls !== 'string' || typeof Coach === 'undefined' || !Coach.BY_CODE) { gameReview = null; return; }
-  gameReview = {
-    startFen: game.startFen,
-    sans: game.history.slice(0, rev.cls.length).map(h => h.san),
-    cls: [...rev.cls].map(c => (Coach.BY_CODE[c] || Coach.CLASS.good).id),
-    evals: Array.isArray(rev.evals) ? rev.evals : [],
-    best: Array.isArray(rev.best) ? rev.best : [],
-    acc: rev.acc || {},
-  };
-}
-
-// Bản phân tích còn khớp ván trên bàn tới nước thứ `upto` (đi lại rồi đi nước khác thì phần sau không còn đúng)
-function activeReview() {
-  const r = gameReview;
-  if (!r || (mode !== 'play' && mode !== 'online') || game.startFen !== r.startFen) return null;
-  if (typeof Puzzles !== 'undefined' && Puzzles.isActive()) return null;
-  let upto = 0;
-  const n = Math.min(r.sans.length, game.history.length);
-  while (upto < n && game.history[upto].san === r.sans[upto]) upto++;
-  return upto ? { ...r, upto } : null;
-}
-
-// Biểu tượng loại nước (giống chess.com): chữ !! ! ?! ? ?? hoặc hình nhỏ
-const CLS_SVG = {
-  best: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="m12 2.6 2.9 6 6.6.9-4.8 4.6 1.2 6.6L12 17.5l-5.9 3.2 1.2-6.6-4.8-4.6 6.6-.9z"/></svg>',
-  excellent: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2.5 10.2h3.6V20H2.5zM7.6 20h9a2 2 0 0 0 2-1.6l1.3-6.3a2 2 0 0 0-2-2.4h-4.1l.6-3.7A2 2 0 0 0 11 4.4L7.6 9.8z"/></svg>',
-  good: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="m5.5 12.5 4.2 4.2L18.5 7.8"/></svg>',
-  book: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3.5 5.6c2.7-1.2 5.8-1 8.5.6 2.7-1.6 5.8-1.8 8.5-.6v13.2c-2.7-1-5.8-.8-8.5.7-2.7-1.5-5.8-1.7-8.5-.7z"/></svg>',
-  miss: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" d="M7 7l10 10M17 7 7 17"/></svg>',
-  forced: '<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="3"/></svg>',
-};
-function clsBadge(id, extra = '') {
-  const c = typeof Coach !== 'undefined' && Coach.CLASS && Coach.CLASS[id];
-  if (!c) return '';
-  return `<span class="mvc mvc-${id}${extra ? ' ' + extra : ''}" title="${c.name}">${CLS_SVG[id] || `<i>${c.sym}</i>`}</span>`;
-}
-
-// Lời nhận xét cho từng loại nước
-const CLS_SAY = {
-  brilliant: 'là nước thiên tài!', great: 'là nước tuyệt vời: nước duy nhất giữ được thế cờ', best: 'là nước tốt nhất',
-  excellent: 'là nước xuất sắc', good: 'là nước tốt', book: 'là nước lý thuyết khai cuộc', inaccuracy: 'là nước thiếu chính xác',
-  mistake: 'là một sai lầm', miss: 'bỏ lỡ cơ hội trừng phạt sai lầm của đối thủ', blunder: 'là nước hớ', forced: 'là nước bắt buộc (duy nhất)',
-};
-
-// Điểm (góc Trắng) → nhãn hiển thị: +1.3, −0.4, M3 (chiếu hết sau 3 nước)
-function fmtEval(cp) {
-  if (Math.abs(cp) >= 9000) return (cp > 0 ? '' : '−') + 'M' + Math.max(1, Math.round((10000 - Math.abs(cp)) / 10));
-  const v = cp / 100;
-  return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1);
-}
-
-// Đồ thị đánh giá cả ván (phần trắng = lợi thế Trắng), chấm màu ở các nước thiên tài / hớ / sai; bấm để nhảy tới nước đó
-const GRAPH_DOT = { brilliant: '#26c2a3', great: '#5c8bb0', miss: '#ee6b55', mistake: '#e58f2a', blunder: '#ca3431' };
-function evalGraphHTML(rv, current = null) {
-  const ev = rv.evals;
-  if (!ev || ev.length < 2) return '';
-  const W = 320, H = 64, n = ev.length - 1;
-  const x = i => (W * i / n).toFixed(1);
-  const y = cp => (H / 2 - (H / 2 - 2) * Math.max(-1, Math.min(1, cp / 800))).toFixed(1);
-  const pts = ev.map((cp, i) => `${x(i)},${y(cp)}`).join(' ');
-  const dots = rv.cls.map((c, i) => GRAPH_DOT[c] ? `<circle cx="${x(i + 1)}" cy="${y(ev[i + 1] || 0)}" r="3.2" fill="${GRAPH_DOT[c]}" stroke="#1d1c19" stroke-width="1"/>` : '').join('');
-  const cur = current != null && current <= n ? `<line x1="${x(current)}" x2="${x(current)}" y1="0" y2="${H}" class="cur"/>` : '';
-  return `<svg class="rv-graph" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" data-n="${n}">
-    <rect width="${W}" height="${H}" class="blk"/><polygon points="0,${H} ${pts} ${W},${H}" class="wht"/>
-    <line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="mid"/>${cur}${dots}</svg>`;
-}
-function bindGraph(box) {
-  const svg = box && box.querySelector('.rv-graph');
-  if (!svg) return;
-  svg.addEventListener('click', e => {
-    const r = svg.getBoundingClientRect(), n = Number(svg.dataset.n);
-    const ply = Math.max(0, Math.min(n, Math.round((e.clientX - r.left) / r.width * n)));
-    enterReview(ply);
-  });
-}
-
-// Bảng tổng kết kiểu chess.com: độ chính xác hai bên + số nước mỗi loại
-function reviewSummaryHTML(rv) {
-  const cnt = { w: {}, b: {} };
-  const first = new Chess(rv.startFen).turn;
-  rv.cls.forEach((c, i) => {
-    const side = i % 2 === 0 ? first : opposite(first);
-    cnt[side][c] = (cnt[side][c] || 0) + 1;
-  });
-  const name = c => escapeHtml((playerInfo(c) || {}).name || COLOR_NAME[c]);
-  const ring = (v, c) => {
-    const C = 2 * Math.PI * 22, a = v == null ? 0 : v;
-    return `<div class="rv-acc-side ${c}"><span class="rv-who"><span class="pz-side ${c}"></span>${name(c)}</span>
-      <span class="rv-ring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" class="track"/><circle cx="27" cy="27" r="22" class="fill" stroke-dasharray="${(C * a / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 27 27)"/></svg><b>${v == null ? '–' : v}</b></span></div>`;
-  };
-  const rows = Coach.CLASSES.filter(c => c.id !== 'forced' || cnt.w.forced || cnt.b.forced).map(c =>
-    `<tr class="${(cnt.w[c.id] || cnt.b[c.id]) ? '' : 'zero'}"><td class="n w">${cnt.w[c.id] || 0}</td><td class="k">${clsBadge(c.id)}<span>${c.name}</span></td><td class="n b">${cnt.b[c.id] || 0}</td></tr>`).join('');
-  return `<div class="rv-acc">${ring(rv.acc.w, 'w')}<span class="rv-acc-label">Độ chính xác</span>${ring(rv.acc.b, 'b')}</div>
-    <table class="rv-table"><tbody>${rows}</tbody></table>`;
-}
-
-// Vào chế độ xem lại từng nước trên bàn (bắt đầu từ nước `ply`)
-function enterReview(ply = 1) {
-  const rv = activeReview();
-  if (!rv) return;
-  $('resultModal').hidden = true;
-  const human = humanColorForReview();
-  if (human) flipped = human === 'b';
-  setViewPly(Math.max(0, Math.min(ply, game.history.length)));
-  const box = $('reviewBox');
-  if (box && window.innerWidth < 900) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
-
-// Khung nhận xét nước đang xem (cạnh biên bản)
-let reviewBoxKey = '';
-function renderReviewBox() {
-  const box = $('reviewBox');
-  if (!box) return;
-  const rv = activeReview();
-  const ply = isLiveView() ? game.history.length : viewPly;
-  const key = rv ? `${rv.cls.join('')}|${rv.upto}|${ply}|${flipped}` : '';
-  if (key === reviewBoxKey) return;
-  reviewBoxKey = key;
-  box.hidden = !rv;
-  if (!rv) { box.innerHTML = ''; return; }
-  let body;
-  if (ply === 0 || ply > rv.upto) {
-    body = ply === 0 ? '<p class="rvb-say">Thế xuất phát · bấm Nước sau hoặc phím → để xem từng nước</p>'
-      : '<p class="rvb-say">Nước này chưa được phân tích</p>';
-  } else {
-    const id = rv.cls[ply - 1], h = game.history[ply - 1];
-    const side = h.move.piece[0];
-    const s0 = new Chess(rv.startFen);
-    const no = s0.fullmove + Math.floor((ply - 1 + (s0.turn === 'b' ? 1 : 0)) / 2);
-    const best = rv.best[ply - 1];
-    body = `<div class="rvb-move mvc-text-${id}">${clsBadge(id, 'lg')}<b>${no}${side === 'w' ? '.' : '...'} ${escapeHtml(h.san)}</b><span class="rvb-say">${CLS_SAY[id] || ''}</span>
-        ${rv.evals[ply] != null ? `<span class="rvb-eval ${rv.evals[ply] >= 0 ? 'w' : 'b'}">${fmtEval(rv.evals[ply])}</span>` : ''}</div>
-      ${best ? `<p class="rvb-best"><span>Nước tốt nhất:</span> <b>${escapeHtml(best)}</b></p>` : ''}`;
-  }
-  box.innerHTML = `<div class="rvb-head"><b>Phân tích ván</b><span class="rvb-acc"><span class="pz-side w"></span>${rv.acc.w ?? '–'} · <span class="pz-side b"></span>${rv.acc.b ?? '–'}</span>
-      <button type="button" class="rvb-close" title="Tắt phân tích"><svg class="ic"><use href="#i-close"/></svg></button></div>
-    ${evalGraphHTML(rv, ply)}${body}`;
-  bindGraph(box);
-  box.querySelector('.rvb-close').addEventListener('click', () => { gameReview = null; render(); });
-}
-
 let coachRun = null; // { progress, report, done, failed }
 
 function startCoach(histId) {
   coachRun = null;
   if (typeof Coach === 'undefined' || quietResult) return;
   const puzzle = typeof Puzzles !== 'undefined' && Puzzles.isActive();
-  const human = humanColorForReview(); // null = 2 người cùng máy: vẫn phân tích, không lưu thẻ ôn
-  if (puzzle || game.history.length < 8 || (mode !== 'play' && mode !== 'online')) return;
+  const human = humanColorForReview();
+  if (puzzle || !human || game.history.length < 8 || (mode !== 'play' && mode !== 'online')) return;
   const label = mode === 'online'
     ? `Online với ${(Online.player(opposite(human)) || {}).name || 'đối thủ'}`
-    : practice ? 'Ván tập từ Thư viện' : !human ? '2 người' : `Máy ${LEVEL_NAME[gameLevel]}`;
+    : practice ? 'Ván tập từ Thư viện' : `Máy ${LEVEL_NAME[gameLevel]}`;
   const run = coachRun = { progress: 0, report: null, done: false };
-  const sansAtEnd = game.history.map(h => h.san).join(' '), fenAtEnd = game.startFen;
-  setTimeout(() => renderEval(null, ''), 0); // bắt đầu phân tích: hiện thanh đánh giá (ván Online)
   Coach.analyse({
     startFen: game.startFen,
     moves: game.history.map(h => ({ from: h.move.from, to: h.move.to, promotion: h.move.promotion || undefined })),
@@ -1626,12 +1428,7 @@ function startCoach(histId) {
     onProgress: f => { run.progress = f; if (coachRun === run) renderCoachResult(); },
   }).then(r => {
     run.report = r; run.done = true; run.failed = !r;
-    if (r && r.review) {
-      const { cls, evals, best, acc } = r.review;
-      if (histId) GameHistory.update(histId, { ...(r.accuracy != null ? { acc: r.accuracy } : {}), rev: { cls, evals, best, acc } });
-      // Ván trên bàn vẫn là ván vừa phân tích: gắn bản phân tích để xem lại từng nước
-      if (game.startFen === fenAtEnd && game.history.map(h => h.san).join(' ') === sansAtEnd) { setReview(r.review); render(); }
-    }
+    if (r && histId) GameHistory.update(histId, { acc: r.accuracy });
     if (coachRun === run) renderCoachResult();
   })
     .catch(() => { run.done = true; run.failed = true; if (coachRun === run) renderCoachResult(); });
@@ -1644,20 +1441,27 @@ function renderCoachResult() {
   box.hidden = !run;
   if (!run) return;
   if (!run.done) {
-    box.innerHTML = `<div class="rc-loading"><span class="spinner"></span><span>Stockfish đang phân tích từng nước của ván…</span><b>${Math.round(run.progress * 100)}%</b></div>
+    box.innerHTML = `<div class="rc-loading"><span class="spinner"></span><span>Huấn luyện viên đang chấm từng nước của bạn…</span><b>${Math.round(run.progress * 100)}%</b></div>
       <div class="progress"><div class="progress-bar" style="width:${Math.round(run.progress * 100)}%"></div></div>`;
     return;
   }
   const r = run.report;
   if (!r) { box.innerHTML = '<p class="rc-note">Không phân tích được ván này (chưa tải được Stockfish).</p>'; return; }
-  const rv = activeReview();
-  box.innerHTML = (rv ? reviewSummaryHTML(rv) + evalGraphHTML(rv) : '')
-    + (r.accuracy != null ? (r.worst ? `<p class="rc-note">Lỗi đáng tiếc nhất của bạn: nước ${r.worst.no} ${r.worst.san}, nên đi <b>${r.worst.best}</b>.</p>` : '<p class="rc-note">Bạn không có nước hớ hay sai lầm nào. Rất tốt!</p>') : '')
-    + (rv ? '<button type="button" id="rcReview" class="primary rc-review"><svg class="ic"><use href="#i-search"/></svg>Xem lại từng nước</button>' : '')
-    + (r.added ? `<button type="button" id="rcTrain" class="rc-train"><svg class="ic"><use href="#i-target"/></svg>Đã thêm ${r.added} thế cờ vào Sổ luyện lỗi · Ôn ngay</button>` : '');
-  bindGraph(box);
-  const rb = $('rcReview');
-  if (rb) rb.addEventListener('click', () => enterReview(1));
+  const tone = r.accuracy >= 85 ? 'great' : r.accuracy >= 70 ? 'good' : r.accuracy >= 50 ? 'ok' : 'low';
+  const C = 2 * Math.PI * 26;
+  box.innerHTML = `<div class="rc-row">
+      <div class="rc-ring ${tone}"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="track"/><circle cx="32" cy="32" r="26" class="fill" stroke-dasharray="${(C * r.accuracy / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/></svg><b>${r.accuracy}</b></div>
+      <div class="rc-main">
+        <b>Độ chính xác ${r.accuracy}%</b>
+        <div class="rc-counts">
+          <span class="k-blunder" title="Nước hớ: mất ≥30% cơ hội thắng"><i></i>${r.blunder} hớ</span>
+          <span class="k-mistake" title="Nước sai: mất ≥20% cơ hội thắng"><i></i>${r.mistake} sai</span>
+          <span class="k-inaccuracy" title="Thiếu chính xác: mất ≥10% cơ hội thắng"><i></i>${r.inaccuracy} thiếu chính xác</span>
+        </div>
+      </div>
+    </div>
+    ${r.worst ? `<p class="rc-note">Lỗi đáng tiếc nhất: nước ${r.worst.no} ${r.worst.san}, nên đi <b>${r.worst.best}</b>.</p>` : '<p class="rc-note">Không có nước hớ hay nước sai nào. Rất tốt!</p>'}
+    ${r.added ? `<button type="button" id="rcTrain" class="rc-train"><svg class="ic"><use href="#i-target"/></svg>Đã thêm ${r.added} thế cờ vào Sổ luyện lỗi · Ôn ngay</button>` : ''}`;
   const b = $('rcTrain');
   if (b) b.addEventListener('click', () => { $('resultModal').hidden = true; Puzzles.startReview(); });
 }
@@ -1665,7 +1469,7 @@ function renderCoachResult() {
 function updateCoachBadge() {
   const el = $('puzzleBadge');
   if (!el || typeof Coach === 'undefined') return;
-  const n = Profile.signedIn() || Profile.isGuest() ? Coach.due().length : 0;
+  const n = Profile.signedIn() ? Coach.due().length : 0;
   el.hidden = !n;
   el.textContent = n > 9 ? '9+' : n;
 }
@@ -1725,8 +1529,8 @@ function showResult(o, change, note) {
 // ---------------- Chuyển chế độ ----------------
 
 function setMode(m) {
-  if (m === 'online' && Profile.isGuest()) { guestBlocked('chơi Online'); return; }
   showBoard();
+  clearPremove();
   if (m === mode) return;
   if (mode === 'online' && Online.inGame() && game.history.length >= 2 &&
       !confirm('Rời phòng giữa ván sẽ bị tính thua. Tiếp tục?')) return;
@@ -1735,8 +1539,6 @@ function setMode(m) {
   quietResult = true;
   if (mode === 'online') Online.leave();
   if (mode === 'learn') Learn.leave();
-  // Rời chế độ Chơi khi đang giải câu đố: tắt câu đố, nếu không mọi nước đi Online bị câu đố chặn lại và hoàn tác
-  if (mode === 'play' && typeof Puzzles !== 'undefined') { try { Puzzles.showBanner(false); } catch {} }
   quietResult = false;
   mode = m;
   gameId++;
@@ -1757,10 +1559,7 @@ function setMode(m) {
   viewPly = null;
   flipped = false;
   assisted = false;
-  redoStack = [];
-  gameReview = null;
   $('resultModal').hidden = true;
-  $('promo').hidden = true;
   document.body.dataset.mode = m;
   practice = false;
   clockOff();
@@ -1811,17 +1610,10 @@ function gameToPGN() {
   }
   let result = '*';
   const s = game.status();
-  const online = mode === 'online' ? Online.outcome() : null;
-  const me2 = online ? humanColorForReview() : null;
   if (s === 'checkmate') result = game.turn === 'b' ? '1-0' : '0-1';
   else if (s !== 'playing') result = '1/2-1/2';
-  else if (playResult) result = !playResult.winner ? '1/2-1/2' : playResult.winner === 'w' ? '1-0' : '0-1';
-  else if (online && me2) { // ván Online kết thúc vì xin thua / hòa thỏa thuận / bỏ ván
-    const winner = online.score === 1 ? me2 : online.score === 0 ? opposite(me2) : null;
-    result = !winner ? '1/2-1/2' : winner === 'w' ? '1-0' : '0-1';
-  }
+  else if (playResult && playResult.winner) result = playResult.winner === 'w' ? '1-0' : '0-1';
 
-  const startFen = game.startFen || START_FEN;
   const tags = [
     `[Event "Royal Gambit"]`,
     `[Site "Royal Gambit"]`,
@@ -1830,25 +1622,48 @@ function gameToPGN() {
     `[Black "${black.replace(/"/g, '')}"]`,
     `[Result "${result}"]`,
   ];
-  // Ván bắt đầu từ thế riêng (tàn cuộc trong Thư viện, câu đố…): ghi kèm FEN để mở lại được ở web khác
-  if (startFen !== START_FEN) tags.push('[SetUp "1"]', `[FEN "${startFen}"]`);
-  let no = 1, side = 'w';
-  try { const s0 = new Chess(startFen); no = s0.fullmove; side = s0.turn; } catch {}
   const moves = [];
   for (let i = 0; i < h.length; i++) {
-    if (side === 'w') moves.push(`${no}.`);
-    else if (i === 0) moves.push(`${no}...`);
+    if (i % 2 === 0) moves.push(`${i / 2 + 1}.`);
     moves.push(h[i].san);
-    if (side === 'b') no++;
-    side = opposite(side);
   }
   moves.push(result);
   return tags.join('\n') + '\n\n' + moves.join(' ') + '\n';
 }
 
-// FEN của thế đang xem (hoặc live)
 function gameToFEN() {
-  return (isLiveView() ? game : boardAt(viewPly)).fen();
+  // FEN của thế đang xem (hoặc live)
+  const g = isLiveView() ? game : boardAt(viewPly);
+  // chess.js không export fen() — dựng thủ công từ board
+  if (typeof g.fen === 'function') return g.fen();
+  let rows = [];
+  for (let r = 0; r < 8; r++) {
+    let empty = 0, row = '';
+    for (let c = 0; c < 8; c++) {
+      const p = g.board[r * 8 + c];
+      if (!p) { empty++; continue; }
+      if (empty) { row += empty; empty = 0; }
+      const ch = p[1];
+      row += p[0] === 'w' ? ch : ch.toLowerCase();
+    }
+    if (empty) row += empty;
+    rows.push(row);
+  }
+  const castle = g.castling || {};
+  let cast = (castle.wK ? 'K' : '') + (castle.wQ ? 'Q' : '') + (castle.bK ? 'k' : '') + (castle.bQ ? 'q' : '');
+  if (!cast) cast = '-';
+  const ep = g.ep >= 0 && typeof sqName === 'function' ? sqName(g.ep) : '-';
+  return `${rows.join('/')} ${g.turn} ${cast} ${ep} ${g.halfmove || 0} ${g.fullmove || 1}`;
+}
+
+function toast(msg) {
+  const old = document.querySelector('.toast-copy');
+  if (old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'toast-copy';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1700);
 }
 
 async function copyText(text, okMsg) {
@@ -1870,7 +1685,92 @@ async function copyText(text, okMsg) {
   }
 }
 
+// ---------------- Dán PGN / FEN để mở lên bàn ----------------
+const FEN_RE = /^\s*([pnbrqkPNBRQK1-8]{1,8}\/){7}[pnbrqkPNBRQK1-8]{1,8}\s+[wb](\s+(-|[KQkq]{1,4})(\s+(-|[a-h][36])(\s+\d+\s+\d+)?)?)?\s*$/;
+
+// Đọc PGN / FEN: trả về { fen, sans } hoặc null nếu không hợp lệ
+function parseGameText(text) {
+  text = String(text || '').trim();
+  if (!text) return null;
+  if (FEN_RE.test(text)) {
+    const parts = text.split(/\s+/);
+    const fen = [parts[0], parts[1], parts[2] || '-', parts[3] || '-', parts[4] || '0', parts[5] || '1'].join(' ');
+    return validFen(fen) ? { fen, sans: [] } : null;
+  }
+  const head = /\[FEN\s+"([^"]+)"\]/i.exec(text);
+  const fen = head && FEN_RE.test(head[1]) && validFen(head[1].trim()) ? head[1].trim() : START_FEN;
+  const body = text.replace(/\[[^\]]*\]/g, ' ')        // thẻ [Event ...]
+    .replace(/\{[^}]*\}/g, ' ').replace(/;[^\n]*/g, ' ') // chú thích
+    .replace(/\([^()]*\)/g, ' ').replace(/\([^()]*\)/g, ' ') // nhánh phụ (2 tầng)
+    .replace(/\$\d+/g, ' ').replace(/\d+\.(\.\.)?/g, ' ')
+    .replace(/(1-0|0-1|1\/2-1\/2|½-½|\*)\s*$/, ' ');
+  const sans = body.split(/\s+/).filter(Boolean).map(t => t.replace(/^0-0-0/, 'O-O-O').replace(/^0-0/, 'O-O'));
+  if (!sans.length || sans.length > 600) return null;
+  const g = new Chess(fen);
+  for (const san of sans) if (!Library.playSan(g, san)) return null;
+  return { fen, sans };
+}
+
+// Thế cờ phải có đúng 1 Vua mỗi bên và còn nước đi / đã kết thúc hợp lệ
+function validFen(fen) {
+  try {
+    const g = new Chess(fen);
+    const kings = c => g.board.filter(p => p === c + 'K').length;
+    if (kings('w') !== 1 || kings('b') !== 1) return false;
+    if (g.board.some((p, i) => p && p[1] === 'P' && (i < 8 || i >= 56))) return false; // Tốt ở hàng 1 / 8
+    return !g.inCheck(g.turn === 'w' ? 'b' : 'w'); // bên vừa đi không được đang bị chiếu
+  } catch { return false; }
+}
+
+// Mở ván / thế cờ vừa dán lên bàn 2 người (không tính Elo), xem lại bằng ◀ ▶
+function openGameText(text) {
+  const parsed = parseGameText(text);
+  if (!parsed) return toast('Không đọc được PGN / FEN này. Hãy kiểm tra lại nội dung đã dán.');
+  if ($('mode')) $('mode').value = 'none';
+  if (mode !== 'play') { setMode('play'); if (mode !== 'play') return; }
+  else if (!newGame()) return;
+  gameId++;
+  clearSelection();
+  clearPremove();
+  hint = null;
+  marks.clear();
+  aiColor = 'none';
+  ratedDone = true;
+  practice = true;
+  playResult = null;
+  thinking = false;
+  clockOff();
+  game.load(parsed.fen);
+  for (const san of parsed.sans) Library.playSan(game, san);
+  seenLen = game.history.length;
+  seenMove = seenLen ? game.history[seenLen - 1].move : null;
+  viewPly = null;
+  flipped = false;
+  renderRatedNote();
+  render();
+  toast(parsed.sans.length ? `Đã mở ván ${Math.ceil(parsed.sans.length / 2)} nước · dùng ◀ ▶ để xem lại` : 'Đã mở thế cờ · hai bên thay phiên đi tiếp');
+}
+
 function bindRecordTools() {
+  const paste = $('pasteGame');
+  if (paste) paste.addEventListener('click', async () => {
+    let text = '';
+    try { if (navigator.clipboard && navigator.clipboard.readText) text = await navigator.clipboard.readText(); } catch {}
+    if (!parseGameText(text)) text = prompt('Dán PGN (một ván) hoặc FEN (một thế cờ):', '') || '';
+    if (text.trim()) openGameText(text);
+  });
+  // Ctrl+V ngay trên trang (không phải trong ô nhập chữ) khi đang ở bàn cờ Chơi / Online xong ván
+  document.addEventListener('paste', e => {
+    const t = e.target;
+    if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+    if (document.querySelector('.modal:not([hidden])') || document.body.dataset.page) return;
+    if (mode !== 'play') return;
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    if (!parseGameText(text)) return;
+    e.preventDefault();
+    if (confirm('Mở ván / thế cờ vừa dán lên bàn (2 người, không tính Elo)?')) openGameText(text);
+  });
+
   const pgn = $('copyPgn');
   const fen = $('copyFen');
   if (pgn) pgn.addEventListener('click', () => {
@@ -2176,7 +2076,7 @@ function leaveHome() {
 
 // Đưa người chơi về bàn cờ (đóng Trang chủ / trang hồ sơ)
 function showBoard() {
-  if (!entered || restoringGame) return; // đang khôi phục ván lúc vào web: giữ Trang chủ / trang được mở bằng link
+  if (!entered) return;
   leaveHome();
   closeProfilePage();
 }
@@ -2195,23 +2095,9 @@ function renderHome() {
     <span class="hm-exp" title="Exp tới ngôi sao tiếp theo"><span class="hm-exp-bar"><i style="width:${pct}%;background:${rank.color}"></i></span>
       <small>${rank.top ? '<span>Rank cao nhất</span>' : `${rank.inStar}/${R.perStar} exp`}</small></span>`;
   $('hmRank').querySelector('.hm-rank-btn').addEventListener('click', openRank);
-  // Chế độ khách: không có rank / Elo, mời đăng nhập
-  let gb = $('hmGuest');
-  if (Profile.isGuest()) {
-    $('hmRank').innerHTML = '<span class="hm-guest-chip">Chế độ khách</span>';
-    if (!gb) {
-      gb = document.createElement('div');
-      gb.id = 'hmGuest';
-      gb.className = 'hm-guest';
-      gb.innerHTML = '<span><b>Bạn đang chơi với tư cách khách</b><small>Đăng nhập (hoặc dùng Google) để có rank, Elo, chơi Online, tham gia contest và đồng bộ nhật ký giữa các máy.</small></span><button type="button" class="primary">Đăng nhập / Đăng ký</button>';
-      gb.querySelector('button').addEventListener('click', leaveGuest);
-      $('hmStats').before(gb);
-    }
-    gb.hidden = false;
-  } else if (gb) gb.hidden = true;
 
   const hist = typeof GameHistory !== 'undefined' ? GameHistory.read() : [];
-  const res = hist.map(g => GameHistory.outcome(g)); // ván 2 người không tính vào tỉ lệ thắng
+  const res = hist.map(g => GameHistory.resultLabel(g.result).c);
   const wins = res.filter(c => c === 'win').length;
   const decided = res.filter(c => c).length;
   const learn = typeof Learn !== 'undefined' && Learn.summary ? Learn.summary() : null;
@@ -2219,7 +2105,7 @@ function renderHome() {
   const stat = (ic, val, label, cls = '', title = '') =>
     `<div class="hm-stat ${cls}"${title ? ` title="${title}"` : ''}><svg class="ic"><use href="#${ic}"/></svg><b>${val}</b><small>${label}</small></div>`;
   $('hmStats').innerHTML =
-    stat('i-star', Profile.isGuest() ? '—' : me.elo, 'Elo', 'gold', 'Elo hiện tại') +
+    stat('i-star', me.elo, 'Elo', 'gold', 'Elo hiện tại') +
     stat('i-swords', hist.length, 'Ván đã chơi', '', 'Số ván trong nhật ký trên máy này') +
     stat('i-trophy', decided ? Math.round(100 * wins / decided) + '%' : '—', 'Tỉ lệ thắng', 'green') +
     stat('i-flame', learn ? learn.streak : 0, 'Chuỗi ngày học', 'flame') +
@@ -2315,13 +2201,13 @@ function renderHomeRecent(hist) {
   }
   box.innerHTML = '';
   for (const g of hist.slice(0, 5)) {
-    const r = GameHistory.label(g);
+    const r = GameHistory.resultLabel(g.result);
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'hm-game';
     const elo = Number.isFinite(g.elo) && g.elo ? `<span class="hm-elo ${g.elo > 0 ? 'up' : 'down'}">${g.elo > 0 ? '+' : ''}${g.elo}</span>` : '';
     row.innerHTML = `<span class="hm-res ${r.c}">${r.t}</span>
-      <span class="hm-game-main"><b></b><small><svg class="ic"><use href="#${g.mode === 'online' ? 'i-globe' : g.mode === 'import' ? 'i-download' : 'i-cpu'}"/></svg><span>${g.mode === 'online' ? 'Online' : g.mode === 'import' ? 'Ván nhập' : /^2 người/.test(g.title || '') ? '2 người' : 'Đấu máy'}</span> · <span>${g.moves || 0}</span> <span>nước</span>${Number.isFinite(g.acc) ? ` · <span>${Math.round(g.acc)}%</span>` : ''}</small></span>
+      <span class="hm-game-main"><b></b><small><svg class="ic"><use href="#${g.mode === 'online' ? 'i-globe' : 'i-cpu'}"/></svg><span>${g.mode === 'online' ? 'Online' : 'Đấu máy'}</span> · <span>${Math.ceil((g.moves || 0) / 2)}</span> <span>nước</span>${Number.isFinite(g.acc) ? ` · <span>${Math.round(g.acc)}%</span>` : ''}</small></span>
       ${elo}<span class="hm-when">${timeAgo(g.at)}</span>`;
     row.querySelector('b').textContent = g.opp ? (g.color === 'b' ? '♚ ' : '♔ ') + g.opp : g.title;
     row.addEventListener('click', () => GameHistory.open());
@@ -2770,8 +2656,9 @@ function renderProfileSide(p, rank) {
   const games = p.me && typeof GameHistory !== 'undefined' ? GameHistory.read().slice(0, 5) : [];
   gamesCard.hidden = !p.me;
   if (p.me) {
+    const RES = { '1-0': ['Thắng', 'win'], '0-1': ['Thua', 'loss'], '1/2-1/2': ['Hòa', 'draw'] };
     $('pfGames').innerHTML = games.length ? games.map(g => {
-      const { t, c } = GameHistory.label(g);
+      const [t, c] = RES[g.result] || ['—', ''];
       return `<div class="pf-game"><span class="pf-res ${c}">${t}</span><span class="pf-g-main"><b>${escapeHtml(g.title)}</b><small>${g.moves} nước · ${timeAgo(g.at)}</small></span></div>`;
     }).join('') : '<p class="pf-empty">Chưa có ván nào trong nhật ký.</p>';
   }
@@ -2783,11 +2670,9 @@ function renderProfileSide(p, rank) {
     $('soundToggle').checked = Profile.prefs().sound;
     for (const box of document.querySelectorAll('#pfSettings [data-pref]')) {
       const k = box.dataset.pref;
-      box.checked = OFF_BY_DEFAULT.has(k) ? !!Profile.prefs()[k] : Profile.prefs()[k] !== false;
+      box.checked = k === 'autoQueen' ? !!Profile.prefs()[k] : Profile.prefs()[k] !== false;
     }
     $('notifyToggle').checked = !!Profile.prefs().notify && typeof Notification !== 'undefined' && Notification.permission === 'granted';
-    renderRecovery();
-    $('pwBtn').hidden = Profile.isGuest() || (Profile.remote && Profile.provider() === 'google');
     renderThemes();
   }
 }
@@ -2856,7 +2741,7 @@ function renderThemes() {
   boardGrid.className = 'themes';
   for (const [key, name, light, dark] of THEMES) {
     const b = document.createElement('button');
-    b.className = 'theme' + (prefs.board === key ? ' on' : '') + (GLOW_BOARDS.has(key) ? ' glow' : '');
+    b.className = 'theme' + (prefs.board === key ? ' on' : '');
     b.title = name;
     const bg = light.startsWith('linear')
       ? `background-image:${light},${dark};background-size:50% 100%,50% 100%;background-position:0 0,100% 0;background-repeat:no-repeat`
@@ -2881,16 +2766,37 @@ function renderThemes() {
     const b = document.createElement('button');
     b.className = 'theme' + ((prefs.pieces || 'default') === key ? ' on' : '');
     b.title = name;
-    b.innerHTML = `<div class="piece-preview${SVG_SKINS.has(key) ? ' pair' : ''}" data-pieces="${key}"><img src="${skinSrc(key, 'wN')}" alt="">${SVG_SKINS.has(key) ? `<img src="${skinSrc(key, 'bN')}" alt="">` : ''}</div><small>${name}</small>`;
+    b.innerHTML = `<div class="piece-preview" data-pieces="${key}"><img src="pieces/wN.svg" alt=""></div><small>${name}</small>`;
     b.addEventListener('click', () => {
       Profile.setPref('pieces', key);
       document.body.dataset.pieces = key;
       renderThemes();
-      render(); // vẽ lại quân trên bàn bằng bộ quân mới
+      render();
     });
     pieceGrid.appendChild(b);
   }
   box.appendChild(pieceGrid);
+
+  const setTitle = document.createElement('div');
+  setTitle.className = 'skin-section';
+  setTitle.innerHTML = '<h4>Bộ quân</h4>';
+  box.appendChild(setTitle);
+  const setGrid = document.createElement('div');
+  setGrid.className = 'themes';
+  for (const [key, name] of PIECE_SETS) {
+    const b = document.createElement('button');
+    b.className = 'theme' + (prefs.pieces === key ? ' on' : '');
+    b.title = name;
+    b.innerHTML = `<div class="piece-preview"><img src="pieces/${key}/wN.svg" alt=""></div><small>${name}</small>`;
+    b.addEventListener('click', () => {
+      Profile.setPref('pieces', key);
+      document.body.dataset.pieces = key;
+      renderThemes();
+      render();
+    });
+    setGrid.appendChild(b);
+  }
+  box.appendChild(setGrid);
 }
 
 $('logoutBtn').addEventListener('click', async () => {
@@ -3044,7 +2950,7 @@ if ($('clockSel')) {
   if (use) use.setAttribute('href', onSound ? '#i-volume' : '#i-mute');
 })();
 $('rankBtn').addEventListener('click', openRank);
-$('profileBtn').addEventListener('click', () => (Profile.isGuest() ? guestBlocked('có hồ sơ, rank và Elo') : openProfile()));
+$('profileBtn').addEventListener('click', () => openProfile());
 $('promo').addEventListener('click', e => {
   if (e.target === $('promo')) $('promo').hidden = true;
 });
@@ -3053,13 +2959,7 @@ $('promo').addEventListener('click', e => {
 const room = new URLSearchParams(location.search).get('room');
 renderHeader();
 newGame();
-// Tải sẵn Stockfish (~2 MB) khi trình duyệt rảnh, không tranh băng thông với lúc mở trang.
-// Nếu người chơi cần máy đi / gợi ý trước đó thì engine.js tự tải ngay lúc ấy.
-if (typeof Engine !== 'undefined' && Engine.load) {
-  const preload = () => Engine.load().catch(() => {});
-  if ('requestIdleCallback' in window) requestIdleCallback(preload, { timeout: 4000 });
-  else setTimeout(preload, 1500);
-}
+if (typeof Engine !== 'undefined' && Engine.load) Engine.load().catch(() => {});
 
 // ---------------- Ngôn ngữ (i18n.js) ----------------
 function renderLang() {
@@ -3088,88 +2988,20 @@ const AUTH_ERRORS = {
   BAD_LOGIN: 'Sai tên đăng nhập hoặc mật khẩu',
   TOO_MANY: 'Thử quá nhiều lần, hãy đợi một lúc rồi thử lại',
   NETWORK: 'Không kết nối được máy chủ. Kiểm tra mạng Internet.',
-  NOT_ALLOWED: 'Máy chủ chưa bật cách đăng nhập này (Firebase Console › Authentication › Sign-in method, xem README).',
-  POPUP: 'Trình duyệt đã chặn cửa sổ đăng nhập Google. Hãy cho phép cửa sổ bật lên rồi thử lại.',
-  DOMAIN: 'Tên miền của web chưa được thêm vào Firebase (Authentication › Settings › Authorized domains).',
-  SESSION: 'Phiên đăng nhập đã hết, hãy đăng nhập lại.',
-  NO_REMOTE: 'Đăng nhập bằng Google cần cấu hình Firebase (xem README).',
+  NOT_ALLOWED: 'Máy chủ chưa bật đăng nhập Email/Password (xem README).',
   DENIED: 'Máy chủ từ chối truy cập, kiểm tra lại luật Firebase (xem README).',
-  BAD_OLD: 'Mật khẩu hiện tại không đúng',
-  SAME: 'Mật khẩu mới phải khác mật khẩu hiện tại',
-  GOOGLE: 'Tài khoản Google không dùng mật khẩu riêng ở đây. Đổi mật khẩu trong tài khoản Google của bạn.',
-  EXPIRED: 'Mã đã hết hạn hoặc nhập sai quá nhiều lần. Bấm "Gửi lại mã" để nhận mã mới.',
-  BAD_CODE: 'Mã xác nhận không đúng',
-  NO_EMAIL: 'Tài khoản này chưa thêm Gmail khôi phục nên không gửi mã được. Hãy nhờ admin hỗ trợ.',
-  NO_ACCOUNT: 'Không tìm thấy tài khoản có tên này',
-  GOOGLE_ACC: 'Tài khoản này đăng nhập bằng Google, hãy bấm "Đăng nhập bằng Google".',
-  WAIT: 'Vừa gửi mã rồi, đợi 1 phút rồi thử lại.',
-  QUOTA: 'Hôm nay máy chủ đã gửi hết lượt email, hãy thử lại vào ngày mai.',
-  BAD_EMAIL: 'Địa chỉ email không hợp lệ',
-  NO_MAIL_API: 'Chủ web chưa bật máy chủ email (mailApi trong config.js, xem README).',
 };
-// Lỗi từ máy chủ email (kèm số lần thử còn lại khi sai mã)
-const mailErr = err => err.message === 'BAD_CODE' && err.left ? `Mã xác nhận không đúng (còn ${err.left} lần thử)`
-  : err.message === 'SESSION' ? 'Không xác minh được tài khoản. Hãy đăng xuất rồi đăng nhập lại; nếu vẫn lỗi, chủ web cần dán firebase-rules.json mới (mục "recovery").'
-  : err.message === 'SERVER' ? 'Máy chủ email đang lỗi hoặc chưa cài xong (Apps Script), thử lại sau.'
-  : AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
 let authMode = 'login';
 
 function setAuthMode(m) {
   authMode = m;
-  const reg = m === 'register';
-  $('authTabLogin').classList.toggle('on', !reg);
-  $('authTabRegister').classList.toggle('on', reg);
-  document.querySelector('.auth-tabs').classList.toggle('reg', reg);
-  $('authPass2Wrap').hidden = !reg;
-  $('authMsg').classList.remove('ok');
-  $('authPass2').required = reg;
-  $('authPass').autocomplete = reg ? 'new-password' : 'current-password';
-  $('authSubmit').textContent = reg ? 'Tạo tài khoản' : 'Đăng nhập';
-  $('authWelcome').textContent = reg ? 'Tạo tài khoản miễn phí để có rank, Elo và chơi Online.' : 'Chào mừng trở lại! Đăng nhập để tiếp tục.';
-  $('authSwitch').innerHTML = reg
-    ? '<span>Đã có tài khoản?</span> <button type="button" class="auth-link" data-go="login">Đăng nhập</button>'
-    : '<span>Chưa có tài khoản?</span> <button type="button" class="auth-link" data-go="register">Đăng ký miễn phí</button>';
+  $('authTabLogin').classList.toggle('on', m === 'login');
+  $('authTabRegister').classList.toggle('on', m === 'register');
+  $('authPass2Wrap').hidden = m !== 'register';
+  $('authPass2').required = m === 'register';
+  $('authPass').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+  $('authSubmit').textContent = m === 'login' ? 'Đăng nhập' : 'Tạo tài khoản';
   $('authMsg').textContent = '';
-  const form = $('authForm');
-  form.classList.remove('swap'); void form.offsetWidth; form.classList.add('swap'); // hiệu ứng nhẹ khi đổi chế độ
-  $('authForgotLink').hidden = m !== 'login' || !Profile.canRecover();
-  authLive();
-}
-
-// Kiểm tra ngay khi gõ: tên đăng nhập, độ mạnh mật khẩu (đăng ký), hai mật khẩu khớp nhau
-function authLive() {
-  const reg = authMode === 'register';
-  const name = $('authUser').value.trim(), pass = $('authPass').value, pass2 = $('authPass2').value;
-  const hint = $('authUserHint');
-  let ok = false, text = '3–20 ký tự: chữ không dấu, số và dấu _', bad = false;
-  if (name) {
-    if (!/^[A-Za-z0-9_]*$/.test(name)) { text = 'Chỉ dùng chữ không dấu, số và dấu _ (không dấu cách)'; bad = true; }
-    else if (name.length < 3) text = `Cần ít nhất 3 ký tự (còn thiếu ${3 - name.length})`;
-    else if (reg && /^admin/i.test(name) && name.toLowerCase() !== 'admin') { text = 'Tên bắt đầu bằng "admin" chỉ dành cho chủ web'; bad = true; }
-    else { ok = true; text = reg ? 'Tên hợp lệ' : ''; }
-  }
-  hint.textContent = text;
-  hint.className = 'auth-hint' + (bad ? ' bad' : ok ? ' good' : '');
-  $('authUserOk').hidden = !(ok && reg);
-  // Độ mạnh mật khẩu
-  showStrength($('authStrength'), reg ? pass : '');
-  $('authPass2Ok').hidden = !(reg && pass2 && pass2 === pass && pass.length >= 6);
-}
-
-// Thanh độ mạnh mật khẩu (4 vạch); pass rỗng thì ẩn
-function showStrength(box, pass) {
-  box.hidden = !pass;
-  if (!pass) return;
-  let sc = 0;
-  if (pass.length >= 6) sc++;
-  if (pass.length >= 10) sc++;
-  if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) sc++;
-  if (/\d/.test(pass) && /[^A-Za-z0-9]/.test(pass)) sc++;
-  else if (/\d/.test(pass) && sc < 4) sc += pass.length >= 8 ? 1 : 0;
-  sc = pass.length < 6 ? 0 : Math.max(1, Math.min(4, sc));
-  const lv = ['Quá ngắn (cần ít nhất 6 ký tự)', 'Yếu', 'Tạm được', 'Mạnh', 'Rất mạnh'][sc];
-  box.dataset.lv = sc;
-  box.querySelector('small').textContent = 'Độ mạnh: ' + lv;
 }
 
 function enterApp() {
@@ -3180,14 +3012,12 @@ function enterApp() {
   renderPlayers();
   // Mở bằng link mời (?room=MÃ) thì vào thẳng phòng online (sau khi chọn trình độ)
   const go = () => {
-    if (room && Profile.isGuest()) { toast('Link mời là ván Online: hãy đăng nhập để vào phòng.'); return; }
     if (room) {
       setMode('online');
       Online.join(room);
     }
   };
   homeOpen = !room; // vào web: mở Trang chủ (trừ khi vào bằng link mời phòng)
-  if (!room) restoreSavedGame(); // ván đấu máy / 2 người đang dở lần trước (tải lại trang, tắt trình duyệt…)
   if (needsPlacement()) { afterPlace = go; openPlacement(); }
   else go();
   refreshAuto(); // contest đã đăng ký: hiện thông báo và tự ghép cặp khi tới giờ
@@ -3195,22 +3025,6 @@ function enterApp() {
   routeContest(); // mở bằng link #contest/<id>
   updateCoachBadge();
   applyPendingForfeit();
-  if (typeof GameHistory !== 'undefined' && GameHistory.sync) GameHistory.sync(); // nhật ký chơi trên máy khác
-}
-
-// Nhật ký vừa đồng bộ với tài khoản (có ván chơi trên máy khác): vẽ lại Trang chủ / Hồ sơ đang mở
-if (typeof GameHistory !== 'undefined' && GameHistory.onChange) {
-  GameHistory.onChange(() => {
-    if (entered && homeVisible()) renderHome();
-    if (pfView && pfView.p.me && !$('profilePage').hidden) renderProfilePage(selfPlayer(), pfView.hist);
-  });
-  // Quay lại tab / mở lại app trên điện thoại: đồng bộ (tối đa 1 lần mỗi phút)
-  let lastVisSync = 0;
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden || !entered || Date.now() - lastVisSync < 60000) return;
-    lastVisSync = Date.now();
-    GameHistory.sync();
-  });
 }
 
 // Lần trước thoát trang giữa ván Online (đóng tab, tải lại trang…): ván đó bị tính thua
@@ -3267,11 +3081,8 @@ $('authForm').addEventListener('submit', async e => {
   const user = $('authUser').value, pass = $('authPass').value;
   const msg = $('authMsg');
   msg.textContent = '';
-  msg.classList.remove('ok');
   if (authMode === 'register' && pass !== $('authPass2').value) { msg.textContent = AUTH_ERRORS.MISMATCH; return; }
   $('authSubmit').disabled = true;
-  $('authSubmit').classList.add('busy');
-  $('authSubmit').textContent = authMode === 'login' ? 'Đang đăng nhập…' : 'Đang tạo tài khoản…';
   try {
     if (authMode === 'login') await Profile.login(user, pass);
     else await Profile.register(user, pass);
@@ -3279,308 +3090,8 @@ $('authForm').addEventListener('submit', async e => {
     enterApp();
   } catch (err) {
     msg.textContent = AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
-    const box = document.querySelector('.auth-box');
-    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
   }
   $('authSubmit').disabled = false;
-  $('authSubmit').classList.remove('busy');
-  $('authSubmit').textContent = authMode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản';
-});
-// Gõ tới đâu kiểm tra tới đó; nút con mắt hiện / ẩn mật khẩu; báo Caps Lock; link chuyển Đăng nhập ↔ Đăng ký
-for (const id of ['authUser', 'authPass', 'authPass2']) $(id).addEventListener('input', authLive);
-for (const b of document.querySelectorAll('.auth-eye')) {
-  b.addEventListener('click', () => {
-    const inp = $(b.dataset.for), show = inp.type === 'password';
-    inp.type = show ? 'text' : 'password';
-    b.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye');
-    b.title = show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu';
-    b.setAttribute('aria-label', b.title);
-    inp.focus();
-  });
-}
-for (const [id, capsId] of [['authPass', 'authCaps'], ['authPass2', 'authCaps'], ['pwOld', 'pwCaps'], ['pwNew', 'pwCaps'], ['pwNew2', 'pwCaps']]) {
-  for (const ev of ['keydown', 'keyup']) $(id).addEventListener(ev, e => { if (e.getModifierState) $(capsId).hidden = !e.getModifierState('CapsLock'); });
-  $(id).addEventListener('blur', () => { $(capsId).hidden = true; });
-}
-$('authForgotLink').hidden = !Profile.canRecover();
-$('authSwitch').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) setAuthMode(b.dataset.go); });
-// Bàn cờ minh hoạ ở cột giới thiệu (ván Opera của Morphy, nước chiếu hết cuối)
-try { $('authBoard').innerHTML = Library.fenBoard('1n1Rkb1r/p4ppp/4q3/4p1B1/4P3/8/PPP2PPP/2K5 b k - 1 17', false, { from: sqIndex('d1'), to: sqIndex('d8') }); } catch {}
-
-// ----- Đổi mật khẩu (Hồ sơ › Cài đặt) -----
-$('pwBtn').addEventListener('click', () => {
-  for (const id of ['pwOld', 'pwNew', 'pwNew2']) { $(id).value = ''; $(id).type = 'password'; }
-  for (const b of document.querySelectorAll('#pwForm .auth-eye')) { b.querySelector('use').setAttribute('href', '#i-eye'); b.title = 'Hiện mật khẩu'; }
-  $('pwMsg').textContent = '';
-  $('pwStrength').hidden = $('pwCaps').hidden = true;
-  $('pwNote').textContent = Profile.remote ? 'Sau khi đổi, các thiết bị khác đang đăng nhập tài khoản này sẽ phải đăng nhập lại.' : 'Tài khoản cục bộ: mật khẩu mới chỉ áp dụng trên trình duyệt này.';
-  openModal('pwModal');
-  setTimeout(() => $('pwOld').focus(), 50);
-});
-$('pwNew').addEventListener('input', () => showStrength($('pwStrength'), $('pwNew').value));
-$('pwForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const msg = $('pwMsg'), btn = $('pwSubmit');
-  const oldPw = $('pwOld').value, newPw = $('pwNew').value;
-  msg.textContent = '';
-  let err = !oldPw ? 'Nhập mật khẩu hiện tại' : newPw.length < 6 ? AUTH_ERRORS.WEAK : newPw !== $('pwNew2').value ? AUTH_ERRORS.MISMATCH : '';
-  if (!err) {
-    btn.disabled = true; btn.classList.add('busy'); btn.textContent = 'Đang đổi…';
-    try {
-      await Profile.changePassword(oldPw, newPw);
-      $('pwModal').hidden = true;
-      toast('Đã đổi mật khẩu');
-    } catch (ex) { err = AUTH_ERRORS[ex.message] || 'Có lỗi xảy ra, thử lại sau.'; }
-    btn.disabled = false; btn.classList.remove('busy'); btn.textContent = 'Đổi mật khẩu';
-  }
-  if (err) {
-    msg.textContent = err;
-    const box = document.querySelector('.pw-box');
-    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
-  }
-});
-
-// ----- Quên mật khẩu: gửi mã về Gmail khôi phục rồi đặt mật khẩu mới -----
-let afStep = 1, afName = '', afTimer = 0;
-function showForgot(on) {
-  $('authForm').hidden = $('authAlt').hidden = on;
-  document.querySelector('.auth-tabs').hidden = on;
-  $('authWelcome').hidden = on;
-  $('authForgot').hidden = !on;
-  if (!on) return;
-  afSetStep(1);
-  $('afUser').value = $('authUser').value.trim();
-  $('afMsg').textContent = '';
-  setTimeout(() => $('afUser').focus(), 30);
-}
-function afSetStep(n) {
-  afStep = n;
-  $('afS1').hidden = n !== 1;
-  $('afS2').hidden = n !== 2;
-  $('afDot1').classList.toggle('on', n === 1);
-  $('afDot1').classList.toggle('done', n > 1);
-  $('afDot2').classList.toggle('on', n === 2);
-  $('afSubmit').textContent = n === 1 ? 'Gửi mã' : 'Đặt lại mật khẩu';
-  if (n === 2) {
-    for (const id of ['afCode', 'afNew', 'afNew2']) $(id).value = '';
-    $('afStrength').hidden = true;
-    setTimeout(() => $('afCode').focus(), 30);
-  }
-}
-// Nút "Gửi lại mã" đếm ngược 60 giây
-function afCooldown(btn, sec = 60) {
-  clearInterval(afTimer);
-  const label = 'Gửi lại mã';
-  const tick = () => {
-    btn.disabled = sec > 0;
-    btn.textContent = sec > 0 ? `${label} (${sec}s)` : label;
-    if (sec-- <= 0) clearInterval(afTimer);
-  };
-  tick();
-  afTimer = setInterval(tick, 1000);
-}
-async function afSend() {
-  const r = await Profile.resetStart(afName);
-  $('afSent').textContent = `Đã gửi mã 6 số tới ${r.to}`;
-  afCooldown($('afResend'));
-}
-function shakeBox(sel) { const box = document.querySelector(sel); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
-$('authForgotLink').addEventListener('click', () => showForgot(true));
-$('afBack').addEventListener('click', () => { clearInterval(afTimer); showForgot(false); });
-$('afNew').addEventListener('input', () => showStrength($('afStrength'), $('afNew').value));
-for (const id of ['afCode', 'recCode']) $(id).addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
-$('afResend').addEventListener('click', async () => {
-  $('afMsg').textContent = '';
-  try { await afSend(); } catch (err) { $('afMsg').textContent = mailErr(err); }
-});
-$('authForgot').addEventListener('submit', async e => {
-  e.preventDefault();
-  const msg = $('afMsg'), btn = $('afSubmit');
-  msg.textContent = '';
-  let err = '';
-  if (afStep === 1) {
-    afName = $('afUser').value.trim();
-    if (!/^[A-Za-z0-9_]{3,20}$/.test(afName)) err = AUTH_ERRORS.NAME;
-  } else {
-    const code = $('afCode').value.trim(), pw = $('afNew').value;
-    err = !/^\d{6}$/.test(code) ? 'Nhập đủ 6 số của mã xác nhận' : pw.length < 6 ? AUTH_ERRORS.WEAK : pw !== $('afNew2').value ? AUTH_ERRORS.MISMATCH : '';
-  }
-  if (!err) {
-    btn.disabled = true; btn.classList.add('busy');
-    btn.textContent = afStep === 1 ? 'Đang gửi mã…' : 'Đang đặt lại…';
-    try {
-      if (afStep === 1) { await afSend(); afSetStep(2); }
-      else {
-        await Profile.resetConfirm(afName, $('afCode').value.trim(), $('afNew').value);
-        clearInterval(afTimer);
-        showForgot(false);
-        setAuthMode('login');
-        $('authUser').value = afName;
-        $('authPass').value = '';
-        authLive();
-        $('authMsg').textContent = 'Đã đặt lại mật khẩu. Hãy đăng nhập bằng mật khẩu mới.';
-        $('authMsg').classList.add('ok');
-        $('authPass').focus();
-      }
-    } catch (ex) { err = mailErr(ex); }
-    btn.disabled = false; btn.classList.remove('busy');
-    if (!$('authForgot').hidden) btn.textContent = afStep === 1 ? 'Gửi mã' : 'Đặt lại mật khẩu';
-  }
-  if (err) { msg.textContent = err; shakeBox('.auth-box'); }
-});
-// Thông báo lỗi đăng nhập bình thường thì bỏ kiểu "thành công"
-for (const id of ['authUser', 'authPass']) $(id).addEventListener('input', () => $('authMsg').classList.remove('ok'));
-
-// ----- Gmail khôi phục (Hồ sơ › Cài đặt) -----
-async function renderRecovery() {
-  const row = $('recRow');
-  const show = Profile.canRecover() && Profile.signedIn() && !Profile.isGuest() && Profile.provider() !== 'google';
-  row.hidden = !show;
-  if (show) {
-    $('recEmailText').textContent = 'Đang tải…';
-    let email = Profile.recoveryEmail(), failed = false;
-    try { email = await Profile.loadRecovery(); } catch { failed = true; }
-    $('recEmailText').textContent = email || (failed ? 'Không tải được, kiểm tra mạng' : 'Chưa có – thêm để lấy lại mật khẩu khi quên');
-    row.classList.toggle('set', !!email);
-    $('recBtn').textContent = email ? 'Đổi' : 'Thêm';
-  }
-  renderMailNotify();
-}
-let recStep = 1;
-function recSetStep(n) {
-  recStep = n;
-  $('recS1').hidden = n !== 1;
-  $('recS2').hidden = n !== 2;
-  $('recSubmit').textContent = n === 1 ? 'Gửi mã xác nhận' : 'Xác nhận';
-  setTimeout(() => $(n === 1 ? 'recEmailIn' : 'recCode').focus(), 50);
-}
-$('recBtn').addEventListener('click', () => {
-  const cur = Profile.recoveryEmail();
-  $('recCurrent').hidden = !cur;
-  $('recCurrent').textContent = cur ? 'Đang dùng: ' + cur : '';
-  $('recRemove').hidden = !cur;
-  $('recEmailIn').value = ''; $('recCode').value = ''; $('recMsg').textContent = '';
-  openModal('recModal');
-  recSetStep(1);
-});
-$('recForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const msg = $('recMsg'), btn = $('recSubmit');
-  msg.textContent = '';
-  let err = '';
-  const email = $('recEmailIn').value.trim();
-  if (recStep === 1 && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) err = AUTH_ERRORS.BAD_EMAIL;
-  if (recStep === 2 && !/^\d{6}$/.test($('recCode').value.trim())) err = 'Nhập đủ 6 số của mã xác nhận';
-  if (!err) {
-    btn.disabled = true; btn.classList.add('busy');
-    btn.textContent = recStep === 1 ? 'Đang gửi mã…' : 'Đang xác nhận…';
-    try {
-      if (recStep === 1) {
-        const r = await Profile.recoveryStart(email);
-        $('recSent').textContent = `Đã gửi mã 6 số tới ${r.to}. Mở Gmail rồi nhập mã vào đây.`;
-        recSetStep(2);
-      } else {
-        const saved = await Profile.recoveryConfirm($('recCode').value);
-        $('recModal').hidden = true;
-        toast('Đã lưu Gmail khôi phục: ' + saved);
-        renderRecovery();
-      }
-    } catch (ex) { err = mailErr(ex); }
-    btn.disabled = false; btn.classList.remove('busy');
-    btn.textContent = recStep === 1 ? 'Gửi mã xác nhận' : 'Xác nhận';
-  }
-  if (err) { msg.textContent = err; shakeBox('.rec-box'); }
-});
-$('recAgain').addEventListener('click', () => { $('recMsg').textContent = ''; $('recCode').value = ''; recSetStep(1); });
-$('recRemove').addEventListener('click', async () => {
-  if (!confirm('Gỡ Gmail khôi phục? Bạn sẽ không lấy lại được mật khẩu qua email và không nhận thông báo qua Gmail nữa.')) return;
-  try {
-    await Profile.recoveryRemove();
-    $('recModal').hidden = true;
-    toast('Đã gỡ Gmail khôi phục');
-    renderRecovery();
-  } catch (ex) { $('recMsg').textContent = mailErr(ex); }
-});
-
-// ----- Đăng nhập bằng Google (Gmail) và chế độ khách -----
-$('authGoogle').hidden = !Profile.remote; // cần Firebase
-function showNameStep(on, suggest = '') {
-  $('authForm').hidden = on;
-  $('authAlt').hidden = on;
-  document.querySelector('.auth-tabs').hidden = on;
-  $('authNameForm').hidden = !on;
-  $('authGMsg').textContent = '';
-  if (on) {
-    $('authGEmail').textContent = Profile.email();
-    $('authGName').value = suggest;
-    $('authGName').focus();
-  }
-}
-$('authGoogle').addEventListener('click', async () => {
-  const msg = $('authMsg');
-  msg.textContent = '';
-  $('authGoogle').disabled = true;
-  try {
-    const r = await Profile.loginGoogle();
-    if (r.needName) showNameStep(true, r.suggest); // lần đầu: chọn tên hiển thị
-    else enterApp();
-  } catch (err) {
-    if (err.message !== 'CANCELLED') msg.textContent = AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
-  }
-  $('authGoogle').disabled = false;
-});
-$('authNameForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  $('authGMsg').textContent = '';
-  $('authGSubmit').disabled = true;
-  try {
-    await Profile.chooseName($('authGName').value);
-    showNameStep(false);
-    enterApp();
-  } catch (err) {
-    $('authGMsg').textContent = AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
-    if (err.message === 'SESSION') { Profile.cancelGoogle(); setTimeout(() => showNameStep(false), 1500); }
-  }
-  $('authGSubmit').disabled = false;
-});
-$('authGCancel').addEventListener('click', () => { Profile.cancelGoogle(); showNameStep(false); });
-$('authGuest').addEventListener('click', () => { Profile.enterGuest(); enterApp(); });
-
-// Khách bấm vào tính năng cần tài khoản: mời đăng nhập
-function guestBlocked(what) {
-  if (confirm(`Chế độ khách không ${what} được. Đăng nhập hoặc đăng ký tài khoản (miễn phí)?`)) leaveGuest();
-}
-async function leaveGuest() {
-  await Profile.logout();
-  history.replaceState(null, '', location.pathname + location.search);
-  location.reload();
-}
-
-// ----- Cài đặt: gửi thông báo về Gmail (tài khoản Google) -----
-async function renderMailNotify() {
-  const row = $('mailNotifyRow'), box = $('mailNotifyToggle'), note = $('mailNotifyNote');
-  if (!row) return;
-  row.hidden = note.hidden = !Profile.remote;
-  if (!Profile.remote) return;
-  const can = Profile.canEmail();
-  box.disabled = !can;
-  if (!can) { box.checked = false; note.textContent = Profile.canRecover() && Profile.provider() !== 'google' ? 'Thêm Gmail khôi phục (ở dưới) để nhận thông báo qua Gmail.' : 'Đăng nhập bằng Google để nhận thông báo qua Gmail.'; return; }
-  note.textContent = 'Gửi tới ' + Profile.email();
-  box.checked = await Profile.getEmailNotify();
-}
-$('mailNotifyToggle').addEventListener('change', async e => {
-  const on = e.target.checked;
-  e.target.disabled = true;
-  try {
-    await Profile.setEmailNotify(on);
-    toast(on ? 'Đã bật: thông báo sẽ được gửi về ' + Profile.email() : 'Đã tắt thông báo qua Gmail');
-  } catch (err) {
-    e.target.checked = !on;
-    $('mailNotifyNote').textContent = err.message === 'DENIED'
-      ? 'Máy chủ chưa cho lưu: chủ web cần dán lại firebase-rules.json (có mục "notify") rồi bấm Publish.'
-      : 'Không lưu được, kiểm tra mạng rồi thử lại.';
-  }
-  e.target.disabled = !Profile.canEmail();
 });
 
 Profile.restore().then(ok => {
@@ -3915,9 +3426,8 @@ $('annPost').addEventListener('click', async () => {
   const h = Number($('annDur').value);
   $('annPost').disabled = true;
   try {
-    const mail = Profile.remote && $('annMail').checked;
-    await Profile.setAnnounce({ text, kind: annKind, until: h ? Date.now() + h * 3600000 : 0, mail });
-    setContestMsg(msg, mail ? 'Đã đăng thông báo. Email sẽ được gửi tới người đã bật thông báo Gmail trong vòng 5 phút.' : 'Đã đăng thông báo cho mọi người chơi.');
+    await Profile.setAnnounce({ text, kind: annKind, until: h ? Date.now() + h * 3600000 : 0 });
+    setContestMsg(msg, 'Đã đăng thông báo cho mọi người chơi.');
     $('annText').value = '';
     renderAnnounceAdmin();
     refreshAnnounce(true);
@@ -3942,7 +3452,7 @@ for (const b of document.querySelectorAll('#adminTabs button')) {
     for (const x of document.querySelectorAll('#adminTabs button')) x.classList.toggle('on', x === b);
     $('adminPlayers').hidden = b.dataset.tab !== 'players';
     $('adminAnnounce').hidden = b.dataset.tab !== 'announce';
-    if (b.dataset.tab === 'announce') { $('annMailRow').hidden = !Profile.remote; renderAnnounceAdmin(); }
+    if (b.dataset.tab === 'announce') renderAnnounceAdmin();
   });
 }
 $('adminSort').addEventListener('change', renderAdminList);
@@ -4371,11 +3881,6 @@ function renderContestActions() {
     return b;
   };
   const note = text => box.insertAdjacentHTML('beforeend', `<p class="muted center">${text}</p>`);
-  if (Profile.isGuest()) { // khách: xem được contest nhưng không tham gia
-    if (ph !== 'ended') add('Đăng nhập để tham gia contest', 'primary big', leaveGuest);
-    note('Chế độ khách không tham gia contest được.');
-    return;
-  }
   if (ph === 'upcoming') {
     if (joined) {
       add('Đã đăng ký ✓', 'big', () => {}, true);
@@ -4432,7 +3937,6 @@ function startContestClock() {
 }
 
 async function contestRegister(btn) {
-  if (Profile.isGuest()) return guestBlocked('tham gia contest');
   const c = contestView;
   btn.disabled = true;
   setContestMsg($('contestMsg'), '');
@@ -4617,8 +4121,7 @@ function toast(text, medal) {
   el.appendChild(document.createTextNode(text));
   el.hidden = false;
   clearTimeout(toast.t);
-  // Câu ngắn ("Đã bật âm") ẩn nhanh, câu dài / báo huy chương giữ lâu hơn để kịp đọc
-  toast.t = setTimeout(() => { el.hidden = true; }, medal ? 7000 : Math.min(7000, 2200 + String(text).length * 45));
+  toast.t = setTimeout(() => { el.hidden = true; }, 7000);
 }
 
 // Đang làm dở việc khác (ván với máy, ván 2 người, bài học) thì chưa tự chuyển sang contest
@@ -4626,7 +4129,6 @@ function autoCanStart() {
   if (!$('promo').hidden || !$('placeModal').hidden || !$('authModal').hidden) return false;
   if (mode === 'online') return Online.idle();
   if (mode === 'learn') return !Learn.inLesson();
-  if (typeof Puzzles !== 'undefined' && Puzzles.isActive()) return false; // đang giải câu đố: đợi giải xong
   return !game.history.length || game.isGameOver() || !!playResult;
 }
 

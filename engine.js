@@ -7,11 +7,12 @@ const Engine = (() => {
   let loading = null;
   let seq = 0;
   let waiters = [];
-  let onReady = null; // báo load() xong ngay khi Stockfish trả lời "readyok"
 
   function positionFen(game) {
-    if (typeof game.fen === 'function') return game.fen();
-    // Dựng FEN từ instance Chess (bản chess.js cũ chưa có fen())
+    if (typeof gameToFEN === 'function') {
+      // gameToFEN dùng viewPly — ép live bằng board trực tiếp
+    }
+    // Dựng FEN từ instance Chess
     let rows = [];
     for (let r = 0; r < 8; r++) {
       let empty = 0, row = '';
@@ -61,22 +62,14 @@ const Engine = (() => {
   }
 
   let lastScore = null; // điểm của lượt tìm kiếm hiện tại: { cp } hoặc { mate } (theo bên tới lượt)
-  let lines = [];       // MultiPV: lines[k] = { cp | mate, move } của biến thứ k+1
 
   function onMessage(e) {
     const line = typeof e.data === 'string' ? e.data : (e.data && e.data.data) || '';
     if (!line) return;
     if (line === 'uciok' || line.startsWith('readyok')) ready = true;
-    if (line.startsWith('readyok') && onReady) { onReady(true); onReady = null; }
     if (line.startsWith('info') && line.includes(' score ') && !line.includes('bound')) {
       const m = /score (cp|mate) (-?\d+)/.exec(line);
-      if (m) {
-        const sc = m[1] === 'cp' ? { cp: Number(m[2]) } : { mate: Number(m[2]) };
-        const k = Number((/ multipv (\d+)/.exec(line) || [0, 1])[1]) - 1;
-        const pv = / pv (\S+)/.exec(line);
-        lines[k] = { ...sc, move: pv ? pv[1] : null };
-        if (k === 0) lastScore = sc;
-      }
+      if (m) lastScore = m[1] === 'cp' ? { cp: Number(m[2]) } : { mate: Number(m[2]) };
     }
     if (line.startsWith('bestmove')) {
       const parts = line.split(/\s+/);
@@ -84,7 +77,7 @@ const Engine = (() => {
       const waiter = waiters.shift();
       if (waiter) {
         clearTimeout(waiter.timer);
-        waiter.resolve(waiter.full ? { uci, move: parseUci(uci), score: lastScore, lines: lines.slice() } : parseUci(uci));
+        waiter.resolve(waiter.full ? { uci, move: parseUci(uci), score: lastScore } : parseUci(uci));
       }
     }
   }
@@ -107,10 +100,8 @@ const Engine = (() => {
           ready = false;
           finish(false);
         };
-        onReady = finish;
         worker.postMessage('uci');
         worker.postMessage('isready');
-        // Máy chậm chưa kịp trả lời: vẫn cho chạy (Stockfish tự xếp hàng các lệnh tới trước khi khởi động xong)
         setTimeout(() => finish(!!worker), 2500);
       } catch (err) {
         worker = null;
@@ -128,52 +119,39 @@ const Engine = (() => {
     return run;
   }
 
-  function askNow(fen, { depth = 18, movetime = 0, skill = null, full = false, fresh = true, multipv = 1 } = {}) {
+  function askNow(fen, { depth = 18, movetime = 0, skill = null, full = false } = {}) {
     return load().then((ok) => {
       if (!ok || !worker) return null;
       return new Promise((resolve) => {
         const id = ++seq;
-        const waiter = { id, resolve, full };
-        // Quá giờ: dừng lượt tìm này nhưng vẫn giữ chỗ trong hàng đợi để dòng "bestmove" đến muộn
-        // không bị gán nhầm cho lệnh kế tiếp (trước đây máy có thể đi nước của thế cờ cũ)
-        waiter.timer = setTimeout(() => {
-          waiter.resolve = () => {};
-          try { worker && worker.postMessage('stop'); } catch {}
+        const timer = setTimeout(() => {
+          const i = waiters.findIndex(w => w.id === id);
+          if (i >= 0) waiters.splice(i, 1);
           resolve(null);
         }, Math.max(8000, (movetime || depth * 400) + 3000));
-        waiters.push(waiter);
+        waiters.push({ id, resolve, timer, full });
         lastScore = null;
-        lines = [];
         try {
-          if (fresh) worker.postMessage('ucinewgame');
+          worker.postMessage('ucinewgame');
           worker.postMessage('position fen ' + fen);
           worker.postMessage('setoption name Skill Level value ' + (skill != null ? Math.max(0, Math.min(20, skill)) : 20));
-          worker.postMessage('setoption name MultiPV value ' + multipv); // luôn đặt lại: tuỳ chọn của Stockfish giữ nguyên giữa các lệnh
           if (movetime > 0 && depth) worker.postMessage(`go depth ${depth} movetime ${movetime}`);
           else if (movetime > 0) worker.postMessage('go movetime ' + movetime);
           else worker.postMessage('go depth ' + depth);
         } catch {
-          clearTimeout(waiter.timer);
-          const i = waiters.indexOf(waiter);
-          if (i >= 0) waiters.splice(i, 1);
+          clearTimeout(timer);
           resolve(null);
         }
       });
     });
   }
 
-  // Đánh giá một thế cờ (FEN): { cp, best } với cp theo góc nhìn bên tới lượt (chiếu hết quy ra ±10000).
-  // Không gửi ucinewgame: khi chấm lần lượt các thế cờ của một ván, bộ nhớ đệm của Stockfish giúp chấm nhanh hơn.
-  // multipv = 2: kèm điểm và nước của biến tốt nhì ({ cp2, best2 }) để biết nước tốt nhất có phải "nước duy nhất" không.
-  const toCp = s => s.mate != null ? (s.mate > 0 ? 10000 - s.mate * 10 : -10000 - s.mate * 10) : s.cp;
-  // lines = các biến tốt nhất [{ cp, move }] (cùng một lượt tìm, nên so sánh điểm giữa chúng là nhất quán)
-  async function evaluate(fen, depth = 10, multipv = 1, movetime = 1500) {
-    const r = await ask(fen, { depth, movetime, full: true, fresh: false, multipv });
+  // Đánh giá một thế cờ (FEN): { cp, best } với cp theo góc nhìn bên tới lượt (chiếu hết quy ra ±10000)
+  async function evaluate(fen, depth = 10) {
+    const r = await ask(fen, { depth, movetime: 1500, full: true });
     if (!r || !r.score) return null;
-    const out = { cp: toCp(r.score), best: r.uci && r.uci !== '(none)' ? r.uci : null };
-    out.lines = (r.lines || []).filter(l => l && (l.cp != null || l.mate != null) && l.move).map(l => ({ cp: toCp(l), move: l.move }));
-    if (out.lines[1]) { out.cp2 = out.lines[1].cp; out.best2 = out.lines[1].move; }
-    return out;
+    const cp = r.score.mate != null ? (r.score.mate > 0 ? 10000 - r.score.mate * 10 : -10000 - r.score.mate * 10) : r.score.cp;
+    return { cp, best: r.uci && r.uci !== '(none)' ? r.uci : null };
   }
 
   /** Gợi ý mạnh ~ Stockfish depth 18–20 */

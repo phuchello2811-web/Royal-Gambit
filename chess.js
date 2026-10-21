@@ -42,36 +42,11 @@ class Chess {
 
   reset() { this.load(START_FEN); }
 
-  // Khóa vị trí dùng để phát hiện lặp lại 3 lần. Ô bắt tốt qua đường chỉ tính khi có tốt đứng cạnh
-  // ăn được (luật FIDE: thế cờ chỉ khác nhau nếu quyền bắt tốt qua đường thật sự khác nhau).
+  // Khóa vị trí dùng để phát hiện lặp lại 3 lần
   key() {
     const c = this.castling;
     return this.board.map(p => p || '--').join('') + this.turn +
-      (c.wK ? 'K' : '') + (c.wQ ? 'Q' : '') + (c.bK ? 'k' : '') + (c.bQ ? 'q' : '') + (this._epCapturable() ? this.ep : -1);
-  }
-
-  _epCapturable() {
-    if (this.ep < 0) return false;
-    const r = this.turn === 'w' ? (this.ep >> 3) + 1 : (this.ep >> 3) - 1, c = this.ep & 7;
-    return [c - 1, c + 1].some(cc => cc >= 0 && cc < 8 && this.board[r * 8 + cc] === this.turn + 'P');
-  }
-
-  // FEN của thế cờ hiện tại
-  fen() {
-    const rows = [];
-    for (let r = 0; r < 8; r++) {
-      let empty = 0, row = '';
-      for (let c = 0; c < 8; c++) {
-        const p = this.board[r * 8 + c];
-        if (!p) { empty++; continue; }
-        if (empty) { row += empty; empty = 0; }
-        row += p[0] === 'w' ? p[1] : p[1].toLowerCase();
-      }
-      rows.push(row + (empty || ''));
-    }
-    const k = this.castling;
-    const cast = (k.wK ? 'K' : '') + (k.wQ ? 'Q' : '') + (k.bK ? 'k' : '') + (k.bQ ? 'q' : '') || '-';
-    return `${rows.join('/')} ${this.turn} ${cast} ${this.ep >= 0 ? sqName(this.ep) : '-'} ${this.halfmove} ${this.fullmove}`;
+      (c.wK ? 'K' : '') + (c.wQ ? 'Q' : '') + (c.bK ? 'k' : '') + (c.bQ ? 'q' : '') + this.ep;
   }
 
   kingSquare(color) { return this.board.indexOf(color + 'K'); }
@@ -286,13 +261,9 @@ class Chess {
   }
 
   insufficientMaterial() {
-    const pieces = [];
-    this.board.forEach((p, i) => { if (p && p[1] !== 'K') pieces.push([p, i]); });
+    const pieces = this.board.filter(p => p && p[1] !== 'K');
     if (pieces.length === 0) return true;
-    if (pieces.length === 1 && (pieces[0][0][1] === 'N' || pieces[0][0][1] === 'B')) return true;
-    // Chỉ còn Tượng và tất cả cùng màu ô (ví dụ Vua + Tượng đấu Vua + Tượng cùng màu ô): không thể chiếu hết
-    const shade = i => ((i >> 3) + (i & 7)) % 2;
-    return pieces.every(([p, i]) => p[1] === 'B' && shade(i) === shade(pieces[0][1]));
+    return pieces.length === 1 && (pieces[0][1] === 'N' || pieces[0][1] === 'B');
   }
 
   // 'playing' | 'checkmate' | 'stalemate' | 'fifty' | 'repetition' | 'insufficient'
