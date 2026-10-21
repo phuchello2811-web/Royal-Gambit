@@ -8,7 +8,9 @@
 // kết nối trận đấu vẫn giữ nguyên) để cặp tiếp theo dùng. Contest dùng phòng chờ riêng cho từng contest.
 
 const Online = (() => {
-  const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+  const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';
+  // Mã kiểm tra toàn vẹn (SRI): trình duyệt từ chối chạy nếu file trên CDN bị sửa. Đổi phiên bản thì phải tính lại mã này.
+  const PEERJS_SRI = 'sha384-x0YgkOr/3UOZP2CRDxGW9e0Q+2Qjyr3uJrm4xU32Y7ZCNAo7Cc7bjhrZMi/dwczu';
   const PREFIX = 'covua-vn-';
   const SEARCH_LIMIT = 3 * 60 * 1000; // tìm trận tối đa 3 phút
   const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -16,6 +18,13 @@ const Online = (() => {
   // vắng mặt quá 15 giây = xử thua. Kết nối WebRTC nhiều khi không báo 'close' khi đối thủ đóng tab / mất mạng.
   const HB_EVERY = 2000, HB_SILENT = 5000, FORFEIT_MS = 15000;
   const PENDING_KEY = 'rg-online-forfeit';
+  // Đồng hồ: 'phút+giây cộng mỗi nước'. Tìm trận chỉ ghép người chọn cùng thời gian (mỗi mức một phòng chờ;
+  // 'none' dùng phòng chờ cũ 'mm-main' nên vẫn ghép được với bản web chưa có đồng hồ). Contest: 10 phút mỗi bên.
+  const ONLINE_TCS = ['none', '60+0', '180+2', '300+0', '600+0', '900+10'];
+  const CONTEST_TC = '600+0';
+  const TC_TEXT = { none: 'không giới hạn thời gian', '60+0': '1 phút', '180+2': '3 phút + 2 giây', '300+0': '5 phút', '600+0': '10 phút', '900+10': '15 phút + 10 giây' };
+  const LAG_MS = 2000;   // bù độ trễ mạng tối đa mỗi nước: giờ đối thủ tự báo không được nhiều hơn ước tính của mình quá mức này
+  const FLAG_GRACE = 2000; // đối thủ hết giờ mà máy họ không tự báo thua: chờ thêm chừng này rồi mới xử thắng
   const $ = id => document.getElementById(id);
 
   let peer = null, conn = null;
@@ -38,6 +47,9 @@ const Online = (() => {
   let oppHb = false;       // đối thủ dùng bản web có nhịp tim (bản cũ thì chỉ dựa vào sự kiện đóng kết nối)
   let hbTimer = null, hbTick = 0;
   let oppKnown = false;    // đã nhận được lời chào của đối thủ
+  let tcValue = 'none';    // thời gian của ván đang đánh (chủ phòng quyết định, gửi kèm lệnh 'start')
+  let clk = null;          // { base, inc, w, b, turn, at }: giờ còn lại (ms); at = lúc bắt đầu đếm lượt hiện tại (0 = đang dừng)
+  let clkTimer = null;
   const hooks = { fail: null };
 
   function loadLib() {
@@ -45,6 +57,8 @@ const Online = (() => {
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = PEERJS_URL;
+      s.integrity = PEERJS_SRI;
+      s.crossOrigin = 'anonymous';
       s.onload = resolve;
       s.onerror = () => reject(new Error('lib'));
       document.head.appendChild(s);
@@ -70,6 +84,7 @@ const Online = (() => {
     $('createRoom').disabled = $('joinRoom').disabled = $('findMatch').disabled = s === 'connecting';
     if (s === 'waiting') {
       $('roomCodeShow').textContent = code;
+      $('roomTime').textContent = `Thời gian: ${TC_TEXT[pickedTc()]}`; // chủ phòng quyết định thời gian của ván
       $('inviteLink').value = inviteLink();
     }
     renderOffer();
@@ -125,11 +140,29 @@ const Online = (() => {
 
   // Lời chào: gói nhỏ (tên, rank, Elo) gửi riêng; ảnh đại diện (tới 40KB) gửi sau thành gói khác.
   // Trước đây gửi chung một gói lớn nên thỉnh thoảng bị rơi → hiện "Đối thủ · 800 Elo" và tính Elo sai.
-  function sendHello(c = conn) {
+  function sendHello(c = conn, photo = true) {
     if (!c || !c.open) return;
     const me = Profile.me();
     c.send({ t: 'hello', hb: 1, uid: Profile.uid() || '', name: me.name, exp: me.exp, elo: me.elo, title: me.title || '', contest: search && search.contest ? search.contest.id : null });
-    if (me.photo) c.send({ t: 'photo', photo: me.photo });
+    if (photo && me.photo) c.send({ t: 'photo', photo: me.photo });
+  }
+
+  // Lời chào do trình duyệt đối thủ tự khai. Bản Firebase: lấy Elo, exp và danh hiệu thật từ máy chủ
+  // (Elo đối thủ quyết định mình được / mất bao nhiêu Elo). uid giả hoặc không khớp tên thì giữ số liệu trong lời chào.
+  // Mỗi đối thủ chỉ kiểm tra một lần; ván chơi lại sau đó dùng Elo mới trong lời chào (máy chủ có thể chưa kịp cập nhật).
+  let verified = { uid: '', title: '' };
+  async function verifyOpp() {
+    const id = opp.uid, name = opp.name;
+    if (!Profile.remote || !id || typeof Profile.player !== 'function') return;
+    if (verified.uid === id) { opp.title = verified.title; return; }
+    verified = { uid: id, title: opp.title };
+    let p = null;
+    try { p = await Profile.player(id); } catch { return; }
+    if (!p || opp.uid !== id || opp.name !== name || p.name.toLowerCase() !== name.toLowerCase()) return;
+    verified.title = opp.title = p.title || '';
+    opp.exp = p.exp;
+    opp.elo = p.elo;
+    render();
   }
 
   // Sau khi vào ván mà vẫn chưa biết đối thủ là ai thì hỏi lại (tối đa 3 lần)
@@ -154,7 +187,13 @@ const Online = (() => {
       'server-error': 'Máy chủ kết nối đang lỗi, thử lại sau.',
       'browser-incompatible': 'Trình duyệt không hỗ trợ WebRTC.',
     };
-    if (state === 'playing' && err.type === 'network') return info(messages.network); // trận vẫn có thể tiếp tục
+    // Đang đánh: lỗi của máy chủ trung gian không làm đứt kết nối trực tiếp giữa hai bên, ván vẫn tiếp tục
+    // (nếu đối thủ thật sự mất kết nối, nhịp tim sẽ phát hiện và xử thua sau 15 giây)
+    if (state === 'playing') return info(messages[err.type] || messages.network);
+    // Chưa vào ván mà không nối được máy chủ trung gian (mạng yếu, hoặc máy chủ PeerJS miễn phí đang quá tải / tạm chặn)
+    if (err.type === 'network' || err.type === 'socket-error' || err.type === 'socket-closed' || err.type === 'server-error') {
+      return fail('Không kết nối được máy chủ trung gian (mạng yếu hoặc máy chủ đang quá tải). Hãy thử lại sau ít phút.');
+    }
     fail(messages[err.type] || 'Lỗi kết nối: ' + err.type);
   }
 
@@ -171,8 +210,9 @@ const Online = (() => {
     waitHello = false;
     const pref = search ? 'r' : $('hostColor').value; // tìm trận tự động: màu ngẫu nhiên
     const mine = pref === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : pref;
-    send({ t: 'start', color: opposite(mine) });
-    begin(mine);
+    const tcv = search ? search.tc : pickedTc();
+    send({ t: 'start', color: opposite(mine), tc: tcv });
+    begin(mine, tcv);
   }
 
   // Từ chối người vừa nối vào phòng chờ contest (sai contest hoặc chính mình ở tab khác), tiếp tục chờ
@@ -183,13 +223,15 @@ const Online = (() => {
     setTimeout(() => { try { c.close(); } catch {} }, 500);
   }
 
-  function begin(myColor) {
+  // tcv: thời gian của ván; chơi lại (rematch) giữ nguyên thời gian ván trước
+  function begin(myColor, tcv = tcValue) {
     if (search) { // vừa ghép trận tự động
       contestId = search.contest ? search.contest.id : null;
       stopSearch();
       // Người giữ phòng chờ nhả ID cho cặp sau; kết nối trận đấu đã mở thì không bị ảnh hưởng
       if (isHost && peer && !peer.disconnected) peer.disconnect();
     }
+    const again = startedAt > 0; // chơi lại với cùng đối thủ (đã có ván trước trên kết nối này)
     color = myColor;
     result = null;
     offer = null;
@@ -205,8 +247,104 @@ const Online = (() => {
     info('');
     setState('playing');
     startHeartbeat();
+    startClock(tcv);
     if (!oppKnown) askWho();
+    else if (again) sendHello(conn, false); // chơi lại: gửi Elo / exp vừa đổi sau ván trước để đối thủ tính đúng
     chat(null, `Bắt đầu ván mới – bạn cầm quân ${COLOR_NAME[color]}.` + (contestId ? ' Ván này tính điểm Contest.' : ''));
+    if (clk) chat(null, clk.inc ? `Đồng hồ: ${clk.base / 60000} phút mỗi bên, cộng ${clk.inc / 1000} giây mỗi nước.` : `Đồng hồ: ${clk.base / 60000} phút mỗi bên.`);
+  }
+
+  // ---- Đồng hồ ----
+  // Mỗi bên tự đếm giờ cả hai phía. Người vừa đi gửi kèm giờ còn lại của mình; máy nhận chỉ chấp nhận nhiều hơn
+  // ước tính của mình tối đa LAG_MS (bù độ trễ mạng, chặn việc sửa code để tự cộng giờ). Hết giờ: máy của người hết giờ
+  // tự báo thua ('flag'); máy đó im lặng (bản cũ / bị sửa) thì quá FLAG_GRACE máy bên kia tự xử thắng ('timeout').
+  // Đồng hồ Trắng chỉ chạy sau nước đầu của Trắng (như đấu với máy).
+
+  function parseTc(v) {
+    if (!ONLINE_TCS.includes(v) || v === 'none') return null;
+    const [m, s] = v.split('+').map(Number);
+    return { base: m * 1000, inc: (s || 0) * 1000 };
+  }
+  function pickedTc() {
+    const v = Profile.prefs().onlineTc;
+    return ONLINE_TCS.includes(v) ? v : '600+0';
+  }
+
+  function startClock(tcv) {
+    stopClockTimer();
+    const t = parseTc(tcv);
+    tcValue = t ? tcv : 'none';
+    clk = t ? { ...t, w: t.base, b: t.base, turn: 'w', at: 0 } : null;
+    if (clk) clkTimer = setInterval(clockTick, 100);
+    renderClocks();
+  }
+  function stopClockTimer() { clearInterval(clkTimer); clkTimer = null; }
+
+  // Giờ còn lại thô (có thể âm khi đã quá giờ)
+  const rawLeft = c => clk[c] - (clk.at && clk.turn === c ? Date.now() - clk.at : 0);
+  function freezeClock() {
+    if (!clk || !clk.at) return;
+    clk[clk.turn] = Math.max(0, rawLeft(clk.turn));
+    clk.at = 0;
+  }
+  const clockDone = () => !!result || game.isGameOver() || state !== 'playing';
+
+  // Sau một nước (của mình hoặc đối thủ): chốt giờ người vừa đi, bắt đầu đếm giờ người kia
+  function clockAfterMove(by, reported) {
+    if (!clk) return;
+    const now = Date.now();
+    const running = !!clk.at && clk.turn === by;
+    let left = running ? rawLeft(by) + clk.inc : clk[by]; // nước đầu của mỗi bên (đồng hồ chưa chạy): không cộng giờ
+    if (by !== color && reported != null && Number.isFinite(Number(reported))) {
+      left = Math.min(Number(reported), left + LAG_MS); // đối thủ tự báo: tin trong giới hạn bù trễ mạng
+    }
+    clk[by] = Math.max(0, left);
+    clk.turn = opposite(by);
+    clk.at = clockDone() ? 0 : now;
+    renderClocks();
+  }
+
+  // Bên còn giờ chỉ còn Vua thì không thể chiếu hết: hết giờ xử hòa
+  const onlyKingLeft = c => game.board.every(p => !p || p[0] !== c || p[1] === 'K');
+
+  function flagResult(loser) {
+    freezeClock();
+    clk[loser] = 0;
+    const draw = onlyKingLeft(opposite(loser));
+    const mine = loser === color;
+    result = draw
+      ? { text: mine ? 'Bạn hết giờ nhưng đối thủ không đủ quân chiếu hết – Hòa' : 'Đối thủ hết giờ nhưng bạn không đủ quân chiếu hết – Hòa', reason: 'Hết giờ, bên còn giờ không đủ quân chiếu hết', score: 0.5 }
+      : mine
+        ? { text: 'Bạn hết giờ – Bạn thua', reason: 'Hết giờ', score: 0 }
+        : { text: 'Đối thủ hết giờ – Bạn thắng', reason: 'Đối thủ hết giờ', score: 1 };
+    chat(null, mine ? 'Bạn đã hết giờ.' : 'Đối thủ đã hết giờ.');
+    render();
+  }
+
+  function clockTick() {
+    if (!clk || state !== 'playing') return stopClockTimer();
+    if (clockDone()) { freezeClock(); stopClockTimer(); return renderClocks(); }
+    if (clk.at) {
+      if (clk.turn === color && rawLeft(color) <= 0) {
+        send({ t: 'flag' });            // tự báo mình hết giờ
+        return flagResult(color);
+      }
+      if (clk.turn !== color && rawLeft(clk.turn) <= -FLAG_GRACE) {
+        send({ t: 'timeout' });         // máy đối thủ không tự báo: xử thắng
+        return flagResult(clk.turn);
+      }
+    }
+    renderClocks();
+  }
+
+  // Cho app.js vẽ đồng hồ: null nếu ván không có đồng hồ
+  function clockView() {
+    if (!clk || state !== 'playing') return null;
+    if (clk.at && clockDone()) freezeClock();
+    return {
+      left: c => Math.max(0, rawLeft(c)),
+      running: c => !!clk.at && clk.turn === c,
+    };
   }
 
   function send(msg) { if (conn && conn.open) conn.send(msg); }
@@ -222,12 +360,13 @@ const Online = (() => {
           exp: exp >= 0 && exp <= 100000 ? Math.floor(exp) : 0,
           elo: elo >= 100 && elo <= 3500 ? Math.floor(elo) : 800,
           photo: Profile.validPhoto(d.photo) ? d.photo : (opp.name === name ? opp.photo : ''), // bản cũ gửi ảnh chung trong lời chào
-          title: String(d.title || '').slice(0, 8),
+          title: (Profile.TITLES || []).includes(String(d.title || '').toUpperCase()) ? String(d.title).toUpperCase() : '',
           uid: typeof d.uid === 'string' ? d.uid.slice(0, 64) : '',
         };
         const ct = search && search.contest ? search.contest.id : null;
         oppHb = d.hb === 1;
         oppKnown = true;
+        verifyOpp();
         const self = name.toLowerCase() === Profile.me().name.toLowerCase();
         if (ct && self) { // tự ghép với chính mình ở tab / máy khác
           if (isHost) return reject(conn, 'self');
@@ -263,20 +402,29 @@ const Online = (() => {
         if (d.why === 'self') return fail('Bạn đang thi đấu contest này ở một tab hoặc máy khác, nên tab này dừng tự ghép cặp.', 'self');
         retrySearch(search);
         break;
-      case 'start':
-        if (!isHost && (d.color === 'w' || d.color === 'b')) begin(d.color);
+      case 'start': // giữa ván không nhận lệnh bắt đầu lại (gói tin lạc / đối thủ sửa code)
+        if (!isHost && state !== 'playing' && (d.color === 'w' || d.color === 'b')) begin(d.color, ONLINE_TCS.includes(d.tc) ? d.tc : 'none');
         break;
       case 'move': {
-        if (state !== 'playing' || game.turn === color || result) return;
+        if (state !== 'playing' || game.turn === color || result || game.isGameOver()) return;
         const m = game.move({ from: d.from, to: d.to, promotion: d.promotion || undefined });
         if (!m) chat(null, 'Nhận được nước đi không hợp lệ từ đối thủ.');
+        else clockAfterMove(opposite(color), d.left);
         offer = offer === 'draw' ? null : offer; // đối thủ đi tiếp coi như rút lời xin hòa
         sentDraw = false;                        // và coi như từ chối lời xin hòa của mình
         renderOffer();
         render();
-        if (typeof tryPremove === 'function') tryPremove(); // nước đi trước của mình (nếu có)
         break;
       }
+      case 'flag': // đối thủ báo họ đã hết giờ
+        if (!clk || state !== 'playing' || result || game.isGameOver()) return;
+        flagResult(opposite(color));
+        break;
+      case 'timeout': // đối thủ thấy mình đã quá giờ (máy mình bị treo / chậm báo)
+        if (!clk || state !== 'playing' || result || game.isGameOver() || clk.turn !== color) return;
+        if (rawLeft(color) > 5000) return; // đồng hồ của mình còn hẳn vài giây (chênh quá độ trễ mạng): bỏ qua
+        flagResult(color);
+        break;
       case 'resign':
         if (state !== 'playing' || result || game.isGameOver()) return;
         result = { text: 'Đối thủ xin thua – Bạn thắng', reason: 'Đối thủ xin thua', score: 1 };
@@ -298,8 +446,8 @@ const Online = (() => {
         sentDraw = false;
         chat(null, 'Đối thủ từ chối hòa.');
         break;
-      case 'rematch':
-        if (contestId) return send({ t: 'rematch-decline' });
+      case 'rematch': // chỉ nhận lời mời khi ván hiện tại đã xong (tránh huỷ ván đang đánh mà không ai bị tính)
+        if (contestId || !outcome()) return send({ t: 'rematch-decline' });
         offer = 'rematch';
         renderOffer();
         break;
@@ -445,6 +593,9 @@ const Online = (() => {
     stopHeartbeat();
     clearTimeout(whoTimer);
     oppHb = oppKnown = false;
+    stopClockTimer();
+    clk = null;
+    tcValue = 'none';
     killPeer();
     contestId = null;
     color = result = offer = null;
@@ -452,6 +603,7 @@ const Online = (() => {
     startedAt = 0;
     $('rematch').hidden = false;
     opp = { name: 'Đối thủ', exp: 0, elo: 800, photo: '', uid: '', title: '' };
+    verified = { uid: '', title: '' };
   }
 
   // ---- Tìm trận tự động ----
@@ -471,13 +623,14 @@ const Online = (() => {
     if (contest && Date.now() >= contest.end) { info('Contest đã kết thúc.'); return false; }
     info('');
     const now = Date.now();
+    const tc = contest ? CONTEST_TC : pickedTc();
     const s = search = {
-      lobby: PREFIX + (contest ? 'ct-' + contest.id : 'mm-main'),
-      contest, started: now, until: contest ? contest.end : now + SEARCH_LIMIT,
+      lobby: PREFIX + (contest ? 'ct-' + contest.id : tc === 'none' ? 'mm-main' : 'mm-' + tc.replace('+', '-')),
+      contest, tc, started: now, until: contest ? contest.end : now + SEARCH_LIMIT,
     };
     isHost = false;
     setState('searching');
-    $('searchLabel').textContent = contest ? 'Đang tự ghép cặp contest…' : 'Đang tìm đối thủ…';
+    $('searchLabel').textContent = contest ? 'Đang tự ghép cặp contest…' : `Đang tìm đối thủ · ${TC_TEXT[tc]}…`;
     $('searchTime').textContent = '0:00';
     s.tick = setInterval(() => {
       const t = Math.floor((Date.now() - s.started) / 1000);
@@ -603,7 +756,10 @@ const Online = (() => {
     return state === 'playing' && !left && !result && game.turn === color && !game.isGameOver();
   }
 
-  function sendMove(m) { send({ t: 'move', from: m.from, to: m.to, promotion: m.promotion || null }); }
+  function sendMove(m) {
+    clockAfterMove(color);
+    send({ t: 'move', from: m.from, to: m.to, promotion: m.promotion || null, left: clk ? Math.round(clk[color]) : undefined });
+  }
 
   function status() {
     if (state === 'idle') return { text: 'Sẵn sàng đấu Online' };
@@ -677,6 +833,7 @@ const Online = (() => {
   });
   $('rematch').addEventListener('click', () => {
     if (left || contestId || state !== 'playing') return;
+    if (!outcome()) { chat(null, 'Chỉ mời được ván mới khi ván hiện tại đã kết thúc.'); return; }
     sentRematch = true;
     send({ t: 'rematch' });
     chat(null, 'Đã gửi lời mời chơi ván mới.');
@@ -758,6 +915,7 @@ const Online = (() => {
 
   return {
     join, leave, canMove, sendMove, status, player, outcome, inGame, findMatch,
+    clock: clockView, TCS: ONLINE_TCS, pickedTc,
     idle: () => state === 'idle',
     searching: () => state === 'searching',
     searchContest: () => (search && search.contest ? search.contest.id : null),
@@ -769,7 +927,6 @@ const Online = (() => {
     // Còn "kết nối" cả trong 15 giây chờ đối thủ quay lại (để contest không vội ghép ván mới)
     connected: () => state === 'playing' && (!left || (!!goneAt && !result && !game.isGameOver())),
     takePendingForfeit,
-    myColor: () => (state === 'playing' && !left && !result && !game.isGameOver() ? color : null),
     refreshMuteBtn,
   };
 })();

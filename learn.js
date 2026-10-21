@@ -390,6 +390,17 @@ const Learn = (() => {
       const sq = s.squares.map(sqIndex);
       const next = s.ordered ? sq[st.tapIdx] : sq.find(x => !st.ok.has(x));
       if (next != null) st.focus.add(next);
+    } else if (canMove() && (s.t === 'win' || s.t === 'run') && typeof Engine !== 'undefined' && Engine.hintMove) {
+      // Đấu với máy (dồn Vua chiếu hết, đẩy Tốt): cần kỹ thuật nhiều nước nên gợi ý bằng Stockfish;
+      // bộ tìm kiếm nông của ai.js hay đi vòng vòng, dựa vào nó thì không kịp chiếu hết trong giới hạn nước.
+      const t = token, at = game.history.length, cur = st;
+      coach('Đang tìm nước gợi ý…');
+      Engine.hintMove(game).then(m => {
+        if (t !== token || st !== cur || st.done || game.history.length !== at) return; // đã đi nước khác / sang bài khác
+        if (m) { hint = { from: m.from, to: m.to }; coach('Gợi ý: đi quân ở ô được tô xanh tới ô đánh dấu.'); }
+        render();
+        renderPanel();
+      }).catch(() => {});
     } else if (canMove()) {
       const m = findHint();
       if (m) { hint = { from: m.from, to: m.to }; coach('Gợi ý: đi quân ở ô được tô xanh tới ô đánh dấu.'); }
@@ -512,7 +523,18 @@ const Learn = (() => {
     $('lsMascot').src = `pieces/${run.test ? 'wN' : unitIcon(entry.u)}.svg`;
     $('lsUnit').textContent = run.test ? (run.test.practice ? 'Luyện tập' : 'Nhảy cóc') : entry.lesson.review ? `Phần ${entry.u + 1} · Ôn tập` : `Phần ${entry.u + 1} · Bài ${entry.k + 1}`;
     $('lsTitle').textContent = entry.lesson.title;
-    $('lsText').textContent = s.t === 'quiz' ? s.q : (st.coach && !st.done ? st.coach + ' — ' : '') + s.text;
+    // Lời nhắc của huấn luyện viên và nội dung bài để ở hai đoạn riêng (mỗi đoạn dịch được sang tiếng Anh)
+    const txt = $('lsText');
+    txt.textContent = '';
+    if (s.t !== 'quiz' && st.coach && !st.done) {
+      const c = document.createElement('span');
+      c.className = 'ls-coach';
+      c.textContent = st.coach;
+      txt.append(c, ' — ');
+    }
+    const body = document.createElement('span');
+    body.textContent = s.t === 'quiz' ? s.q : s.text;
+    txt.appendChild(body);
     $('lsBar').style.width = (100 * (run.si + (st.done ? 1 : 0)) / run.steps.length) + '%';
     $('lsHearts').textContent = run.hearts;
 
@@ -718,7 +740,9 @@ const Learn = (() => {
       b.className = 'toc-item' + (!unlocked(unitStart[u]) ? ' locked' : '') + (cur >= 0 && FLAT[cur].u === u ? ' cur' : '') + (n === items.length ? ' full' : '');
       b.style.setProperty('--uc', unit.color);
       b.innerHTML = `<img src="pieces/${unitIcon(u)}.svg" alt=""><span class="toc-name"><b></b><i style="width:${100 * n / items.length}%"></i></span><small>${n}/${items.length}</small>`;
-      b.querySelector('b').textContent = `${u + 1}. ${unit.title}`;
+      const nb = b.querySelector('b'); // số thứ tự và tên phần để riêng (tên phần dịch được)
+      nb.append(`${u + 1}. `);
+      nb.appendChild(Object.assign(document.createElement('span'), { textContent: unit.title }));
       b.addEventListener('click', () => $('unit-' + u).scrollIntoView({ behavior: 'smooth', block: 'start' }));
       box.appendChild(b);
     });
