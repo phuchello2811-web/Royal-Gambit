@@ -184,6 +184,10 @@ const PWA = (() => {
     $('moreSheet').addEventListener('click', e => { if (e.target === $('moreSheet')) closeMore(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMore(); });
     buildDock();
+    // Thanh bên thu gọn chỉ còn biểu tượng (cửa sổ hẹp): rê chuột vào biểu tượng để thấy tên mục
+    for (const t of document.querySelectorAll('.topbar .tab, .topbar .icon-btn')) {
+      if (!t.title) t.title = t.textContent.replace(/\s+/g, ' ').trim();
+    }
     render();
     // Mất mạng / có mạng lại
     const net = () => document.documentElement.classList.toggle('offline', !navigator.onLine);

@@ -4988,7 +4988,10 @@ html.offline body::after {
 
 /* Ứng dụng đã cài: không cần nút cài, chừa vùng tai thỏ khi xoay ngang */
 html.standalone .install-btn, html.standalone .hm-install { display: none; }
-html.standalone body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+/* Chỉ trên điện thoại / máy tính bảng: màn hình rộng có thanh bên trái, padding-left phải giữ đúng bằng --nav-w */
+@media (max-width: 999px) {
+  html.standalone body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+}
 
 .install-box { width: min(100%, 520px); }
 .install-steps { display: grid; gap: 12px; margin-top: 8px; }
@@ -5062,3 +5065,52 @@ html.standalone body { padding-left: env(safe-area-inset-left); padding-right: e
 .hm-ai-step > span:nth-child(2) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hm-ai-step small { color: var(--muted); font-weight: 500; }
 .hm-ai-step > .ic { width: 18px; height: 18px; color: var(--muted); }
+
+/* ======================================================================
+   Thanh bên trái tự cân đối (màn hình rộng ≥ 1000px)
+   • Bàn cờ lấy đúng phần còn trống: rộng cửa sổ − thanh bên − khung bên phải − khoảng hở, để hai khối luôn nằm cạnh nhau
+     (không còn bị thanh bên che mất cột a, b).
+   • Cửa sổ 1000–1199px: thanh bên thu gọn thành cột biểu tượng (rê chuột để xem tên), nhường chỗ cho bàn cờ.
+   • Màn hình thấp: các mục trong thanh bên sít lại để không phải cuộn.
+   ====================================================================== */
+@media (min-width: 1000px) {
+  :root {
+    --side-w: 400px;
+    --board-size: min(calc(100vh - 170px), 760px, max(420px, calc(100vw - var(--nav-w) - var(--side-w) - 112px)));
+  }
+  .panel { width: var(--side-w); }
+  .topbar { scrollbar-width: thin; scrollbar-color: #ffffff22 transparent; }
+  .topbar::-webkit-scrollbar { width: 6px; }
+  .topbar::-webkit-scrollbar-thumb { background: #ffffff22; border-radius: 6px; }
+  .tab { position: relative; }
+}
+@media (min-width: 1000px) and (max-width: 1279px) {
+  :root { --side-w: 340px; }
+}
+@media (min-width: 1000px) and (max-width: 1199px) {
+  :root { --nav-w: 76px; }
+  .topbar { padding: 12px 8px; align-items: center; }
+  .brand { padding: 2px 0 12px; justify-content: center; }
+  .brand .wordmark { display: none; }
+  .tabs { width: 100%; }
+  .tab { justify-content: center; padding: 11px 0; }
+  .tab > span:not(.nav-badge) { display: none; }
+  .tab .nav-badge { position: absolute; top: 3px; right: 6px; margin: 0; padding: 0 4px; min-width: 16px; font-size: 0.62rem; }
+  .topbar-right { width: 100%; align-items: center; }
+  .icon-btn { justify-content: center; padding: 10px 0; width: 100%; }
+  .icon-btn > span:not(.header-rank-icon):not(.ic) { display: none; }
+  .profile-chip { justify-content: center; padding: 6px 0; }
+  .profile-chip .profile-text, .profile-chip .header-rank-badge { display: none; }
+}
+@media (min-width: 1000px) and (max-height: 820px) {
+  .topbar { gap: 2px; padding-top: 10px; padding-bottom: 10px; }
+  .brand { padding-bottom: 8px; }
+  .brand img { width: 30px; height: 30px; }
+  .tab { padding-top: 7px; padding-bottom: 7px; font-size: 0.95rem; }
+  .topbar-right { gap: 2px; padding-top: 8px; }
+  .icon-btn { padding-top: 7px; padding-bottom: 7px; }
+}
+@media (min-width: 1000px) and (max-height: 660px) {
+  .tab { padding-top: 5px; padding-bottom: 5px; }
+  .tab .ic { width: 20px; height: 20px; }
+}

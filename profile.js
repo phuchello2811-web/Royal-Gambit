@@ -630,11 +630,48 @@ const Profile = (() => {
     catch (e) { drop(REDIRECT_KEY); throw new Error(GOOGLE_ERR[e && e.code] || 'SERVER'); }
     return new Promise(() => {}); // trang đang chuyển sang Google
   }
+  // ----- Chuyển trang thẳng Google → web này (không qua trang đăng nhập của Firebase) -----
+  // Ứng dụng cài từ màn hình chính iPhone / iPad: popup không gửi được kết quả về, còn redirect qua <project>.firebaseapp.com
+  // bị Safari chặn bộ nhớ khác tên miền. Cách này để Google trả mã về đúng địa chỉ web (cùng ứng dụng, cùng bộ nhớ) rồi đổi mã
+  // lấy phiên Firebase qua REST. Cần thêm địa chỉ web vào "Authorized redirect URIs" của OAuth client (xem README).
+  const DIRECT_KEY = 'rg-google-direct';
+  const pageUrl = () => location.origin + location.pathname.replace(/index\.html$/, '');
+  const useDirect = () => isIOS() && standalone() && !redirectSafe();
+  async function startDirect() {
+    const r = await call(`https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${cfg.apiKey}`, postJson({
+      providerId: 'google.com', continueUri: pageUrl(), authFlowType: 'CODE_FLOW', customParameter: { prompt: 'select_account' },
+    }));
+    if (!r || !r.authUri || !r.sessionId) throw new Error('SERVER');
+    write(DIRECT_KEY, { sessionId: r.sessionId, at: Date.now() });
+    location.href = r.authUri;
+    return new Promise(() => {}); // trang đang chuyển sang Google
+  }
+  // Quay về từ Google (?code=… hoặc ?error=…): đổi mã lấy phiên Firebase. Không có thì trả về null.
+  async function resumeDirect() {
+    const st = read(DIRECT_KEY, null);
+    const q = new URLSearchParams(location.search);
+    if (!st || !(q.has('code') || q.has('error'))) return null;
+    drop(DIRECT_KEY);
+    const requestUri = location.href;
+    // Xoá mã khỏi thanh địa chỉ (không để lại trong lịch sử / khi chia sẻ link)
+    for (const k of ['code', 'state', 'scope', 'authuser', 'prompt', 'hd', 'error', 'error_description', 'iss']) q.delete(k);
+    history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+    if (st.at && Date.now() - st.at > 15 * 60000) return null;
+    if (new URLSearchParams(new URL(requestUri).search).has('error')) throw new Error('CANCELLED');
+    const r = await call(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${cfg.apiKey}`, postJson({
+      requestUri, sessionId: st.sessionId, returnSecureToken: true, returnIdpCredential: true,
+    }));
+    if (!r || !r.idToken) throw new Error('SERVER');
+    return finishGoogle({ uid: r.localId, idToken: r.idToken, refreshToken: r.refreshToken, expiresIn: r.expiresIn,
+      email: r.email || '', displayName: r.displayName || '' });
+  }
+
   // Trả về { needName: true, suggest } nếu là lần đầu (cần chọn tên), hoặc { needName: false } nếu đã vào được.
   // Gọi ngay trong sự kiện bấm nút (không await gì trước đó) để trình duyệt điện thoại không chặn cửa sổ.
   async function loginGoogle() {
     if (!remote) throw new Error('NO_REMOTE');
     if (inAppBrowser()) throw new Error('IN_APP');
+    if (useDirect()) return startDirect();
     // SDK chưa kịp tải (mạng chậm): tải xong, nếu không còn được mở popup thì dùng redirect
     const late = !sdkReady();
     if (late) await preloadGoogle().catch(() => { throw new Error('NETWORK'); });
@@ -649,10 +686,15 @@ const Profile = (() => {
       if (POPUP_FAIL.has(code) && (redirectSafe() || late)) return startRedirect(provider);
       throw new Error(GOOGLE_ERR[code] || 'SERVER');
     }
-    return finishGoogle(res.user);
+    return finishGoogle(await sdkUser(res.user));
   }
+  const sdkUser = async u => ({ uid: u.uid, idToken: await u.getIdToken(), refreshToken: u.refreshToken, expiresIn: 3500,
+    email: u.email || '', displayName: u.displayName || '' });
   // Mở web lại sau khi đăng nhập bằng redirect: lấy kết quả. Không có redirect đang chờ thì trả về null.
   async function resumeGoogle() {
+    if (!remote) return null;
+    const direct = await resumeDirect();
+    if (direct) return direct;
     const at = read(REDIRECT_KEY, 0);
     if (!remote || !at) return null;
     drop(REDIRECT_KEY);
@@ -665,14 +707,15 @@ const Profile = (() => {
       // Trình duyệt chặn bộ nhớ bên thứ ba nên mất kết quả redirect: thử phiên SDK còn giữ
       const cur = firebase.auth().currentUser;
       if (!cur) throw new Error('REDIRECT_LOST');
-      return finishGoogle(cur);
+      return finishGoogle(await sdkUser(cur));
     }
-    return finishGoogle(res.user);
+    return finishGoogle(await sdkUser(res.user));
   }
+  // u: { uid, idToken, refreshToken, expiresIn, email, displayName }
   async function finishGoogle(u) {
     pendingGoogle = { suggest: suggestName(u) };
     auth = null;
-    setAuth({ localId: u.uid, idToken: await u.getIdToken(), refreshToken: u.refreshToken, expiresIn: 3500 }, '');
+    setAuth({ localId: u.uid, idToken: u.idToken, refreshToken: u.refreshToken, expiresIn: u.expiresIn || 3500 }, '');
     auth.provider = 'google';
     auth.email = u.email || '';
     const r = await call(playerUrl(await token()));

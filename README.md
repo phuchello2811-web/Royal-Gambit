@@ -193,7 +193,12 @@ Cài một lần trong Firebase Console:
 Bản này đã sửa lỗi đăng nhập Google trên điện thoại:
 - **Cửa sổ Google bị chặn**: trước đây web chỉ tải thư viện Firebase *sau khi* bấm nút, nên Safari / Chrome điện thoại coi cửa sổ Google là quảng cáo và chặn. Giờ thư viện được **tải sẵn** khi màn đăng nhập hiện ra và cửa sổ mở ngay trong lần bấm. Nếu trình duyệt vẫn chặn, web tự chuyển sang **đăng nhập bằng chuyển trang** (redirect) khi có thể.
 - **Mở link trong Zalo, Facebook, Messenger, Instagram, TikTok…**: Google cấm đăng nhập trong trình duyệt nhúng của các app này (lỗi `403 disallowed_useragent`). Web tự nhận ra và hiện hướng dẫn **Mở bằng Chrome / Safari** (Android có nút mở thẳng Chrome) và nút **Sao chép link**.
-- **Ứng dụng đã cài trên iPhone** và các trình duyệt chặn cookie bên thứ ba: để chắc chắn nhất, **đăng web lên Firebase Hosting** (mục bên dưới). Khi web chạy trên `<project-id>.web.app` hoặc `<project-id>.firebaseapp.com`, web tự dùng chính tên miền đó cho trang đăng nhập Google nên cả popup lẫn redirect đều chạy ổn trên mọi trình duyệt điện thoại.
+- **Ứng dụng đã cài trên iPhone / iPad** (Thêm vào MH chính): iOS không cho cửa sổ Google gửi kết quả về ứng dụng, nên web dùng cách **chuyển trang thẳng**: Google trả mã về đúng địa chỉ web, web đổi mã lấy phiên Firebase. Cần cài **một lần** trong Google Cloud:
+  1. Mở <https://console.cloud.google.com/apis/credentials?project=chess-ab046> bằng tài khoản Google chủ project.
+  2. Mục **OAuth 2.0 Client IDs** › bấm **Web client (auto created by Google Service)**.
+  3. **Authorized redirect URIs** › **Add URI** › dán đúng địa chỉ web, có dấu `/` ở cuối, ví dụ `https://phuchello2811-web.github.io/Royal-Gambit/`. Bấm **Save**, đợi khoảng 5 phút.
+  4. Đổi tên miền (hoặc thêm tên miền khác) thì thêm địa chỉ đó vào danh sách này. Chưa thêm thì Google báo lỗi `redirect_uri_mismatch`.
+- Trình duyệt chặn cookie bên thứ ba: để chắc chắn nhất, **đăng web lên Firebase Hosting** (mục bên dưới). Khi web chạy trên `<project-id>.web.app` hoặc `<project-id>.firebaseapp.com`, web tự dùng chính tên miền đó cho trang đăng nhập Google nên cả popup lẫn redirect đều chạy ổn trên mọi trình duyệt điện thoại.
 
 ## Thông báo qua Gmail
 
