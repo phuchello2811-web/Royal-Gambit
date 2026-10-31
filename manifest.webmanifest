@@ -1,16 +1,29 @@
 {
-  "name": "Royal Gambit",
+  "id": "./",
+  "name": "Royal Gambit – Cờ vua",
   "short_name": "Royal Gambit",
-  "description": "Chơi cờ vua: đấu với máy, tìm trận online, contest, câu đố và học cờ.",
+  "description": "Chơi cờ vua: đấu với máy, tìm trận online, contest, câu đố, học cờ và trợ lý AI chọn lộ trình.",
   "lang": "vi",
-  "start_url": "./",
+  "dir": "ltr",
+  "start_url": "./?source=app",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#262421",
   "theme_color": "#262421",
+  "categories": ["games", "education", "entertainment"],
   "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "img/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "img/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "img/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Chơi với máy", "short_name": "Chơi", "url": "./?go=play", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Học cờ", "short_name": "Học", "url": "./?go=learn", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Câu đố", "short_name": "Câu đố", "url": "./?go=puzzle", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Trợ lý AI", "short_name": "Trợ lý", "url": "./?go=ai", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] }
   ]
 }

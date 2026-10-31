@@ -34,7 +34,7 @@ const REVIEW = (title = 'Ôn tập', count = 4) => ({ title, icon: 'review', rev
 
 return [
   {
-    title: 'Làm quen bàn cờ', desc: 'Bàn cờ, tên các ô và quân cờ', color: '#81b64c', shade: '#5d8a32',
+    key: 'basics', title: 'Làm quen bàn cờ', desc: 'Bàn cờ, tên các ô và quân cờ', color: '#81b64c', shade: '#5d8a32',
     lessons: [
       L('Bàn cờ', 'quiz',
         Q('Bàn cờ vua có bao nhiêu ô?', ['32 ô', '64 ô', '81 ô', '100 ô'], 1, { explain: '8 hàng × 8 cột = 64 ô, xen kẽ sáng và tối.' }),
@@ -68,7 +68,7 @@ return [
     ],
   },
   {
-    title: 'Xe và Tượng', desc: 'Đi thẳng và đi chéo', color: '#4a90d0', shade: '#336ea6',
+    key: 'rookbishop', title: 'Xe và Tượng', desc: 'Đi thẳng và đi chéo', color: '#4a90d0', shade: '#336ea6',
     lessons: [
       L('Xe đi ngang dọc', 'wR',
         STARS('Xe đi theo hàng ngang hoặc cột dọc, bao nhiêu ô cũng được. Hãy đi Xe ăn hết các ngôi sao ★', '8/8/8/8/3R4/8/8/8 w - - 0 1', ['d7', 'g7', 'g2', 'b2'])),
@@ -91,7 +91,7 @@ return [
     ],
   },
   {
-    title: 'Hậu, Mã và Vua', desc: 'Quân mạnh nhất, quân nhảy và quân quan trọng nhất', color: '#9a72d4', shade: '#7552aa',
+    key: 'queenknight', title: 'Hậu, Mã và Vua', desc: 'Quân mạnh nhất, quân nhảy và quân quan trọng nhất', color: '#9a72d4', shade: '#7552aa',
     lessons: [
       L('Hậu', 'wQ',
         STARS('Hậu đi được như Xe và Tượng: ngang, dọc và chéo.', '8/8/8/8/8/8/8/3Q4 w - - 0 1', ['d5', 'a8', 'h8', 'h1'])),
@@ -115,7 +115,7 @@ return [
     ],
   },
   {
-    title: 'Tốt', desc: 'Quân nhỏ nhưng có thể thành Hậu', color: '#e08a2c', shade: '#ad6619',
+    key: 'pawns', title: 'Tốt', desc: 'Quân nhỏ nhưng có thể thành Hậu', color: '#e08a2c', shade: '#ad6619',
     lessons: [
       L('Tốt đi thẳng', 'wP',
         STARS('Tốt đi thẳng 1 ô (nước đầu được đi 2 ô) và ăn chéo phía trước. Tốt không đi lùi.', '8/8/8/3p4/8/8/4P3/8 w - - 0 1', ['e4', 'd5', 'd6'])),
@@ -140,7 +140,7 @@ return [
     ],
   },
   {
-    title: 'Luật đặc biệt', desc: 'Nhập thành, pat và các kiểu hòa', color: '#30a58b', shade: '#227a67',
+    key: 'rules', title: 'Luật đặc biệt', desc: 'Nhập thành, pat và các kiểu hòa', color: '#30a58b', shade: '#227a67',
     lessons: [
       L('Nhập thành gần', 'wK',
         GOAL('castle', 'Nhập thành: Vua đi 2 ô về phía Xe, Xe nhảy qua đứng cạnh Vua. Hãy nhập thành gần (Vua tới g1).', '4k3/8/8/8/8/8/8/4K2R w K - 0 1', { castle: 'K' })),
@@ -163,7 +163,7 @@ return [
     ],
   },
   {
-    title: 'Chiếu và thoát chiếu', desc: 'Tấn công Vua và cách thoát', color: '#d65a4f', shade: '#a8413a',
+    key: 'check', title: 'Chiếu và thoát chiếu', desc: 'Tấn công Vua và cách thoát', color: '#d65a4f', shade: '#a8413a',
     lessons: [
       L('Chiếu', 'wR',
         GOAL('check', 'Chiếu là tấn công Vua đối phương. Hãy chiếu Vua Đen bằng Xe.', '4k3/8/8/8/8/8/8/R3K3 w - - 0 1')),
@@ -186,7 +186,7 @@ return [
     ],
   },
   {
-    title: 'Chiếu hết 1 nước', desc: 'Các mẫu chiếu hết kinh điển', color: '#d4a72c', shade: '#a5801b',
+    key: 'mate1', title: 'Chiếu hết 1 nước', desc: 'Các mẫu chiếu hết kinh điển', color: '#d4a72c', shade: '#a5801b',
     lessons: [
       L('Chiếu hết hàng cuối', 'wR',
         MATE1('Vua Đen bị chính các Tốt của mình chặn đường. Chiếu hết trong 1 nước!', '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1'),
@@ -221,7 +221,7 @@ return [
     ],
   },
   {
-    title: 'Chiến thuật', desc: 'Chĩa, ghim, xiên và chiếu mở', color: '#4f74c4', shade: '#385594',
+    key: 'tactics', title: 'Chiến thuật', desc: 'Chĩa, ghim, xiên và chiếu mở', color: '#4f74c4', shade: '#385594',
     lessons: [
       L('Đòn chĩa', 'wN',
         Q('Đòn chĩa (fork) là gì?', ['Một quân tấn công hai quân đối phương cùng lúc', 'Hai quân cùng tấn công một quân', 'Đổi quân ngang giá'], 0),
@@ -252,7 +252,7 @@ return [
     ],
   },
   {
-    title: 'Chiếu hết 2 nước', desc: 'Tính trước một nước', color: '#c4659c', shade: '#974b77',
+    key: 'mate2', title: 'Chiếu hết 2 nước', desc: 'Tính trước một nước', color: '#c4659c', shade: '#974b77',
     lessons: [
       L('Vua giúp Hậu', 'wQ',
         MATE(2, 'Đưa Vua lại gần trước, rồi Hậu chiếu hết. Chiếu hết trong 2 nước!', 'k7/8/8/2K5/8/8/8/1Q6 w - - 0 1')),
@@ -272,7 +272,7 @@ return [
     ],
   },
   {
-    title: 'Tàn cuộc', desc: 'Kết thúc ván cờ khi còn ít quân', color: '#a8804c', shade: '#7c5d35',
+    key: 'endgame', title: 'Tàn cuộc', desc: 'Kết thúc ván cờ khi còn ít quân', color: '#a8804c', shade: '#7c5d35',
     lessons: [
       L('Vua trong tàn cuộc', 'quiz',
         Q('Trong tàn cuộc, Vua nên…', ['Trốn trong góc', 'Tiến lên giúp các quân khác', 'Không quan trọng'], 1),
@@ -296,7 +296,7 @@ return [
     ],
   },
   {
-    title: 'Khai cuộc', desc: 'Bắt đầu ván cờ đúng cách', color: '#81b64c', shade: '#5d8a32',
+    key: 'opening', title: 'Khai cuộc', desc: 'Bắt đầu ván cờ đúng cách', color: '#81b64c', shade: '#5d8a32',
     lessons: [
       L('Nguyên tắc khai cuộc', 'quiz',
         Q('Nguyên tắc khai cuộc nào ĐÚNG?', ['Đi Hậu ra thật sớm', 'Chiếm trung tâm, ra Mã và Tượng, nhập thành sớm', 'Đi nhiều Tốt cánh'], 1),
@@ -328,7 +328,7 @@ return [
     ],
   },
   {
-    title: 'Nâng cao', desc: 'Thử thách cuối khoá', color: '#c94a3e', shade: '#97352c',
+    key: 'advanced', title: 'Nâng cao', desc: 'Thử thách cuối chặng 1', color: '#c94a3e', shade: '#97352c',
     lessons: [
       L('Hậu chiếu hết nhanh', 'wQ',
         WIN('Chiếu hết Vua Đen trong tối đa 10 nước!', '8/8/8/8/3k4/8/8/K6Q w - - 0 1', 10)),
@@ -336,7 +336,165 @@ return [
         WIN('Chiếu hết bằng Xe trong tối đa 25 nước!', '8/8/8/8/8/2k5/8/R3K3 w - - 0 1', 25)),
       // `from`: lấy thử thách từ các phần khác (số thứ tự phần, tính từ 0) hoặc 'all' = cả khoá
       { ...REVIEW('Tổng hợp chiến thuật', 6), from: [6, 7, 8] },
-      { ...REVIEW('Bài kiểm tra cuối khoá', 8), from: 'all' },
+      { ...REVIEW('Bài kiểm tra chặng 1', 8), from: 'all' },
+    ],
+  },
+  // ----- Chặng 2 (phần 13–20). Thêm ở cuối để tiến độ cũ (lưu theo số thứ tự phần-bài) không bị lệch. -----
+  // `key`: mã chủ đề để Trợ lý AI (assistant.js) gợi ý đúng phần theo điểm yếu của người chơi.
+  {
+    key: 'defense', title: 'Phòng thủ & giữ quân', desc: 'Thấy đe dọa, bảo vệ quân và tránh mất quân oan', color: '#3f9c7a', shade: '#2c7258',
+    lessons: [
+      L('Đối thủ dọa gì?', 'quiz',
+        Q('Trước mỗi nước đi, câu hỏi đầu tiên nên tự hỏi là gì?', ['Nước vừa rồi của đối thủ đe dọa gì?', 'Quân nào của mình đẹp nhất?', 'Đi thật nhanh cho kịp giờ'], 0, { explain: 'Phần lớn nước hớ xảy ra vì không nhìn nước vừa đi của đối thủ.' }),
+        Q('Một quân bị 2 quân đối phương tấn công nhưng chỉ có 1 quân bảo vệ. Điều gì xảy ra?', ['Đối thủ ăn được và hơn quân', 'Không ai được lợi', 'Mình được lợi'], 0, { explain: 'Đếm số quân tấn công và số quân bảo vệ: bên tấn công nhiều hơn thì ăn được.' })),
+      L('Né đòn', 'wB',
+        LINE('Tượng c4 bị Tốt b5 tấn công (Tốt có Tốt a6 bảo vệ, đừng ăn!). Đưa Tượng về một ô an toàn.', '4k3/8/p7/1p6/2B5/8/8/4K3 w - - 0 1', ['c4b3|c4a2|c4d3|c4e2|c4f1|c4d5|c4e6|c4g8']),
+        LINE('Xe Đen tấn công Mã d4. Hãy bảo vệ Mã bằng một Tốt.', '3rk3/8/8/8/3N4/8/2P1P3/4K3 w - - 0 1', ['c2c3|e2e3'])),
+      L('Quân nào ăn được?', 'wQ',
+        LINE('Hậu ăn được Mã a4 hoặc Tượng g4, nhưng Tượng có Tốt h5 bảo vệ. Ăn đúng quân!', '6k1/5pp1/8/7p/n5b1/8/5PPP/3Q2K1 w - - 0 1', ['d1a4'])),
+      L('Lỗ thở cho Vua', 'wK',
+        Q('Vua sau ba Tốt f2, g2, h2 chưa đi có nguy cơ gì?', ['Bị chiếu hết hàng cuối', 'Bị phong cấp', 'Không có nguy cơ gì'], 0, { fen: '4r1k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1', marks: ['e1', 'f1', 'g1', 'h1'] }),
+        LINE('Xe Đen dọa xuống e1 chiếu hết. Mở "lỗ thở" cho Vua bằng một nước Tốt (hoặc đưa Vua ra chặn).', '4r1k1/p4ppp/8/8/8/8/P4PPP/6K1 w - - 0 1', ['h2h3|h2h4|g2g3|g2g4|f2f3|f2f4|g1f1'])),
+      L('Chặn chiếu hết', 'wN',
+        LINE('Đen dọa Hậu ăn h2 chiếu hết (Tượng d6 yểm trợ). Chặn ngay: Mã lên f3, hoặc đẩy Tốt g3 / h3 / f4.', '6k1/5ppp/3b4/8/7q/8/3N1PPP/5RK1 w - - 0 1', ['d2f3|g2g3|h2h3|f2f4'])),
+      L('Đổi quân', 'quiz',
+        Q('Bạn đang hơn một Xe. Nên làm gì?', ['Đổi bớt quân để tàn cuộc dễ thắng', 'Tránh mọi cuộc đổi quân', 'Thí lại Xe cho cân bằng'], 0, { explain: 'Hơn quân thì càng ít quân trên bàn, lợi thế càng rõ.' }),
+        Q('Bạn mất Tượng (3 điểm) nhưng ăn được Xe (5 điểm). Gọi là gì?', ['Hơn chất lượng', 'Thua chất lượng', 'Đổi ngang'], 0)),
+      L('Quân bảo vệ quá ít', 'quiz',
+        Q('Quân của bạn bị tấn công hai lần, chỉ được bảo vệ một lần. Nên làm gì?', ['Thêm quân bảo vệ hoặc đưa quân đó đi', 'Mặc kệ, tấn công chỗ khác', 'Đưa Vua lại gần'], 0),
+        Q('Quân "treo" của MÌNH nguy hiểm nhất khi nào?', ['Khi đối thủ ăn được mà không mất gì', 'Khi quân đó là Tốt', 'Khi quân đó ở góc bàn'], 0)),
+      REVIEW('Ôn tập phòng thủ', 4),
+    ],
+  },
+  {
+    key: 'tactics2', title: 'Chiến thuật nâng cao', desc: 'Chiếu đôi, đòn lôi, phá phòng thủ, quá tải', color: '#5b6fd6', shade: '#4152a6',
+    lessons: [
+      L('Chiếu đôi', 'wN',
+        Q('Khi bị chiếu đôi, bên bị chiếu phải làm gì?', ['Bắt buộc đi Vua', 'Chặn một trong hai quân', 'Ăn một quân chiếu'], 0, { explain: 'Không thể chặn hay ăn cả hai quân chiếu cùng lúc, nên chỉ còn cách đi Vua.' }),
+        GOAL('dcheck', 'Mã đang chắn cột e của Xe. Đi Mã để chiếu đôi: Mã chiếu và Xe cũng chiếu!', '4k3/8/8/8/4N3/8/8/4R1K1 w - - 0 1')),
+      L('Phá quân phòng thủ', 'wB',
+        LINE('Tượng d7 chỉ có Mã f6 bảo vệ. Ăn Mã trước, rồi Xe ăn Tượng!', '6k1/3b1ppp/5n2/6B1/8/8/5PPP/3R2K1 w - - 0 1', ['g5f6', 'g7f6', 'd1d7'])),
+      L('Quân bị quá tải', 'wR',
+        Q('Một quân phải làm hai nhiệm vụ phòng thủ cùng lúc gọi là gì?', ['Quân bị quá tải', 'Quân bị ghim', 'Quân treo'], 0),
+        LINE('Xe d8 vừa bảo vệ Mã d5 vừa giữ hàng cuối. Ăn Mã: nếu Xe ăn lại thì Hậu chiếu hết ở e8!', '3r2k1/5ppp/8/3n4/8/8/4QPPP/3R2K1 w - - 0 1', ['d1d5', 'd8d5', 'e2e8'])),
+      L('Đòn lôi', 'wR',
+        LINE('Thí Xe ở h8 để kéo Vua vào góc, rồi Mã chĩa Vua và Hậu!', '3q2k1/5pp1/8/6N1/8/8/5PP1/6KR w - - 0 1', ['h1h8', 'g8h8', 'g5f7', 'h8g8', 'f7d8'])),
+      L('Nước trung gian', 'quiz',
+        Q('Nước "trung gian" là gì?', ['Một nước bất ngờ (thường là chiếu) chen vào trước khi ăn lại quân', 'Nước Vua ra giữa bàn', 'Nước Tốt đi hai ô'], 0, { explain: 'Đừng vội ăn lại theo phản xạ: xem có nước chiếu hay đe dọa mạnh hơn không.' })),
+      L('Thí Xe mở hàng cuối', 'wR',
+        MATE(2, 'Hậu Đen giữ hàng cuối một mình. Thí Xe để kéo Hậu đi, rồi chiếu hết! Chiếu hết trong 2 nước.', '3q2k1/5ppp/8/8/8/8/4RPPP/4Q1K1 w - - 0 1')),
+      REVIEW('Ôn tập chiến thuật nâng cao', 5),
+    ],
+  },
+  {
+    key: 'mates', title: 'Mẫu chiếu hết nâng cao', desc: 'Boden, Opera, chiếu hết bằng hai Tượng và Hậu–Xe', color: '#d4a72c', shade: '#a5801b',
+    lessons: [
+      L('Chiếu hết Opera', 'wR',
+        MATE1('Xe xuống hàng 8, Tượng g5 khống chế e7 và bảo vệ Xe. Chiếu hết trong 1 nước!', '4kb2/5p2/8/6B1/8/8/8/3R2K1 w - - 0 1')),
+      L('Chiếu hết Boden', 'wB',
+        MATE1('Hai Tượng chéo nhau: Tượng f4 giữ b8 và c7. Chiếu hết bằng Tượng còn lại!', '2kr4/3n4/8/8/5B2/8/4BPPP/6K1 w - - 0 1'),
+        MATE(2, 'Thí Hậu để mở đường chéo, rồi chiếu hết Boden. Chiếu hết trong 2 nước!', '2kr4/pp1n4/2n5/8/5B2/5Q2/4BPPP/6K1 w - - 0 1')),
+      L('Hậu và Xe', 'wQ',
+        MATE1('Hậu và Xe phối hợp trên cột h. Chiếu hết trong 1 nước!', '6k1/5pp1/8/8/8/8/5PP1/4Q1KR w - - 0 1')),
+      L('Chiếu hết ở góc', 'wN',
+        MATE1('Chiếu hết Ả Rập: Mã f6 khống chế g8 và bảo vệ ô h7. Xe chỉ cần một nước!', '7k/1R6/5N2/8/8/8/8/6K1 w - - 0 1')),
+      L('Hậu và Tốt', 'wQ',
+        MATE1('Chiếu hết Damiano: Tốt g6 bảo vệ ô h7. Chiếu hết bằng Hậu!', '5rk1/5p2/6P1/7Q/8/8/8/6K1 w - - 0 1')),
+      L('Hai Xe bậc thang', 'wR',
+        MATE(2, 'Một Xe cắt hàng, Xe kia chiếu. Chiếu hết trong 2 nước!', '4k3/8/8/8/8/8/R7/1R4K1 w - - 0 1')),
+      REVIEW('Ôn tập mẫu chiếu hết', 4),
+    ],
+  },
+  {
+    key: 'attack', title: 'Tấn công Vua', desc: 'Đánh vào Vua chưa nhập thành và Vua đã nhập thành', color: '#d65a4f', shade: '#a8413a',
+    lessons: [
+      L('Khi nào tấn công?', 'quiz',
+        Q('Vua đối thủ chưa nhập thành, còn mình đã ra quân xong. Nên làm gì?', ['Mở trung tâm và đưa quân vào tấn công', 'Đổi hết quân', 'Đẩy Tốt cánh Hậu'], 0),
+        Q('Muốn tấn công Vua thành công thường cần gì?', ['Nhiều quân tấn công hơn số quân phòng thủ', 'Chỉ cần Hậu', 'Đi Vua lên trước'], 0)),
+      L('Tấn công f7', 'wN',
+        LINE('Tấn công Fried Liver: e4, Mã f3, Tượng c4, Mã g5, ăn d5 rồi thí Mã ở f7 và đưa Hậu lên f3!', START, ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1c4', 'g8f6', 'f3g5', 'd7d5', 'e4d5', 'f6d5', 'g5f7', 'e8f7', 'd1f3'])),
+      L('Món quà Hy Lạp', 'wB',
+        Q('Thí Tượng ở h7 (Bxh7+, "món quà Hy Lạp") thường thành công khi nào?', ['Mã lên được g5 và Hậu tới h5 nhanh, Đen không có Mã f6 phòng thủ', 'Bất cứ khi nào Đen nhập thành', 'Khi Trắng chưa ra quân'], 0),
+        LINE('Thí Tượng ở h7, Mã chiếu ở g5 (Tượng c1 canh ô g5) rồi Hậu lên h5 dọa chiếu hết!', 'r1bq1rk1/ppp2ppp/2n1p3/3pP3/1b6/3B1N2/PPP2PPP/R1BQ1RK1 w - - 0 1', ['d3h7', 'g8h7', 'f3g5', 'h7g8', 'd1h5'])),
+      L('Thí quân mở hàng cuối', 'wQ',
+        MATE(2, 'Thí Xe ở e8, Hậu ăn lại và chiếu hết. Chiếu hết trong 2 nước!', '3q2k1/5ppp/8/8/8/8/4RPPP/4Q1K1 w - - 0 1')),
+      L('Hậu và Xe dồn Vua', 'wQ',
+        WIN('Hậu và Xe đấu Vua và ba Tốt. Phối hợp hai quân nặng để chiếu hết!', '6k1/5ppp/8/8/8/8/8/QR4K1 w - - 0 1', 15)),
+      REVIEW('Ôn tập tấn công', 4),
+    ],
+  },
+  {
+    key: 'strategy', title: 'Trung cuộc & kế hoạch', desc: 'Cột mở, tiền đồn, cấu trúc Tốt và lập kế hoạch', color: '#4a90d0', shade: '#336ea6',
+    lessons: [
+      L('Cột mở', 'wR',
+        Q('Cột mở là gì, và quân nào nên chiếm nó?', ['Cột không còn Tốt nào – nên đặt Xe ở đó', 'Cột có nhiều Tốt – đặt Tượng', 'Cột a và h – đặt Vua'], 0, { fen: 'r4rk1/pp3ppp/2p5/8/8/2P5/PP3PPP/R4RK1 w - - 0 1', marks: ['d1', 'd8', 'e1', 'e8'] }),
+        LINE('Cột d và cột e đều mở. Đưa một Xe vào cột mở!', 'r4rk1/pp3ppp/2p5/8/8/2P5/PP3PPP/R4RK1 w - - 0 1', ['a1d1|a1e1|f1d1|f1e1'])),
+      L('Tiền đồn cho Mã', 'wN',
+        Q('Ô tiền đồn là gì?', ['Ô được Tốt mình bảo vệ và Tốt đối thủ không đuổi được', 'Ô ở góc bàn', 'Ô cạnh Vua mình'], 0, { fen: '6k1/pp3ppp/3p4/2pP4/2P5/8/PP3PPP/6K1 w - - 0 1', marks: ['e6'] }),
+        Q('Mã đứng ở tiền đồn sâu trong thế đối thủ thường…', ['Rất mạnh, khó bị đuổi', 'Vô dụng', 'Sắp bị bắt'], 0)),
+      L('Tượng tốt, Tượng xấu', 'wB',
+        Q('Tượng "xấu" là Tượng…', ['Bị chính Tốt mình đứng cùng màu ô chặn đường', 'Đã bị đổi', 'Đứng ở ô trắng'], 0, { explain: 'Đặt Tốt trên ô khác màu với Tượng để Tượng được tự do.' })),
+      L('Tốt yếu', 'wP',
+        Q('Tốt cô lập là Tốt…', ['Không còn Tốt cùng màu ở hai cột bên cạnh', 'Đứng một mình ở hàng 7', 'Bị ghim'], 0, { fen: '6k1/pp3ppp/8/3p4/8/8/PP3PPP/6K1 w - - 0 1', marks: ['d5'] }),
+        Q('Hai Tốt cùng màu đứng trên cùng một cột gọi là gì?', ['Tốt chồng', 'Tốt thông', 'Tốt liên kết'], 0)),
+      L('Tốt thông', 'wP',
+        Q('Tốt thông là Tốt…', ['Không còn Tốt đối thủ nào chặn hay ăn được trên đường tới hàng phong cấp', 'Đứng giữa bàn', 'Đứng ở hàng 4'], 0, { fen: '6k1/5ppp/8/1P6/8/8/5PPP/6K1 w - - 0 1', marks: ['b5'] }),
+        RUN('Tốt b thông và Vua Đen ở xa. Đưa nó lên phong cấp an toàn!', '6k1/5ppp/8/1P6/8/8/5PPP/6K1 w - - 0 1', 10)),
+      L('Lập kế hoạch', 'quiz',
+        Q('Khi không có chiến thuật nào, nên làm gì?', ['Tìm quân kém nhất của mình và đưa nó tới ô tốt hơn', 'Đi Tốt cánh ngẫu nhiên', 'Đổi Hậu ngay'], 0),
+        Q('Nên tấn công ở cánh nào?', ['Cánh mà Tốt của mình chỉ về phía đó và mình có nhiều không gian', 'Luôn tấn công cánh Vua', 'Cánh có ít quân mình nhất'], 0)),
+      REVIEW('Ôn tập trung cuộc', 4),
+    ],
+  },
+  {
+    key: 'pawnend', title: 'Tàn cuộc Tốt', desc: 'Ô then chốt, đối Vua, Tốt thông bên ngoài', color: '#e08a2c', shade: '#ad6619',
+    lessons: [
+      L('Vua tích cực', 'wK',
+        Q('Tàn cuộc chỉ còn Vua và Tốt, Vua nên đứng ở đâu?', ['Trước Tốt của mình, càng lên cao càng tốt', 'Sau Tốt, ở hàng 1', 'Ở góc bàn'], 0)),
+      L('Ô then chốt', 'wP',
+        Q('Tốt Trắng e4: Vua Trắng chiếm được ô nào thì chắc chắn phong cấp (dù Đen đi trước)?', ['d6, e6 hoặc f6', 'd3, e3 hoặc f3', 'Chỉ e5'], 0, { fen: '8/8/8/8/4P3/8/8/4K2k w - - 0 1', marks: ['d6', 'e6', 'f6'] }),
+        RUN('Vua Trắng đã đứng ở ô then chốt e6. Đưa Tốt lên phong cấp!', '4k3/8/4K3/8/4P3/8/8/8 w - - 0 1', 15)),
+      L('Tốt thông bên ngoài', 'wP',
+        RUN('Tốt a là Tốt thông bên ngoài: đẩy nó để kéo Vua Đen đi, rồi Vua Trắng ăn Tốt còn lại. Phong cấp!', '8/8/4k2p/8/P3K3/7P/8/8 w - - 0 1', 25)),
+      L('Đột phá ba Tốt', 'wP',
+        LINE('Ba Tốt đối ba Tốt, các Vua ở xa. Đột phá b6!, rồi c6!: một Tốt Trắng sẽ thông và phong cấp.', '8/ppp4k/8/PPP5/8/8/8/7K w - - 0 1', ['b5b6', 'a7b6', 'c5c6', 'b7c6', 'a5a6'])),
+      L('Tốt biên', 'quiz',
+        Q('Vua + Tốt cột a đấu Vua Đen đã đứng ở ô a8. Kết quả?', ['Hòa', 'Trắng thắng dễ', 'Đen thắng'], 0, { fen: 'k7/8/8/8/P7/8/8/4K3 w - - 0 1', marks: ['a8'], explain: 'Vua Đen chui vào góc thì Tốt biên không thể phong cấp: chỉ có hòa hoặc pat.' })),
+      REVIEW('Ôn tập tàn cuộc Tốt', 4),
+    ],
+  },
+  {
+    key: 'rookend', title: 'Tàn cuộc Xe', desc: 'Lucena, Philidor và quy tắc Tarrasch', color: '#a8804c', shade: '#7c5d35',
+    lessons: [
+      L('Xe sau Tốt thông', 'wR',
+        Q('Theo quy tắc Tarrasch, Xe nên đứng ở đâu so với Tốt thông?', ['Phía sau Tốt thông (của mình hay của đối thủ)', 'Phía trước Tốt', 'Cạnh Tốt'], 0, { fen: '6k1/8/8/P7/8/8/8/R5K1 w - - 0 1', marks: ['a1', 'a5'] })),
+      L('Thế Philidor', 'bR',
+        Q('Thế Philidor (bên phòng thủ hòa): Xe phòng thủ đặt ở đâu?', ['Hàng thứ 3 tính từ phía mình, chặn Vua đối thủ tiến lên', 'Ngay cạnh Vua mình', 'Hàng cuối của đối thủ'], 0, { fen: '4k3/8/r7/4P3/4K3/8/8/R7 b - - 0 1', marks: ['a6'] }),
+        Q('Khi Tốt đối thủ tiến lên hàng 6, Xe phòng thủ trong thế Philidor làm gì?', ['Xuống hàng cuối của đối thủ để chiếu từ phía sau', 'Đứng yên', 'Đổi lấy Tốt ngay'], 0)),
+      L('Thế Lucena', 'wR',
+        Q('Thế Lucena (bên tấn công thắng): kỹ thuật nổi tiếng gọi là gì?', ['"Bắc cầu" – dùng Xe che chắn Vua khỏi các nước chiếu', 'Chiếu liên tục', 'Đổi Xe'], 0),
+        RUN('Thế Lucena: Vua Trắng ở d8 trước Tốt. Đưa Xe lên hàng 4 để "bắc cầu", rồi phong cấp! Máy cầm Đen.', '3K4/3P1k2/8/8/8/8/2r5/4R3 w - - 0 1', 25)),
+      L('Xe cắt Vua', 'wR',
+        Q('Vì sao nên dùng Xe "cắt" Vua đối thủ theo một cột hoặc hàng?', ['Vua đối thủ không về kịp để cản Tốt', 'Để đổi Xe', 'Để Vua mình an toàn'], 0, { fen: '8/8/8/8/1k6/8/4PK2/3R4 w - - 0 1', marks: ['d1', 'd8'] })),
+      L('Tượng sai màu', 'quiz',
+        Q('Vua + Tượng + Tốt cột h, nhưng Tượng không kiểm soát ô phong cấp h8, Vua Đen đã ở góc. Kết quả?', ['Hòa', 'Trắng thắng dễ', 'Đen thắng'], 0, { fen: '7k/8/8/7P/8/3B4/8/6K1 w - - 0 1', marks: ['h8'] })),
+      REVIEW('Ôn tập tàn cuộc Xe', 4),
+    ],
+  },
+  {
+    key: 'calc', title: 'Tính toán & tốt nghiệp', desc: 'Nước ép buộc, kiểm tra trước khi đi và bài kiểm tra cuối khoá', color: '#c94a3e', shade: '#97352c',
+    lessons: [
+      L('Nước ép buộc', 'quiz',
+        Q('Khi tính toán, nên xét các nước theo thứ tự nào trước?', ['Chiếu – ăn quân – đe dọa', 'Đi Tốt – ra quân – nhập thành', 'Đi Vua – đi Hậu – đi Xe'], 0),
+        Q('Trước khi chạm quân, bước kiểm tra cuối cùng là gì?', ['Sau nước này, đối thủ có chiếu, ăn quân hay đe dọa gì không?', 'Đi thật nhanh', 'Chỉ nhìn quân mình'], 0)),
+      L('Chiếu hết 2 nước', 'wB',
+        MATE(2, 'Bắt đầu bằng một nước ép buộc! Chiếu hết trong 2 nước.', '2kr4/pp1n4/2n5/8/5B2/5Q2/4BPPP/6K1 w - - 0 1')),
+      L('Hy sinh để thắng', 'wR',
+        MATE(2, 'Một quân phòng thủ phải làm hai việc. Chiếu hết trong 2 nước!', '3q2k1/5ppp/8/8/8/8/4RPPP/4Q1K1 w - - 0 1')),
+      L('Kết thúc ván cờ', 'wQ',
+        WIN('Hơn hẳn quân thì phải biết kết thúc: chiếu hết Vua Đen trong tối đa 15 nước!', '6k1/8/8/8/8/8/8/QR4K1 w - - 0 1', 15)),
+      { ...REVIEW('Ôn tập chặng 2', 6), from: [12, 13, 14, 15, 16, 17, 18] },
+      { ...REVIEW('Bài kiểm tra tốt nghiệp', 8), from: 'all' },
     ],
   },
 ];

@@ -6,6 +6,8 @@ Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần 
 
 ## Tính năng
 
+- **Ứng dụng cho điện thoại và máy tính (PWA)**: cài Royal Gambit lên màn hình chính Android / iPhone / iPad hoặc thành ứng dụng trên Windows / macOS (Chrome, Edge) bằng nút **Cài ứng dụng**; mở toàn màn hình, có biểu tượng riêng, lối tắt (nhấn giữ biểu tượng: Chơi với máy, Học cờ, Câu đố, Trợ lý AI), **chạy khi mất mạng** (đấu máy, câu đố, học cờ, thư viện), tự báo **"Có phiên bản mới"** để cập nhật. Trên điện thoại có **thanh điều hướng dưới đáy** (Trang chủ, Chơi, Học cờ, Câu đố, Trợ lý AI, Khác) và màn hình **luôn sáng khi đang đánh cờ**. Xem mục [Ứng dụng (PWA)](#ứng-dụng-pwa)
+- **Trợ lý AI chọn lộ trình** (tab **Trợ lý AI**, thẻ trên Trang chủ): đọc các ván trong Nhật ký đã được Stockfish chấm, Sổ luyện lỗi và tiến độ Học cờ để tìm điểm yếu (để mất quân oan, bỏ lỡ chiến thuật, bỏ lỡ chiếu hết, khai cuộc, Vua kém an toàn, trung cuộc, tàn cuộc), thống kê lỗi theo giai đoạn ván và khai cuộc hay chơi, rồi đưa ra **lộ trình từng bước** có nút mở thẳng phần học / câu đố theo chủ đề / khai cuộc trong Thư viện / mức máy nên đấu. Có ô **Hỏi trợ lý** ("Vì sao tôi hay thua?", "Hôm nay nên tập gì?", "Tôi nên chơi khai cuộc nào?"…) và nút **Chấm các ván chưa phân tích**. Chạy hoàn toàn trên máy người chơi (`assistant.js`), không cần khoá API, không gửi dữ liệu đi đâu
 - **Trang chủ** (tab đầu tiên, hoặc bấm logo): lời chào, rank + thanh exp, Elo, số ván, tỉ lệ thắng, chuỗi ngày học, số câu đố đã giải; thẻ **Ván đang dở** (bấm Tiếp tục để quay lại bàn); 4 nút bắt đầu nhanh (Chơi với máy, Online, Câu đố, Học cờ); **Câu đố hôm nay**; danh sách **Việc hôm nay** (giải câu đố, mục tiêu học, ôn Sổ luyện lỗi, chơi 1 ván); 5 ván gần đây; contest đang / sắp diễn ra kèm đếm ngược; top 5 Elo; **Khai cuộc hôm nay**. Vào web là mở Trang chủ (trừ khi vào bằng link mời phòng)
 - **Contest**: lọc Đang diễn ra / Sắp diễn ra / Đã kết thúc / Của tôi; mỗi contest hiện đồng hồ đếm ngược, số người tham gia, nhà vô địch. Trang chi tiết có thanh tiến độ thời gian, thống kê, thẻ "Thành tích của bạn", **link chia sẻ** (`#contest/<id>` mở thẳng contest đó), **Thêm vào lịch** (file .ics, nhắc trước 10 phút) và nút **Sửa** cho admin (đổi tên / mô tả; đổi giờ khi chưa bắt đầu)
 - **Nhật ký ván**: lưu riêng theo tài khoản (tối đa 100 ván) và **đồng bộ qua tài khoản** ở bản Firebase: chơi trên máy tính thì mở trên điện thoại vẫn thấy, xoá ở máy này thì máy kia cũng xoá, chơi lúc mất mạng thì có mạng lại tự đồng bộ (dòng trạng thái ☁ trong hộp Nhật ký). **Cần dán lại `firebase-rules.json` mới (có mục `history`) rồi bấm Publish**; ghi đối thủ, màu quân, Elo ± và độ chính xác; thống kê tổng, lọc Thắng / Hòa / Thua và theo chế độ, tìm kiếm, nhóm theo ngày, bàn cờ thu nhỏ. **Xem lại** từng nước trên bàn, **Phân tích** / **Xem phân tích** (xếp loại từng nước), sao chép / **tải PGN** các ván đang lọc. Ván 2 người cùng máy hiện "Trắng thắng / Đen thắng" và không tính vào tỉ lệ thắng của bạn
@@ -17,7 +19,7 @@ Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần 
 - **Bảng quản trị**: ô thống kê (người chơi, hoạt động 7 ngày, tổng ván, admin, bị mute), lọc / sắp xếp, **mute có thời hạn** (1 giờ / 1 ngày / 7 ngày / vĩnh viễn) kèm lý do, **xuất CSV**, và **Thông báo toàn web** (thanh ở đầu trang cho mọi người, 3 kiểu, tự ẩn sau 1–7 ngày). **Cần dán lại `firebase-rules.json` mới (có mục `announce`) rồi bấm Publish**
 - **Phân tích ván kiểu chess.com**: sau mỗi ván (đấu máy, Online, 2 người cùng máy, từ 8 nước), Stockfish 19 (độ sâu 22, khoảng 1–7 giây mỗi thế cờ) chạy ngay trên máy chấm **mọi nước của cả hai bên** và xếp loại: **Thiên tài !!** (thí quân mà thế cờ vẫn tốt), **Tuyệt vời !** (nước duy nhất giữ được thế cờ), Tốt nhất, Xuất sắc, Nước tốt, Lý thuyết (còn trong sách khai cuộc), Thiếu chính xác ?!, Sai lầm ?, **Bỏ lỡ** (không trừng phạt được sai lầm của đối thủ), Nước hớ ??, Bắt buộc. Hộp kết quả có độ chính xác hai bên, bảng đếm từng loại và đồ thị đánh giá; bấm **Xem lại từng nước** để duyệt ván trên bàn: biểu tượng loại nước hiện ở ô vừa đi và trong biên bản, kèm lời nhận xét, điểm đánh giá và nước nên đi. Bản phân tích được lưu vào Nhật ký (nút **Xem phân tích**). Dùng **Stockfish 19** (bản lite, 1 luồng); trình duyệt cũ không chạy được thì tự lùi về `stockfish.js` cũ
 - **Sổ luyện lỗi (huấn luyện viên riêng)**: tối đa 3 nước hớ / sai lầm / bỏ lỡ nặng nhất của bạn mỗi ván được biến thành **câu đố riêng từ chính ván của bạn**, ôn theo kiểu lặp lại ngắt quãng (đúng thì gặp lại sau 1 → 3 → 7 → 21 ngày, sai thì gặp lại sau 10 phút). Ôn trong mục Câu đố; tab Câu đố hiện số thế cờ đến hạn. Nước khác nước của máy nhưng tốt ngang ngửa vẫn được tính đúng. Không có Stockfish thì dùng bộ đánh giá dự phòng của `ai.js` (yếu hơn). Dữ liệu lưu trong trình duyệt theo tài khoản (`coach.js`)
-- **Chọn ngôn ngữ Tiếng Việt / English**: nút ngôn ngữ ở thanh bên, màn đăng nhập và Hồ sơ › Cài đặt. Toàn bộ giao diện và nội dung đều có tiếng Anh: bản dịch giao diện nằm trong `i18n.js` (thêm câu mới: thêm một dòng vào `EN` hoặc `TPL`), mô tả khai cuộc / tàn cuộc / câu đố có bản tiếng Anh ngay trong `library.js`, `puzzles.js`, và nội dung 106 bài Học cờ có bản tiếng Anh trong `lessons-en.js` (sửa / thêm bài trong `lessons.js` thì thêm dòng tương ứng)
+- **Chọn ngôn ngữ Tiếng Việt / English**: nút ngôn ngữ ở thanh bên, màn đăng nhập và Hồ sơ › Cài đặt. Toàn bộ giao diện và nội dung đều có tiếng Anh: bản dịch giao diện nằm trong `i18n.js` (thêm câu mới: thêm một dòng vào `EN` hoặc `TPL`), mô tả khai cuộc / tàn cuộc / câu đố có bản tiếng Anh ngay trong `library.js`, `puzzles.js`, và nội dung 159 bài Học cờ có bản tiếng Anh trong `lessons-en.js` (sửa / thêm bài trong `lessons.js` thì thêm dòng tương ứng)
 - **Bảng đấu máy**: chọn đối thủ bằng thẻ (Tốt Con 800 · Mã Chiến 1200 · Hậu Đen 1600 · **Stockfish 19** 3200, chơi toàn lực), màu quân Trắng / Ngẫu nhiên / Đen, thời gian bằng nút bấm; chọn xong bấm **Bắt đầu ván** thì ván mới bắt đầu (cầm Đen thì máy chưa tự đi trước khi bấm), đang đánh bấm **Ván mới** để về màn chọn; khi đang đánh, phần cài đặt thu gọn thành thẻ tóm tắt
 - **Sảnh Online**: thẻ Tìm trận nhanh (kèm rank, Elo của bạn), thẻ Chơi với bạn bè, màn tìm trận dạng radar, mã phòng hiển thị lớn, chat dạng bong bóng
 - Đủ luật cờ vua: nhập thành, bắt tốt qua đường, phong cấp (chọn Hậu/Xe/Tượng/Mã)
@@ -25,7 +27,7 @@ Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần 
 - Chơi 2 người trên cùng máy, hoặc đấu với máy ở 4 mức độ (Dễ / Trung bình / Khó / Stockfish 19), có nút **Gợi ý** nước đi (Stockfish 16; dùng trong ván tính Elo thì ván không tính Elo, admin cũng vậy)
 - **Online**: bấm **Tìm trận** để tự ghép với người khác đang tìm trận, hoặc tạo phòng và gửi mã / link mời cho bạn bè; có chat, xin hòa, xin thua, chơi ván mới (đổi màu). **Đối thủ thoát / mất kết nối quá 15 giây thì bị xử thua**: hai bên gửi tín hiệu "nhịp tim" mỗi 2 giây, im lặng 5 giây thì hiện đếm ngược. Đóng tab hay tải lại trang giữa ván cũng bị tính thua (trừ ở lần mở web sau)
 - **Contest**: tab **Contest** cạnh tab Online. Chỉ **admin** tạo được contest. Người chơi **đăng ký trước giờ bắt đầu**; đến giờ web **tự ghép cặp** những người đã đăng ký, ván xong tự ghép ván tiếp. Thắng +2 điểm, hòa +1, thua 0. Kết thúc contest, hạng 1 / 2 / 3 nhận **huy chương Vàng / Bạc / Đồng** hiện trong trang Hồ sơ và bảng xếp hạng; bảng điểm contest đã kết thúc có bục trao giải
-- **Học cờ kiểu Duolingo**: 106 bài trong 12 phần, từ làm quen bàn cờ tới chiếu hết 2 nước, tàn cuộc, khai cuộc và ván đấu với máy. Có lộ trình zig-zag, 3 tim mỗi bài, sao, XP, chuỗi ngày học, mục tiêu hằng ngày và bài kiểm tra **Nhảy cóc**. Đầu lộ trình có thẻ tổng quan (phần đang học, bài tiếp theo, vòng tiến độ khoá học, mục tiêu hôm nay, Học tiếp / Luyện tập); mỗi phần có số sao và **cúp** cuối phần; thẻ **Thành tích** với 8 huy hiệu; câu hỏi trắc nghiệm không cần bàn cờ hiện thành màn hỏi đáp rộng; học xong có nút **Học bài tiếp theo** và thanh tiến độ của phần
+- **Học cờ kiểu Duolingo**: **159 bài trong 20 phần (chủ đề)**, chia 2 chặng. Chặng 1: làm quen bàn cờ tới chiếu hết 2 nước, tàn cuộc, khai cuộc và ván đấu với máy. Chặng 2: Phòng thủ & giữ quân, Chiến thuật nâng cao (chiếu đôi, đòn lôi, phá phòng thủ, quá tải), Mẫu chiếu hết nâng cao (Opera, Boden, Ả Rập, Damiano), Tấn công Vua (Fried Liver, món quà Hy Lạp), Trung cuộc & kế hoạch, Tàn cuộc Tốt, Tàn cuộc Xe (Lucena, Philidor), Tính toán & bài kiểm tra tốt nghiệp. Có lộ trình zig-zag, 3 tim mỗi bài, sao, XP, chuỗi ngày học, mục tiêu hằng ngày và bài kiểm tra **Nhảy cóc**. Đầu lộ trình có thẻ tổng quan (phần đang học, bài tiếp theo, vòng tiến độ khoá học, mục tiêu hôm nay, Học tiếp / Luyện tập); mỗi phần có số sao và **cúp** cuối phần; thẻ **Thành tích** với 8 huy hiệu; câu hỏi trắc nghiệm không cần bàn cờ hiện thành màn hỏi đáp rộng; học xong có nút **Học bài tiếp theo** và thanh tiến độ của phần
 - Giao diện mới: quân cờ SVG, **kéo thả** hoặc bấm để đi, hiệu ứng trượt quân, âm thanh, chuột phải để đánh dấu ô, 12 kiểu bàn cờ (3 bàn gradient có viền **toả sáng** và vệt sáng lướt qua)
 - **Skin quân cờ**: 5 bộ quân riêng (Hoàng gia, Pha lê, Gỗ khắc, Ngọc, Cyber phát sáng), mỗi bộ có màu riêng cho quân Trắng và quân Đen, cùng 6 kiểu lọc màu cho bộ gốc. Đổi trong Hồ sơ › Cài đặt. Các bộ quân được tạo từ bộ cburnett bằng `node tools/make-skins.js` (thêm skin: sửa danh sách `SKINS` trong file đó)
 - Gợi ý các nước đi hợp lệ, tô sáng nước vừa đi và vua đang bị chiếu
@@ -44,7 +46,7 @@ Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần 
 - **Đồng hồ Online**: chọn thời gian mỗi bên ở sảnh Online (∞ · 3+2 · 5 · 10 · 15+10, mặc định 10 phút). Tìm trận chỉ ghép người chọn cùng thời gian; phòng bạn bè dùng thời gian của chủ phòng; ván Contest 10 phút. Người đi gửi kèm giờ còn lại theo mỗi nước, máy bên kia chỉ chấp nhận chênh tối đa 2 giây (bù độ trễ mạng). Hết giờ thì máy người hết giờ tự báo thua; máy đó im lặng thì sau 2 giây máy đối thủ tự xử thắng. Bên còn giờ chỉ còn Vua thì hòa
 - **Tên khai cuộc** hiện ngay dưới ô trạng thái khi đang chơi (bộ khai cuộc trong `openings.js`, thêm dòng mới vào cuối là được)
 - **Câu đố**: 23 câu (chiếu hết 1–2 nước, chĩa đôi, ghim, xiên, chiếu mở, phong cấp), đều đã kiểm chứng bằng bộ giải. Câu nhiều nước thì máy tự đáp trả bằng nước chống cự dai nhất; mọi nước chiếu hết đúng đều được chấp nhận. Có **câu đố hôm nay** kèm chuỗi ngày, đánh dấu câu đã giải, lọc theo độ khó
-- **Thư viện khai cuộc**: 76 khai cuộc chia 6 nhóm (Gambit, Ván mở, Nửa mở, Ván đóng, Ấn Độ & 1.d4, Khai cuộc cánh), có cả Gambit Alien, Jerome, Halloween, Vienna, Tấn công Marshall và Bongcloud, và 13 thế tàn cuộc kinh điển. Có ô tìm kiếm (gõ không dấu cũng được), xem lại từng nước trên bàn minh hoạ, **Tập với máy** (máy đi lại đúng chuỗi nước, bạn cầm bên chọn khai cuộc đó) hoặc đặt lên bàn 2 người. Ván tập từ Thư viện không tính Elo, nhưng vẫn hiện kết quả, lưu vào Nhật ký và được Sổ luyện lỗi chấm. Khai cuộc chỉ lưu chuỗi nước trong `library.js`, thế cờ được tính tự động nên luôn khớp
+- **Thư viện khai cuộc**: **100 khai cuộc** chia 6 nhóm (Gambit, Ván mở, Nửa mở, Ván đóng, Ấn Độ & 1.d4, Khai cuộc cánh), có cả Gambit Alien, Jerome, Halloween, Vienna, Tấn công Marshall và Bongcloud, và 13 thế tàn cuộc kinh điển. Có ô tìm kiếm (gõ không dấu cũng được), xem lại từng nước trên bàn minh hoạ, **Tập với máy** (máy đi lại đúng chuỗi nước, bạn cầm bên chọn khai cuộc đó) hoặc đặt lên bàn 2 người. Ván tập từ Thư viện không tính Elo, nhưng vẫn hiện kết quả, lưu vào Nhật ký và được Sổ luyện lỗi chấm. Khai cuộc chỉ lưu chuỗi nước trong `library.js`, thế cờ được tính tự động nên luôn khớp
 - **Tuỳ chọn** trong trang Hồ sơ: bật / tắt toạ độ, chấm nước đi hợp lệ, hiệu ứng trượt quân, tự phong Hậu, và **thông báo trình duyệt** khi contest đã đăng ký sắp bắt đầu (5 phút trước và lúc bắt đầu; cần mở web trong một tab)
 - Bấm **?** để xem bảng phím tắt; pháo giấy khi thắng, giành huy chương hoặc giải câu đố không sai lần nào
 - Cài web như ứng dụng trên điện thoại / máy tính (`manifest.webmanifest`)
@@ -64,7 +66,7 @@ Chế độ Online cần mạng Internet. Hai trình duyệt kết nối trực 
 | `style.css` | Giao diện |
 | `chess.js` | Engine luật cờ: sinh nước đi, kiểm tra chiếu, kết thúc ván |
 | `ai.js` | AI: tìm kiếm negamax, cắt tỉa alpha-beta, đánh giá thế cờ |
-| `lessons.js` | Nội dung 106 bài học và bộ giải nhỏ (gợi ý, kiểm tra bài) |
+| `lessons.js` | Nội dung 159 bài học (20 phần, mỗi phần có `key` chủ đề) và bộ giải nhỏ (gợi ý, kiểm tra bài) |
 | `learn.js` | Chế độ học cờ kiểu Duolingo |
 | `tools/check-lessons.js` | Kiểm tra mọi bài học giải được: `node tools/check-lessons.js` |
 | `tools/email-notify.gs` | Google Apps Script: thông báo qua Gmail, Gmail khôi phục, quên mật khẩu (xem mục Cài Apps Script) |
@@ -80,6 +82,11 @@ Chế độ Online cần mạng Internet. Hai trình duyệt kết nối trực 
 | `openings.js` | Bộ khai cuộc để nhận diện tên khai cuộc trong ván |
 | `puzzles.js` | Câu đố chiến thuật, câu đố hôm nay, tiến độ giải |
 | `app.js` | Vẽ bàn cờ, xử lý thao tác, chuyển chế độ, trang Hồ sơ |
+| `assistant.js` | Trợ lý AI: chẩn đoán điểm yếu từ các ván đã chấm, lộ trình học, hỏi đáp |
+| `pwa.js` | Ứng dụng (PWA): đăng ký service worker, nút cài đặt, thanh cập nhật, thanh điều hướng dưới đáy trên điện thoại, giữ màn hình sáng |
+| `sw.js` | Service worker: lưu file để mở nhanh và chơi khi mất mạng |
+| `manifest.webmanifest` | Thông tin ứng dụng: tên, biểu tượng, lối tắt |
+| `firebase.json`, `.firebaserc` | Cấu hình đăng web lên Firebase Hosting |
 | `coach.js` | Phân tích ván kiểu chess.com (xếp loại từng nước, độ chính xác hai bên) và Sổ luyện lỗi: thẻ ôn tập lặp lại ngắt quãng |
 | `i18n.js` | Đa ngôn ngữ (Tiếng Việt / English) |
 | `engine.js` | Hai engine, mỗi engine một Web Worker (lùi về `stockfish.js` cũ nếu không tải được): Stockfish 19 cho máy đi, đánh giá thế cờ, bảng phân tích; Stockfish 16 cho nút Gợi ý thường. Các lệnh chạy lần lượt theo mức ưu tiên: máy đi / Gợi ý chen trước bảng phân tích, bảng phân tích chen trước phân tích ván chạy nền |
@@ -181,6 +188,13 @@ Cài một lần trong Firebase Console:
 3. Dán lại toàn bộ `firebase-rules.json` (có thêm `usernames`, `notify`, `history`) rồi bấm **Publish**.
 4. `config.js` đã có `authDomain` (`<project-id>.firebaseapp.com`); đổi project thì sửa cho khớp.
 
+### Đăng nhập Google trên điện thoại
+
+Bản này đã sửa lỗi đăng nhập Google trên điện thoại:
+- **Cửa sổ Google bị chặn**: trước đây web chỉ tải thư viện Firebase *sau khi* bấm nút, nên Safari / Chrome điện thoại coi cửa sổ Google là quảng cáo và chặn. Giờ thư viện được **tải sẵn** khi màn đăng nhập hiện ra và cửa sổ mở ngay trong lần bấm. Nếu trình duyệt vẫn chặn, web tự chuyển sang **đăng nhập bằng chuyển trang** (redirect) khi có thể.
+- **Mở link trong Zalo, Facebook, Messenger, Instagram, TikTok…**: Google cấm đăng nhập trong trình duyệt nhúng của các app này (lỗi `403 disallowed_useragent`). Web tự nhận ra và hiện hướng dẫn **Mở bằng Chrome / Safari** (Android có nút mở thẳng Chrome) và nút **Sao chép link**.
+- **Ứng dụng đã cài trên iPhone** và các trình duyệt chặn cookie bên thứ ba: để chắc chắn nhất, **đăng web lên Firebase Hosting** (mục bên dưới). Khi web chạy trên `<project-id>.web.app` hoặc `<project-id>.firebaseapp.com`, web tự dùng chính tên miền đó cho trang đăng nhập Google nên cả popup lẫn redirect đều chạy ổn trên mọi trình duyệt điện thoại.
+
 ## Thông báo qua Gmail
 
 Người chơi bật **Gửi thông báo về Gmail** trong Hồ sơ › Cài đặt để nhận thư khi: admin đăng **thông báo toàn web** có tick "Gửi cả về Gmail", **có contest mới**, và **contest đã đăng ký sắp bắt đầu** (≤ 15 phút). Tài khoản Google dùng luôn Gmail đăng nhập; tài khoản tên + mật khẩu cần thêm **Gmail khôi phục** trước (xem mục dưới). Web là trang tĩnh nên không tự gửi email; việc gửi do một **Google Apps Script** chạy bằng Gmail của chủ web đảm nhận (miễn phí, khoảng 100 thư / ngày). Luật Firebase chỉ cho mỗi người đăng ký đúng Gmail đã xác minh của chính mình, nên không ai dùng được để gửi thư cho người khác. Thư được gửi trong vòng 5 phút sau khi đăng.
@@ -213,6 +227,24 @@ Sau này sửa code Apps Script: **Deploy › Manage deployments** › bút chì
 ## Chế độ khách
 
 Nút **Chơi với tư cách khách**: vào chơi không cần tài khoản (đấu máy, 2 người cùng máy, câu đố, học cờ, thư viện, nhật ký và phân tích trên máy này). Khách **không có rank / Elo** (đấu máy không tính Elo), **không chơi Online**, **không tham gia contest** (vẫn xem được bảng xếp hạng và danh sách contest). Bấm vào các tính năng đó, hoặc nút trên Trang chủ, để chuyển sang đăng nhập / đăng ký. Tiến độ của khách lưu trên máy này.
+
+## Ứng dụng (PWA)
+
+Royal Gambit là một Progressive Web App: cùng một mã nguồn chạy được trên web, điện thoại và máy tính, không cần lên kho ứng dụng.
+- **Cài đặt**: Android / Chrome / Edge bấm nút **Cài ứng dụng** (thanh bên, Trang chủ hoặc mục **Khác** trên điện thoại). iPhone / iPad: Safari › **Chia sẻ** › **Thêm vào MH chính** (web hiện hướng dẫn khi bấm nút).
+- **Bắt buộc HTTPS** (GitHub Pages, Firebase Hosting đều có sẵn); `localhost` cũng chạy được để thử.
+- `sw.js` (service worker) lưu sẵn các file của web để mở nhanh và dùng được khi mất mạng; Stockfish được lưu ở lần dùng đầu. Các file trong `index.html` có `?v=N`: **tăng số này khi sửa file** để máy người chơi nhận bản mới (thanh "Có phiên bản mới" sẽ hiện). Thêm file mới cần có lúc offline thì thêm vào danh sách `CORE` trong `sw.js` và đổi `VERSION`.
+- `manifest.webmanifest`: tên, màu, biểu tượng (`img/icon-192.png`, `img/icon-512.png`, `img/icon-maskable-512.png`) và lối tắt.
+- Muốn đưa lên **Google Play / Microsoft Store**: dùng <https://www.pwabuilder.com>, dán địa chỉ web, tải gói Android (TWA) / Windows rồi nộp lên cửa hàng. Gói này chỉ là "vỏ" mở web của bạn nên mọi cập nhật trên web có hiệu lực ngay, không phải nộp lại.
+
+## Đăng lên Firebase Hosting (khuyên dùng)
+
+Cùng project với Firebase Auth / Realtime Database nên đăng nhập Google chạy tốt nhất trên điện thoại.
+1. Cài Node.js, rồi chạy `npm install -g firebase-tools` và `firebase login`.
+2. Trong thư mục web: `firebase deploy --only hosting` (`firebase.json` và `.firebaserc` đã có sẵn; đổi project thì sửa `.firebaserc`).
+3. Web có địa chỉ `https://<project-id>.web.app`. Tên miền này đã nằm sẵn trong Authorized domains.
+
+Muốn đăng luôn luật cơ sở dữ liệu từ máy: `firebase deploy --only database` (dùng `firebase-rules.json`).
 
 ## Đăng lên GitHub Pages
 

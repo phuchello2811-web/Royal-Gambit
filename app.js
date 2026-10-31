@@ -2491,6 +2491,8 @@ function renderHome() {
   renderHomeTodo(pz, learn, hist);
   renderHomeRecent(hist);
   renderHomeOpening();
+  if (typeof Assistant !== 'undefined') Assistant.homeCard($('hmCoach'));
+  if (typeof PWA !== 'undefined') PWA.render();
   loadHomeContests();
   loadHomeTop();
 }
@@ -2698,6 +2700,7 @@ const HOME_GO = {
   library: () => Library.open(),
   contest: () => openContests(),
   leaderboard: () => openLeaderboard(),
+  ai: () => Assistant.open(),
 };
 $('homePage').addEventListener('click', e => {
   const b = e.target.closest('[data-go]');
@@ -3246,6 +3249,8 @@ Library.bind();
 if ($('puzzleTab')) $('puzzleTab').addEventListener('click', () => Puzzles.open());
 if ($('histTab')) $('histTab').addEventListener('click', () => GameHistory.open());
 if (typeof GameHistory !== 'undefined') GameHistory.bind();
+if (typeof Assistant !== 'undefined') Assistant.bind();
+if (typeof PWA !== 'undefined') PWA.bind();
 
 $('contestTab').addEventListener('click', openContests);
 $('lbRefresh').addEventListener('click', () => { lbData[lbBy] = null; loadLeaderboard(); });
@@ -3367,7 +3372,10 @@ const AUTH_ERRORS = {
   TOO_MANY: 'Thử quá nhiều lần, hãy đợi một lúc rồi thử lại',
   NETWORK: 'Không kết nối được máy chủ. Kiểm tra mạng Internet.',
   NOT_ALLOWED: 'Máy chủ chưa bật cách đăng nhập này (Firebase Console › Authentication › Sign-in method, xem README).',
-  POPUP: 'Trình duyệt đã chặn cửa sổ đăng nhập Google. Hãy cho phép cửa sổ bật lên rồi thử lại.',
+  POPUP: 'Trình duyệt đã chặn cửa sổ đăng nhập Google. Bấm lại nút "Đăng nhập bằng Google" (hoặc cho phép cửa sổ bật lên trong cài đặt trình duyệt).',
+  IN_APP: 'Google không cho đăng nhập trong trình duyệt của Zalo / Facebook / Messenger… Hãy mở web bằng Chrome hoặc Safari (hướng dẫn bên dưới).',
+  STORAGE: 'Trình duyệt đang chặn bộ nhớ web (chế độ ẩn danh hoặc chặn cookie). Tắt chế độ đó rồi thử lại.',
+  REDIRECT_LOST: 'Trình duyệt không giữ được kết quả đăng nhập Google. Hãy thử lại; nếu vẫn lỗi, chủ web nên đăng web lên Firebase Hosting (xem README).',
   DOMAIN: 'Tên miền của web chưa được thêm vào Firebase (Authentication › Settings › Authorized domains).',
   SESSION: 'Phiên đăng nhập đã hết, hãy đăng nhập lại.',
   NO_REMOTE: 'Đăng nhập bằng Google cần cấu hình Firebase (xem README).',
@@ -3475,6 +3483,18 @@ function enterApp() {
   updateCoachBadge();
   applyPendingForfeit();
   if (typeof GameHistory !== 'undefined' && GameHistory.sync) GameHistory.sync(); // nhật ký chơi trên máy khác
+  openShortcut();
+}
+
+// Lối tắt của ứng dụng đã cài (nhấn giữ biểu tượng trên màn hình chính): ?go=play | learn | puzzle | ai
+function openShortcut() {
+  const params = new URLSearchParams(location.search);
+  const go = params.get('go');
+  if (!go || room) return;
+  params.delete('go');
+  const q = params.toString();
+  history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  if (HOME_GO[go] && !needsPlacement()) setTimeout(() => HOME_GO[go](), 0);
 }
 
 // Nhật ký vừa đồng bộ với tài khoản (có ván chơi trên máy khác): vẽ lại Trang chủ / Hồ sơ đang mở
@@ -3801,18 +3821,48 @@ function showNameStep(on, suggest = '') {
     $('authGName').focus();
   }
 }
-$('authGoogle').addEventListener('click', async () => {
+// Trình duyệt trong Zalo / Facebook / Messenger…: Google không cho đăng nhập, hướng dẫn mở bằng Chrome / Safari
+function renderInAppHint() {
+  const box = $('authInApp');
+  box.hidden = !(Profile.remote && Profile.inAppBrowser());
+  if (box.hidden) return;
+  const android = /Android/i.test(navigator.userAgent);
+  $('authInAppText').innerHTML = `Bạn đang mở web trong trình duyệt của <b>${escapeHtml(Profile.inAppName())}</b>, Google không cho đăng nhập ở đây.
+    Bấm <b>⋮</b> hoặc <b>•••</b> ở góc màn hình › <b>Mở bằng trình duyệt</b> (${android ? 'Chrome' : 'Safari'}), hoặc sao chép link rồi dán vào ${android ? 'Chrome' : 'Safari'}.`;
+  $('authInAppOpen').hidden = !android;
+}
+$('authInAppOpen').addEventListener('click', () => {
+  // Android: mở thẳng Chrome bằng intent
+  const u = new URL(location.href);
+  location.href = `intent://${u.host}${u.pathname}${u.search}${u.hash}#Intent;scheme=${u.protocol.replace(':', '')};package=com.android.chrome;end`;
+});
+$('authInAppCopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(location.href); toast('Đã sao chép link, hãy dán vào Chrome / Safari'); }
+  catch { prompt('Sao chép link này rồi mở bằng Chrome / Safari:', location.href); }
+});
+renderInAppHint();
+// Tải sẵn SDK Google để lúc bấm nút mở được cửa sổ đăng nhập ngay (điện thoại chặn cửa sổ mở trễ)
+if (Profile.remote && !Profile.inAppBrowser()) {
+  const pre = () => Profile.preloadGoogle().catch(() => {});
+  if ('requestIdleCallback' in window) requestIdleCallback(pre, { timeout: 2500 }); else setTimeout(pre, 800);
+}
+
+function googleResult(r) {
+  if (r.needName) showNameStep(true, r.suggest); // lần đầu: chọn tên hiển thị
+  else enterApp();
+}
+$('authGoogle').addEventListener('click', () => {
   const msg = $('authMsg');
   msg.textContent = '';
-  $('authGoogle').disabled = true;
-  try {
-    const r = await Profile.loginGoogle();
-    if (r.needName) showNameStep(true, r.suggest); // lần đầu: chọn tên hiển thị
-    else enterApp();
-  } catch (err) {
+  msg.classList.remove('ok');
+  const btn = $('authGoogle');
+  btn.disabled = true;
+  btn.classList.add('busy');
+  // Không await gì trước loginGoogle(): cửa sổ Google phải mở ngay trong lần bấm
+  Profile.loginGoogle().then(googleResult, err => {
+    if (err.message === 'IN_APP') renderInAppHint();
     if (err.message !== 'CANCELLED') msg.textContent = AUTH_ERRORS[err.message] || 'Có lỗi xảy ra, thử lại sau.';
-  }
-  $('authGoogle').disabled = false;
+  }).finally(() => { btn.disabled = false; btn.classList.remove('busy'); });
 });
 $('authNameForm').addEventListener('submit', async e => {
   e.preventDefault();
@@ -3868,10 +3918,18 @@ $('mailNotifyToggle').addEventListener('change', async e => {
   e.target.disabled = !Profile.canEmail();
 });
 
-Profile.restore().then(ok => {
+// Vừa quay lại từ trang đăng nhập Google (redirect) thì hoàn tất đăng nhập trước, không thì khôi phục phiên cũ
+(async () => {
+  try {
+    const g = await Profile.resumeGoogle();
+    if (g) { googleResult(g); return; }
+  } catch (err) {
+    if (err.message !== 'CANCELLED') $('authMsg').textContent = AUTH_ERRORS[err.message] || 'Đăng nhập Google không thành công, thử lại sau.';
+  }
+  const ok = await Profile.restore();
   if (ok) enterApp();
-  else $('authUser').focus();
-});
+  else if (!matchMedia('(pointer: coarse)').matches) $('authUser').focus(); // điện thoại: không bật bàn phím che màn đăng nhập
+})();
 
 // ---------------- Bảng xếp hạng ----------------
 

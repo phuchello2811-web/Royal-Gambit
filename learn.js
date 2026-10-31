@@ -858,6 +858,25 @@ const Learn = (() => {
     deco: () => (view === 'lesson' && st ? st : EMPTY_DECO),
     stars: () => (view === 'lesson' && st ? st.stars : new Set()),
     count: FLAT.length,
+    // Tiến độ từng phần (Trợ lý AI dùng để chọn lộ trình)
+    units() {
+      if (view !== 'lesson') store = load();
+      return COURSE.map((unit, u) => {
+        const items = FLAT.filter(x => x.u === u);
+        return { u, key: unit.key || '', title: unit.title, desc: unit.desc, color: unit.color, total: items.length,
+          done: items.filter(x => isDone(x.idx)).length, unlocked: unlocked(unitStart[u]) };
+      });
+    },
+    // Mở thẳng bài tiếp theo của phần u (gọi sau khi đã vào chế độ Học cờ). Phần còn khoá / đã xong: cuộn tới phần đó.
+    // Trả về 'started' | 'locked' | 'done'.
+    focusUnit(u) {
+      if (view === 'lesson' || !COURSE[u]) return 'done';
+      const items = FLAT.filter(x => x.u === u);
+      const next = items.find(x => !isDone(x.idx) && unlocked(x.idx));
+      if (next) { start(next); return 'started'; }
+      setTimeout(() => { const el = $('unit-' + u); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+      return unlocked(unitStart[u]) ? 'done' : 'locked';
+    },
     // Tóm tắt tiến độ của tài khoản đang đăng nhập (trang Hồ sơ)
     summary() {
       if (view !== 'lesson') store = load();

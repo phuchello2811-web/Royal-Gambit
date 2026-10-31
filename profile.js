@@ -567,7 +567,23 @@ const Profile = (() => {
     ['https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js', 'sha384-TnlRYaR4JYz/lpaGuaiU61PjNberSA4vjLjtF+oRC/IkohkJqnWxw5EmDSOt1vA1'],
   ];
   let pendingGoogle = null; // đã đăng nhập Google nhưng chưa có hồ sơ: { suggest }
-  const authDomain = () => cfg.authDomain || ((/^https?:\/\/([^.]+?)(?:-default-rtdb)?\./.exec(cfg.databaseURL || '') || [])[1] || '') + '.firebaseapp.com';
+  // Web đặt trên Firebase Hosting (*.web.app / *.firebaseapp.com) thì dùng chính tên miền đó làm authDomain:
+  // trang đăng nhập cùng tên miền với web nên cả popup lẫn redirect đều chạy trên Safari / Chrome điện thoại
+  // (trình duyệt mới chặn bộ nhớ bên thứ ba, redirect sang tên miền khác sẽ mất kết quả).
+  const hostedOnFirebase = () => /\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
+  const authDomain = () => (hostedOnFirebase() ? location.host : '') || cfg.authDomain
+    || ((/^https?:\/\/([^.]+?)(?:-default-rtdb)?\./.exec(cfg.databaseURL || '') || [])[1] || '') + '.firebaseapp.com';
+  const REDIRECT_KEY = 'rg-google-redirect';
+  const UA = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+  // Trình duyệt nhúng trong app (Zalo, Facebook, Messenger, Instagram, TikTok…): Google chặn đăng nhập (lỗi 403 disallowed_useragent)
+  const IN_APP_RE = /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Zalo|Line\/|musical_ly|Bytedance|TikTok|MicroMessenger|Snapchat|Twitter|KAKAOTALK|; wv\)/i;
+  const inAppBrowser = () => IN_APP_RE.test(UA);
+  const inAppName = () => (/Zalo/i.test(UA) ? 'Zalo' : /Messenger|FB_IAB|FBAN|FBAV|FBIOS/i.test(UA) ? 'Facebook / Messenger' : /Instagram/i.test(UA) ? 'Instagram'
+    : /musical_ly|Bytedance|TikTok/i.test(UA) ? 'TikTok' : /Line\//i.test(UA) ? 'LINE' : /MicroMessenger/i.test(UA) ? 'WeChat' : 'ứng dụng này');
+  const isIOS = () => /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1);
+  const standalone = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch { return false; } };
+  // Redirect chỉ đáng tin khi trang đăng nhập cùng tên miền với web
+  const redirectSafe = () => authDomain() === location.host;
   function loadScript(src, integrity) {
     return new Promise((resolve, reject) => {
       const el = document.createElement('script');
@@ -580,25 +596,80 @@ const Profile = (() => {
     if (window.firebase && window.firebase.auth) return;
     for (const [src, sri] of SDK) await loadScript(src, sri);
   }
+  const sdkReady = () => !!(window.firebase && window.firebase.auth && window.firebase.apps && window.firebase.apps.length);
+  // Tải sẵn SDK khi màn đăng nhập hiện ra. Điện thoại chỉ cho mở cửa sổ đăng nhập NGAY trong lúc bấm nút:
+  // nếu phải đợi tải SDK sau khi bấm thì Safari / Chrome coi là cửa sổ quảng cáo và chặn (lỗi cũ trên điện thoại).
+  let sdkLoading = null;
+  function preloadGoogle() {
+    if (!remote) return Promise.resolve(false);
+    if (!sdkLoading) {
+      sdkLoading = loadSdk().then(() => {
+        if (!firebase.apps.length) firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: authDomain() });
+        return true;
+      }).catch(e => { sdkLoading = null; throw e; });
+    }
+    return sdkLoading;
+  }
   const GOOGLE_ERR = {
     'auth/popup-closed-by-user': 'CANCELLED', 'auth/cancelled-popup-request': 'CANCELLED', 'auth/user-cancelled': 'CANCELLED',
     'auth/popup-blocked': 'POPUP', 'auth/unauthorized-domain': 'DOMAIN', 'auth/operation-not-allowed': 'NOT_ALLOWED',
     'auth/network-request-failed': 'NETWORK', 'auth/too-many-requests': 'TOO_MANY', 'auth/user-disabled': 'BAD_LOGIN',
+    'auth/web-storage-unsupported': 'STORAGE', 'auth/operation-not-supported-in-this-environment': 'IN_APP',
+    'auth/internal-error': 'SERVER', 'auth/missing-or-invalid-nonce': 'SERVER',
   };
-  // Trả về { needName: true, suggest } nếu là lần đầu (cần chọn tên), hoặc { needName: false } nếu đã vào được
+  // Popup không mở được thì chuyển sang redirect (cả trang đi tới Google rồi quay lại)
+  const POPUP_FAIL = new Set(['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported']);
+  function newProvider() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    return provider;
+  }
+  async function startRedirect(provider) {
+    write(REDIRECT_KEY, Date.now());
+    try { await firebase.auth().signInWithRedirect(provider); }
+    catch (e) { drop(REDIRECT_KEY); throw new Error(GOOGLE_ERR[e && e.code] || 'SERVER'); }
+    return new Promise(() => {}); // trang đang chuyển sang Google
+  }
+  // Trả về { needName: true, suggest } nếu là lần đầu (cần chọn tên), hoặc { needName: false } nếu đã vào được.
+  // Gọi ngay trong sự kiện bấm nút (không await gì trước đó) để trình duyệt điện thoại không chặn cửa sổ.
   async function loginGoogle() {
     if (!remote) throw new Error('NO_REMOTE');
-    await loadSdk();
-    if (!firebase.apps.length) firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: authDomain() });
+    if (inAppBrowser()) throw new Error('IN_APP');
+    // SDK chưa kịp tải (mạng chậm): tải xong, nếu không còn được mở popup thì dùng redirect
+    const late = !sdkReady();
+    if (late) await preloadGoogle().catch(() => { throw new Error('NETWORK'); });
+    const provider = newProvider();
+    // App cài trên màn hình chính iPhone: popup hay bị treo, redirect cùng tên miền thì chạy ổn
+    if (redirectSafe() && isIOS() && standalone()) return startRedirect(provider);
     let res;
     try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
       res = await firebase.auth().signInWithPopup(provider);
     } catch (e) {
-      throw new Error(GOOGLE_ERR[e && e.code] || 'SERVER');
+      const code = e && e.code;
+      if (POPUP_FAIL.has(code) && (redirectSafe() || late)) return startRedirect(provider);
+      throw new Error(GOOGLE_ERR[code] || 'SERVER');
     }
-    const u = res.user;
+    return finishGoogle(res.user);
+  }
+  // Mở web lại sau khi đăng nhập bằng redirect: lấy kết quả. Không có redirect đang chờ thì trả về null.
+  async function resumeGoogle() {
+    const at = read(REDIRECT_KEY, 0);
+    if (!remote || !at) return null;
+    drop(REDIRECT_KEY);
+    if (Date.now() - at > 15 * 60000) return null;
+    await preloadGoogle().catch(() => { throw new Error('NETWORK'); });
+    let res;
+    try { res = await firebase.auth().getRedirectResult(); }
+    catch (e) { throw new Error(GOOGLE_ERR[e && e.code] || 'SERVER'); }
+    if (!res || !res.user) {
+      // Trình duyệt chặn bộ nhớ bên thứ ba nên mất kết quả redirect: thử phiên SDK còn giữ
+      const cur = firebase.auth().currentUser;
+      if (!cur) throw new Error('REDIRECT_LOST');
+      return finishGoogle(cur);
+    }
+    return finishGoogle(res.user);
+  }
+  async function finishGoogle(u) {
     pendingGoogle = { suggest: suggestName(u) };
     auth = null;
     setAuth({ localId: u.uid, idToken: await u.getIdToken(), refreshToken: u.refreshToken, expiresIn: 3500 }, '');
@@ -1031,7 +1102,7 @@ const Profile = (() => {
     uid, dbCall,
     remote,
     signedIn: () => signedIn,
-    isGuest, enterGuest, loginGoogle, chooseName, cancelGoogle, canEmail, getEmailNotify, setEmailNotify, notifyEmail,
+    isGuest, enterGuest, loginGoogle, resumeGoogle, preloadGoogle, inAppBrowser, inAppName, chooseName, cancelGoogle, canEmail, getEmailNotify, setEmailNotify, notifyEmail,
     canRecover, loadRecovery, recoveryEmail: () => recovery, recoveryStart, recoveryConfirm, recoveryRemove, resetStart, resetConfirm,
     email: () => notifyEmail(), provider: () => (auth && auth.provider) || (signedIn && !isGuest() ? 'password' : ''),
     register, login, restore, logout, changePassword,

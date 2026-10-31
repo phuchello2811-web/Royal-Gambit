@@ -523,5 +523,17 @@ const Puzzles = (() => {
     };
   }
 
-  return { open, bind() {}, onMove, isActive, showBanner, startReview, summary, playDaily: () => start(daily()), list: PUZZLES };
+  // Giải một câu theo chủ đề (Trợ lý AI): ưu tiên câu chưa giải, hết thì lấy ngẫu nhiên. Trả về false nếu không có câu nào.
+  function startTheme(themes) {
+    const s = load();
+    const pool = PUZZLES.filter(p => themes.includes(p.theme));
+    if (!pool.length) return false;
+    const fresh = pool.filter(p => !s.solved[p.id]);
+    const list = fresh.length ? fresh : pool;
+    start(list[Math.floor(Math.random() * list.length)]);
+    return true;
+  }
+  const themes = () => [...new Set(PUZZLES.map(p => p.theme))];
+
+  return { open, bind() {}, onMove, isActive, showBanner, startReview, startTheme, themes, summary, playDaily: () => start(daily()), list: PUZZLES };
 })();
