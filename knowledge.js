@@ -4,18 +4,22 @@
 //   • Tự gộp thêm 100 khai cuộc + thế tàn cuộc trong Thư viện (library.js) và 20 phần Học cờ (lessons.js),
 //     nên thêm khai cuộc / bài học mới là thư viện kiến thức cũng có ngay.
 // Tìm kiếm chạy trên máy: bỏ dấu tiếng Việt, chấm điểm theo từ khoá (tiêu đề > thẻ > nội dung), có cả từ tiếng Anh trong thẻ.
+// Ván cờ nổi tiếng (G): kèm nước đi đầy đủ, xem lại từng nước ngay trong Thư viện kiến thức.
 // `see`: gợi ý mở trong web: { kind: 'unit', key } phần Học cờ · { kind: 'puzzle', group: tactics|mates|end } · { kind: 'lib', id }.
 // Thêm bài: thêm một dòng A(...) vào đúng nhóm.
 
 const Knowledge = (() => {
   const TOPICS = [
     ['opening', 'Khai cuộc'], ['tactics', 'Chiến thuật'], ['mates', 'Mẫu chiếu hết'], ['strategy', 'Chiến lược'],
-    ['endgame', 'Tàn cuộc'], ['rules', 'Luật cờ'], ['training', 'Luyện tập'], ['general', 'Kiến thức chung'], ['lesson', 'Bài học trong web'],
+    ['endgame', 'Tàn cuộc'], ['games', 'Ván cờ nổi tiếng'], ['general', 'Lịch sử & kiến thức chung'], ['rules', 'Luật cờ'], ['training', 'Luyện tập'],
+    ['lesson', 'Bài học trong web'],
   ];
   const A = (id, topic, title, tags, body, see = []) => ({ id, topic, title, tags, body, see });
   const U = key => ({ kind: 'unit', key });
   const PZ = group => ({ kind: 'puzzle', group });
   const LIB = id => ({ kind: 'lib', id });
+  // Ván cờ nổi tiếng: kèm toàn bộ nước đi (pgn) để xem lại từng nước; nước đi đã được kiểm tra hợp lệ bằng chess.js
+  const G = (id, title, tags, body, pgn, info) => ({ ...A(id, 'games', title, tags, body, []), pgn, ...info });
 
   const ARTICLES = [
     // ----- Khai cuộc -----
@@ -405,6 +409,65 @@ const Knowledge = (() => {
     A('tr-blunders', 'training', 'Cách bớt đi nước hớ', 'stop blundering blunder check safety check bot di nuoc ho',
       'Phần lớn nước hớ đến từ: quên quân đối phương vừa đi doạ gì, quên quân của mình đang bảo vệ ô nào, và đi vội khi đang thắng. Trước mỗi nước, kiểm tra nhanh: sau nước này, đối thủ có nước chiếu, ăn quân hay đe doạ nào nguy hiểm không? Quân nào của mình đang không được bảo vệ? Ngồi trên tay, viết nước ra hoặc đếm đến ba trước khi đi cũng giúp.',
       [U('defense'), PZ('tactics')]),
+    // ----- Ván cờ nổi tiếng (có nước đi đầy đủ: xem lại từng nước trong Thư viện kiến thức) -----
+    G('game-opera', 'Ván cờ trong nhà hát (Morphy, 1858)', 'opera game morphy duke brunswick isouard 1858 paris van co trong nha hat',
+      'Paul Morphy cầm Trắng đấu Công tước Brunswick và Bá tước Isouard (hai người hội ý) trong lúc xem nhạc kịch ở Paris, 1858. Ván mẫu mực về phát triển quân nhanh và mở cột tấn công Vua còn ở giữa: Morphy liên tục ra quân với nhịp, thí Mã, thí Xe rồi thí Hậu ở nước 16 để chiếu hết bằng Xe được Tượng bảo vệ (mẫu "chiếu hết kiểu nhà hát"). Bài học: đừng phí nước đi Tượng đổi Mã sớm như Đen, và khi đối thủ chậm ra quân, hãy mở cột ngay.',
+      '1. e4 e5 2. Nf3 d6 3. d4 Bg4 4. dxe5 Bxf3 5. Qxf3 dxe5 6. Bc4 Nf6 7. Qb3 Qe7 8. Nc3 c6 9. Bg5 b5 10. Nxb5 cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rxd7 Rxd7 14. Rd1 Qe6 15. Bxd7+ Nxd7 16. Qb8+ Nxb8 17. Rd8#',
+      { white: 'Paul Morphy', black: 'Công tước Brunswick & Bá tước Isouard', year: 1858, result: '1-0' }),
+    G('game-immortal', 'Ván cờ bất tử (Anderssen – Kieseritzky, 1851)', 'immortal game anderssen kieseritzky 1851 london van co bat tu kings gambit',
+      'Adolf Anderssen thắng Lionel Kieseritzky trong một ván giao hữu ở London năm 1851, mở đầu bằng Gambit Vua. Anderssen thí lần lượt một Tượng, hai Xe rồi cả Hậu, để rồi chiếu hết bằng ba quân nhẹ còn lại (22.Qf6+! Nxf6 23.Be7#). Đây là biểu tượng của lối chơi lãng mạn thế kỷ 19: phát triển và tấn công quan trọng hơn quân số. Ngày nay máy cho thấy cả hai bên đều có những nước chưa chính xác, nhưng vẻ đẹp của đòn kết thúc vẫn được nhắc mãi.',
+      '1. e4 e5 2. f4 exf4 3. Bc4 Qh4+ 4. Kf1 b5 5. Bxb5 Nf6 6. Nf3 Qh6 7. d3 Nh5 8. Nh4 Qg5 9. Nf5 c6 10. g4 Nf6 11. Rg1 cxb5 12. h4 Qg6 13. h5 Qg5 14. Qf3 Ng8 15. Bxf4 Qf6 16. Nc3 Bc5 17. Nd5 Qxb2 18. Bd6 Bxg1 19. e5 Qxa1+ 20. Ke2 Na6 21. Nxg7+ Kd8 22. Qf6+ Nxf6 23. Be7#',
+      { white: 'Adolf Anderssen', black: 'Lionel Kieseritzky', year: 1851, result: '1-0' }),
+    G('game-evergreen', 'Ván cờ thường xanh (Anderssen – Dufresne, 1852)', 'evergreen game anderssen dufresne 1852 berlin evans gambit van co thuong xanh',
+      'Anderssen thắng Jean Dufresne ở Berlin năm 1852 sau Gambit Evans. Trắng thí Tốt để mở cột, rồi tung chuỗi đòn: 20.Rxe7+! và 21.Qxd7+!! thí Hậu, Vua Đen bị hai Tượng dồn tới chiếu hết ở nước 24. Ván cho thấy sức mạnh của cột mở và Tượng hoạt động khi Vua đối phương bị kẹt ở trung tâm.',
+      '1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. b4 Bxb4 5. c3 Ba5 6. d4 exd4 7. O-O d3 8. Qb3 Qf6 9. e5 Qg6 10. Re1 Nge7 11. Ba3 b5 12. Qxb5 Rb8 13. Qa4 Bb6 14. Nbd2 Bb7 15. Ne4 Qf5 16. Bxd3 Qh5 17. Nf6+ gxf6 18. exf6 Rg8 19. Rad1 Qxf3 20. Rxe7+ Nxe7 21. Qxd7+ Kxd7 22. Bf5+ Ke8 23. Bd7+ Kf8 24. Bxe7#',
+      { white: 'Adolf Anderssen', black: 'Jean Dufresne', year: 1852, result: '1-0' }),
+    G('game-legal', 'Bẫy Legal (Legall – Saint Brie, 1750)', 'legal trap legall de kermeur saint brie 1750 bay legal',
+      'Ván ngắn nổi tiếng nhất thế kỷ 18 ở quán cà phê de la Régence (Paris). Trắng "biếu" Hậu bằng 5.Nxe5!, Đen tham ăn 5...Bxd1?? và bị chiếu hết sau hai nước bằng ba quân nhẹ. Bài học: ghim tương đối không giữ được quân, và trước khi ăn quân lớn hãy kiểm tra các nước chiếu của đối thủ.',
+      '1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5#',
+      { white: 'Legall de Kermeur', black: 'Saint Brie', year: 1750, result: '1-0' }),
+    G('game-rubinstein', 'Ván bất tử của Rubinstein (Rotlewi – Rubinstein, 1907)', 'rotlewi rubinstein 1907 lodz immortal combination',
+      'Akiba Rubinstein cầm Đen thắng Georg Rotlewi ở Łódź năm 1907 bằng một trong những chuỗi thí quân đẹp nhất lịch sử: 22...Rxc3!, 23...Rd2!! và 24...Bxe4+, hai Tượng nhắm thẳng vào Vua Trắng. Ván là bài học về cặp Tượng trên hai đường chéo dài và sức mạnh của việc phát triển hài hoà trước khi tấn công.',
+      '1. d4 d5 2. Nf3 e6 3. e3 c5 4. c4 Nc6 5. Nc3 Nf6 6. dxc5 Bxc5 7. a3 a6 8. b4 Bd6 9. Bb2 O-O 10. Qd2 Qe7 11. Bd3 dxc4 12. Bxc4 b5 13. Bd3 Rd8 14. Qe2 Bb7 15. O-O Ne5 16. Nxe5 Bxe5 17. f4 Bc7 18. e4 Rac8 19. e5 Bb6+ 20. Kh1 Ng4 21. Be4 Qh4 22. g3 Rxc3 23. gxh4 Rd2 24. Qxd2 Bxe4+ 25. Qg2 Rh3',
+      { white: 'Georg Rotlewi', black: 'Akiba Rubinstein', year: 1907, result: '0-1' }),
+    G('game-avro', 'Botvinnik – Capablanca (AVRO 1938)', 'botvinnik capablanca avro 1938 nimzo indian ba3 combination',
+      'Mikhail Botvinnik thắng cựu vô địch thế giới José Raúl Capablanca tại giải AVRO 1938 (Hà Lan). Từ khai cuộc Nimzo-Ấn, Trắng dựng trung tâm e4-e5-f4-f5, rồi tung đòn 30.Ba3!! thí Tượng để kéo Hậu Đen đi xa và 31.Nh5+! mở đường cho Tốt e tiến tới phong cấp. Ván kinh điển về kế hoạch trung tâm kết hợp đòn chiến thuật đúng lúc.',
+      '1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. e3 d5 5. a3 Bxc3+ 6. bxc3 c5 7. cxd5 exd5 8. Bd3 O-O 9. Ne2 b6 10. O-O Ba6 11. Bxa6 Nxa6 12. Bb2 Qd7 13. a4 Rfe8 14. Qd3 c4 15. Qc2 Nb8 16. Rae1 Nc6 17. Ng3 Na5 18. f3 Nb3 19. e4 Qxa4 20. e5 Nd7 21. Qf2 g6 22. f4 f5 23. exf6 Nxf6 24. f5 Rxe1 25. Rxe1 Re8 26. Re6 Rxe6 27. fxe6 Kg7 28. Qf4 Qe8 29. Qe5 Qe7 30. Ba3 Qxa3 31. Nh5+ gxh5 32. Qg5+ Kf8 33. Qxf6+ Kg8 34. e7 Qc1+ 35. Kf2 Qc2+ 36. Kg3 Qd3+ 37. Kh4 Qe4+ 38. Kxh5 Qe2+ 39. Kh4 Qe4+ 40. g4 Qe1+ 41. Kh5',
+      { white: 'Mikhail Botvinnik', black: 'José Raúl Capablanca', year: 1938, result: '1-0' }),
+    G('game-century', 'Ván cờ của thế kỷ (Byrne – Fischer, 1956)', 'game of the century donald byrne bobby fischer 1956 van co cua the ky grunfeld',
+      'Bobby Fischer, khi đó 13 tuổi, cầm Đen thắng Donald Byrne ở New York năm 1956. Nước 17...Be6!! bỏ Hậu để đổi lấy hàng loạt quân của Trắng qua chuỗi chiếu mở kiểu cối xay gió, rồi các quân nhẹ của Đen phối hợp dồn Vua Trắng tới chiếu hết. Ván tiêu biểu cho việc đánh giá thế cờ bằng hoạt động của quân thay vì đếm quân.',
+      '1. Nf3 Nf6 2. c4 g6 3. Nc3 Bg7 4. d4 O-O 5. Bf4 d5 6. Qb3 dxc4 7. Qxc4 c6 8. e4 Nbd7 9. Rd1 Nb6 10. Qc5 Bg4 11. Bg5 Na4 12. Qa3 Nxc3 13. bxc3 Nxe4 14. Bxe7 Qb6 15. Bc4 Nxc3 16. Bc5 Rfe8+ 17. Kf1 Be6 18. Bxb6 Bxc4+ 19. Kg1 Ne2+ 20. Kf1 Nxd4+ 21. Kg1 Ne2+ 22. Kf1 Nc3+ 23. Kg1 axb6 24. Qb4 Ra4 25. Qxb6 Nxd1 26. h3 Rxa2 27. Kh2 Nxf2 28. Re1 Rxe1 29. Qd8+ Bf8 30. Nxe1 Bd5 31. Nf3 Ne4 32. Qb8 b5 33. h4 h5 34. Ne5 Kg7 35. Kg1 Bc5+ 36. Kf1 Ng3+ 37. Ke1 Bb4+ 38. Kd1 Bb3+ 39. Kc1 Ne2+ 40. Kb1 Nc3+ 41. Kc1 Rc2#',
+      { white: 'Donald Byrne', black: 'Bobby Fischer', year: 1956, result: '0-1' }),
+    G('game-fischer-spassky6', 'Fischer – Spassky, ván 6 (Reykjavík 1972)', 'fischer spassky 1972 game 6 reykjavik world championship queens gambit tartakower',
+      'Ván 6 trận tranh ngôi vô địch thế giới 1972. Fischer, vốn gần như chỉ đi 1.e4, bất ngờ mở đầu bằng 1.c4 và chơi một ván chiến lược hoàn hảo trong biến Tartakower của Gambit Hậu từ chối: đẩy e4-e5, khoá trung tâm, rồi dồn Xe vào cột f và phá vỡ cánh Vua Đen. Tương truyền chính Spassky cũng đứng dậy vỗ tay sau ván. Fischer thắng trận và trở thành nhà vô địch thế giới người Mỹ đầu tiên.',
+      '1. c4 e6 2. Nf3 d5 3. d4 Nf6 4. Nc3 Be7 5. Bg5 O-O 6. e3 h6 7. Bh4 b6 8. cxd5 Nxd5 9. Bxe7 Qxe7 10. Nxd5 exd5 11. Rc1 Be6 12. Qa4 c5 13. Qa3 Rc8 14. Bb5 a6 15. dxc5 bxc5 16. O-O Ra7 17. Be2 Nd7 18. Nd4 Qf8 19. Nxe6 fxe6 20. e4 d4 21. f4 Qe7 22. e5 Rb8 23. Bc4 Kh8 24. Qh3 Nf8 25. b3 a5 26. f5 exf5 27. Rxf5 Nh7 28. Rcf1 Qd8 29. Qg3 Re7 30. h4 Rbb7 31. e6 Rbc7 32. Qe5 Qe8 33. a4 Qd8 34. R1f2 Qe8 35. R2f3 Qd8 36. Bd3 Qe8 37. Qe4 Nf6 38. Rxf6 gxf6 39. Rxf6 Kg8 40. Bc4 Kh8 41. Qf4',
+      { white: 'Bobby Fischer', black: 'Boris Spassky', year: 1972, result: '1-0' }),
+    G('game-short-timman', 'Short – Timman: Vua đi bộ (Tilburg 1991)', 'short timman 1991 tilburg king walk vua di bo alekhine defense',
+      'Nigel Short thắng Jan Timman ở Tilburg 1991 bằng một đòn hiếm thấy: khi các quân nặng của Trắng đã khoá chặt Vua Đen, Vua Trắng tự mình đi bộ Kh2-g3-f4-g5 để tham gia chiếu hết (Đen bỏ cuộc vì không ngăn được Kh6 kèm Qg7#). Ván minh hoạ rằng khi thế trận khoá kín và đối thủ không có nước chiếu, Vua cũng là quân tấn công.',
+      '1. e4 Nf6 2. e5 Nd5 3. d4 d6 4. Nf3 g6 5. Bc4 Nb6 6. Bb3 Bg7 7. Qe2 Nc6 8. O-O O-O 9. h3 a5 10. a4 dxe5 11. dxe5 Nd4 12. Nxd4 Qxd4 13. Re1 e6 14. Nd2 Nd5 15. Nf3 Qc5 16. Qe4 Qb4 17. Bc4 Nb6 18. b3 Nxc4 19. bxc4 Re8 20. Rd1 Qc5 21. Qh4 b6 22. Be3 Qc6 23. Bh6 Bh8 24. Rd8 Bb7 25. Rad1 Bg7 26. R8d7 Rf8 27. Bxg7 Kxg7 28. R1d4 Rae8 29. Qf6+ Kg8 30. h4 h5 31. Kh2 Rc8 32. Kg3 Rce8 33. Kf4 Bc8 34. Kg5',
+      { white: 'Nigel Short', black: 'Jan Timman', year: 1991, result: '1-0' }),
+    G('game-deepblue', 'Deep Blue – Kasparov, ván 6 (New York 1997)', 'deep blue kasparov 1997 game 6 computer caro kann nxe6 may tinh',
+      'Ván quyết định trận tái đấu năm 1997: siêu máy tính Deep Blue của IBM thắng Garry Kasparov sau 19 nước trong Phòng thủ Caro-Kann, nhờ thí Mã 8.Nxe6 (nước Kasparov được cho là đã nhầm thứ tự với ...h6). Deep Blue thắng trận 3,5 – 2,5, lần đầu một máy tính thắng nhà vô địch thế giới trong một trận đấu với thời gian tiêu chuẩn.',
+      '1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nd7 5. Ng5 Ngf6 6. Bd3 e6 7. N1f3 h6 8. Nxe6 Qe7 9. O-O fxe6 10. Bg6+ Kd8 11. Bf4 b5 12. a4 Bb7 13. Re1 Nd5 14. Bg3 Kc8 15. axb5 cxb5 16. Qd3 Bc6 17. Bf5 exf5 18. Rxe7 Bxe7 19. c4',
+      { white: 'Deep Blue', black: 'Garry Kasparov', year: 1997, result: '1-0' }),
+    G('game-kasparov-topalov', 'Kasparov – Topalov: "Ván bất tử của Kasparov" (Wijk aan Zee 1999)', 'kasparov topalov 1999 wijk aan zee immortal rxd4 king hunt',
+      'Garry Kasparov thắng Veselin Topalov ở Wijk aan Zee 1999 với nước thí Xe 24.Rxd4!! mở đầu cuộc săn Vua kéo dài qua cả bàn cờ: Vua Đen bị dồn từ cánh Hậu sang tận hàng 1 của Trắng. Đây được nhiều người xem là ván đẹp nhất của Kasparov, minh hoạ tính toán sâu và việc thí quân để lấy thế chủ động dài hạn.',
+      '1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. Be3 Bg7 5. Qd2 c6 6. f3 b5 7. Nge2 Nbd7 8. Bh6 Bxh6 9. Qxh6 Bb7 10. a3 e5 11. O-O-O Qe7 12. Kb1 a6 13. Nc1 O-O-O 14. Nb3 exd4 15. Rxd4 c5 16. Rd1 Nb6 17. g3 Kb8 18. Na5 Ba8 19. Bh3 d5 20. Qf4+ Ka7 21. Rhe1 d4 22. Nd5 Nbxd5 23. exd5 Qd6 24. Rxd4 cxd4 25. Re7+ Kb6 26. Qxd4+ Kxa5 27. b4+ Ka4 28. Qc3 Qxd5 29. Ra7 Bb7 30. Rxb7 Qc4 31. Qxf6 Kxa3 32. Qxa6+ Kxb4 33. c3+ Kxc3 34. Qa1+ Kd2 35. Qb2+ Kd1 36. Bf1 Rd2 37. Rd7 Rxd7 38. Bxc4 bxc4 39. Qxh8 Rd3 40. Qa8 c3 41. Qa4+ Ke1 42. f4 f5 43. Kc1 Rd2 44. Qa7',
+      { white: 'Garry Kasparov', black: 'Veselin Topalov', year: 1999, result: '1-0' }),
+
+    // ----- Lịch sử thi đấu đỉnh cao -----
+    A('gen-wch-history', 'general', 'Lịch sử các trận tranh ngôi vô địch thế giới', 'world championship history matches steinitz zukertort capablanca alekhine fischer spassky karpov kasparov carlsen anand ding gukesh lich su vo dich',
+      'Trận chính thức đầu tiên năm 1886: Steinitz thắng Zukertort. 1927 ở Buenos Aires: Alekhine thắng Capablanca. 1948: FIDE tổ chức giải đấu chọn nhà vô địch sau khi Alekhine qua đời, Botvinnik đăng quang. 1972 ở Reykjavík: Fischer thắng Spassky giữa thời Chiến tranh Lạnh. 1975: Fischer không bảo vệ ngôi, Karpov trở thành vô địch. 1984–85: trận Karpov – Kasparov bị dừng sau 48 ván; trận đấu lại năm 1985 Kasparov thắng. 1993–2006: ngôi vô địch bị chia đôi (PCA và FIDE), thống nhất lại năm 2006 khi Kramnik thắng Topalov. 2007: Anand vô địch. 2013 ở Chennai: Carlsen thắng Anand và giữ ngôi tới 2023. 2023: Carlsen không thi đấu, Đinh Lập Nhân thắng Nepomniachtchi. Cuối năm 2024 ở Singapore: Gukesh Dommaraju (18 tuổi) thắng Đinh Lập Nhân, trở thành nhà vô địch thế giới trẻ nhất. (Tính đến 2025.)',
+      [LIB('qgd')]),
+    A('gen-computers', 'general', 'Máy tính và cờ vua', 'computer chess deep blue alphazero stockfish nnue leela engine history may tinh',
+      'Năm 1997, siêu máy tính Deep Blue của IBM thắng Garry Kasparov 3,5 – 2,5. Từ đó các chương trình như Fritz, Rybka, Houdini, Komodo và Stockfish (mã nguồn mở) vượt xa con người. Năm 2017, AlphaZero của DeepMind tự học chỉ từ luật chơi và thắng Stockfish trong một trận thử nghiệm; ý tưởng mạng nơ-ron được dự án Leela Chess Zero tiếp nối. Từ 2020, Stockfish dùng mạng NNUE và hiện là engine mạnh hàng đầu thế giới; web này dùng Stockfish 19 chạy ngay trên trình duyệt.',
+      [{ kind: 'review' }]),
+    A('gen-greats', 'general', 'Những kỳ thủ vĩ đại và phong cách', 'greatest players morphy capablanca tal petrosian fischer kasparov carlsen polgar style phong cach ky thu',
+      'Morphy (thế kỷ 19): bậc thầy phát triển quân và tấn công. Capablanca: thế cờ đơn giản, kỹ thuật tàn cuộc gần như hoàn hảo. Alekhine: tấn công phức tạp, giàu tưởng tượng. Tal: "phù thuỷ xứ Riga", thí quân táo bạo. Petrosian: phòng ngừa, phòng thủ, thí chất lượng. Fischer: chính xác, rõ ràng, chuẩn bị khai cuộc kỹ. Karpov: chiến lược bóp nghẹt từ từ. Kasparov: năng động, chuẩn bị khai cuộc sâu, tấn công mạnh mẽ. Carlsen: vắt kiệt ưu thế nhỏ, tàn cuộc xuất sắc. Judit Polgár: nữ kỳ thủ mạnh nhất lịch sử, từng vào top 10 thế giới, lối chơi tấn công sắc bén.',
+      []),
+    A('gen-olympiad', 'general', 'Olympiad và các giải lớn', 'chess olympiad candidates tournament world cup tata steel norway chess giai dau lon',
+      'Olympiad cờ vua là giải đồng đội giữa các quốc gia, tổ chức hai năm một lần (giải chính thức đầu tiên năm 1927 ở London). Giải Ứng viên (Candidates) chọn người thách đấu nhà vô địch thế giới. Các giải mời nổi tiếng: Tata Steel (Wijk aan Zee, Hà Lan, mỗi tháng Giêng), Norway Chess, Sinquefield Cup. FIDE còn tổ chức World Cup (loại trực tiếp) và giải vô địch thế giới cờ nhanh, cờ chớp.',
+      []),
   ];
 
   // ---------- Gộp Thư viện khai cuộc và Học cờ ----------

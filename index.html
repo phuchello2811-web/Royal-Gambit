@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700;900&display=swap">
-  <link rel="stylesheet" href="style.css?v=67">
+  <link rel="stylesheet" href="style.css?v=71">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -525,48 +525,50 @@
   </section>
 
   <!-- Trang Trợ lý Royal Gambit: huấn luyện viên riêng (assistant.js) -->
-  <section id="coachPage" class="coach-page" hidden aria-label="Trợ lý Royal Gambit">
-    <header class="cp-hero">
-      <div class="cp-hero-main">
-        <img class="cp-crest" src="img/logo.svg?v=2" alt="">
-        <div>
-          <small class="cp-kicker">Huấn luyện viên riêng của bạn</small>
-          <h1 class="cp-title">Trợ lý <span class="wordmark wm-inline">Royal Gambit</span></h1>
-          <p id="cpStatus" class="cp-status"></p>
-        </div>
+  <section id="coachPage" class="coach-page" hidden aria-label="Trợ lý Royal Gambit" data-pane="chat">
+    <header class="cp-head">
+      <img class="cp-crest" src="img/logo.svg?v=2" alt="">
+      <div class="cp-head-text">
+        <h1 class="cp-title">Trợ lý <span class="wordmark wm-inline">Royal Gambit</span></h1>
+        <p id="cpStatus" class="cp-status"></p>
       </div>
-      <div id="cpStats" class="cp-stats"></div>
+      <div id="cpMini" class="cp-mini"></div>
     </header>
     <nav class="cp-tabs" role="tablist" aria-label="Phần của trang Trợ lý">
       <button type="button" role="tab" data-cp-tab="chat" aria-selected="true"><svg class="ic"><use href="#i-spark"/></svg><span>Trò chuyện</span></button>
       <button type="button" role="tab" data-cp-tab="plan" aria-selected="false"><svg class="ic"><use href="#i-route"/></svg><span>Lộ trình</span></button>
+      <button type="button" role="tab" data-cp-tab="games" aria-selected="false"><svg class="ic"><use href="#i-history"/></svg><span>Ván đấu</span></button>
       <button type="button" role="tab" data-cp-tab="kb" aria-selected="false"><svg class="ic"><use href="#i-book"/></svg><span>Kiến thức</span></button>
     </nav>
-    <div class="cp-grid">
-      <section class="cp-card cp-chat-card" data-cp-pane="chat">
-        <header class="cp-card-head">
-          <h2><svg class="ic"><use href="#i-spark"/></svg>Trò chuyện với huấn luyện viên</h2>
-          <button type="button" class="ghost cp-new" data-cp-new title="Bắt đầu cuộc trò chuyện mới"><svg class="ic"><use href="#i-plus"/></svg><span>Cuộc trò chuyện mới</span></button>
-        </header>
-        <div id="aiChat" class="ai-chat cp-chat" aria-live="polite"></div>
-        <div id="cpQuick" class="cp-quick"></div>
+
+    <section class="cp-pane cp-chat-pane" data-cp-pane="chat" aria-label="Trò chuyện">
+      <div id="aiChat" class="cp-chat" aria-live="polite"></div>
+      <div class="cp-dock">
+        <div id="cpQuick" class="cp-quick" hidden></div>
         <form id="aiForm" class="cp-composer">
           <textarea id="aiInput" rows="1" maxlength="600" placeholder="Nhắn cho huấn luyện viên…" aria-label="Câu hỏi cho Trợ lý Royal Gambit"></textarea>
           <button type="submit" class="primary" title="Gửi"><svg class="ic"><use href="#i-send"/></svg></button>
         </form>
         <p id="aiPrivacy" class="ai-privacy"></p>
-      </section>
-      <aside class="cp-side" data-cp-pane="plan">
-        <section class="cp-card"><header class="cp-card-head"><h2><svg class="ic"><use href="#i-route"/></svg>Lộ trình cho bạn</h2></header><div id="cpPlan"></div></section>
-        <section class="cp-card"><header class="cp-card-head"><h2><svg class="ic"><use href="#i-history"/></svg>Ván gần đây</h2></header><div id="cpGames"></div></section>
-        <section class="cp-card" id="cpDiagCard"><header class="cp-card-head"><h2><svg class="ic"><use href="#i-search"/></svg>Chẩn đoán lối chơi</h2></header><div id="cpDiag"></div></section>
-        <section class="cp-card" id="cpOpsCard"><header class="cp-card-head"><h2><svg class="ic"><use href="#i-book"/></svg>Khai cuộc của bạn</h2></header><div id="cpOps"></div></section>
-      </aside>
-      <section class="cp-card cp-kb-card" data-cp-pane="kb">
-        <header class="cp-card-head"><h2><svg class="ic"><use href="#i-library"/></svg>Thư viện kiến thức cờ vua</h2><small id="cpKbCount"></small></header>
-        <div id="aiKb" class="ai-kb"></div>
-      </section>
-    </div>
+      </div>
+    </section>
+
+    <section class="cp-pane" data-cp-pane="plan" aria-label="Lộ trình">
+      <div id="cpStats" class="cp-stats"></div>
+      <section class="cp-card"><h2 class="cp-card-title"><svg class="ic"><use href="#i-route"/></svg>Lộ trình cho bạn</h2><div id="cpPlan"></div></section>
+      <div class="cp-two">
+        <section class="cp-card"><h2 class="cp-card-title"><svg class="ic"><use href="#i-search"/></svg>Chẩn đoán lối chơi</h2><div id="cpDiag"></div></section>
+        <section class="cp-card"><h2 class="cp-card-title"><svg class="ic"><use href="#i-book"/></svg>Khai cuộc của bạn</h2><div id="cpOps"></div></section>
+      </div>
+    </section>
+
+    <section class="cp-pane" data-cp-pane="games" aria-label="Ván đấu">
+      <section class="cp-card"><h2 class="cp-card-title"><svg class="ic"><use href="#i-history"/></svg>Ván gần đây<small>Bấm Nhận xét để huấn luyện viên phân tích cùng Stockfish 19</small></h2><div id="cpGames"></div></section>
+    </section>
+
+    <section class="cp-pane" data-cp-pane="kb" aria-label="Kiến thức">
+      <section class="cp-card"><h2 class="cp-card-title"><svg class="ic"><use href="#i-library"/></svg>Thư viện kiến thức cờ vua<small id="cpKbCount"></small></h2><div id="aiKb" class="ai-kb"></div></section>
+    </section>
   </section>
 
   <section id="profilePage" class="pf-page" hidden aria-label="Hồ sơ người chơi">
@@ -1309,7 +1311,7 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=40"></script>
+  <script src="i18n.js?v=42"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=9"></script>
@@ -1326,9 +1328,9 @@
   <script src="puzzles.js?v=11"></script>
   <script src="history.js?v=11"></script>
   <script src="openings.js?v=5"></script>
-  <script src="knowledge.js?v=2"></script>
+  <script src="knowledge.js?v=3"></script>
   <script src="cloudai.js?v=5"></script>
-  <script src="assistant.js?v=6"></script>
+  <script src="assistant.js?v=8"></script>
   <script src="pwa.js?v=2"></script>
   <script src="app.js?v=63"></script>
 </body>

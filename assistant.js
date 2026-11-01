@@ -444,7 +444,44 @@ const Assistant = (() => {
   }
 
   let kb = { q: '', topic: 'tactics', open: '' };
-  const TOPIC_IC = { opening: 'i-book', tactics: 'i-bolt', mates: 'i-crown', strategy: 'i-target', endgame: 'i-flag', rules: 'i-shield', training: 'i-route', general: 'i-globe' };
+  // Các thế cờ của một ván có nước đi (bài "Ván cờ nổi tiếng"): fens[0] là thế xuất phát, sans[i] là nước thứ i
+  const gameCache = new Map();
+  function gamePositions(art) {
+    if (!art || !art.pgn || typeof Library === 'undefined') return null;
+    if (gameCache.has(art.id)) return gameCache.get(art.id);
+    const g = new Chess();
+    const fens = [fenOf(g)], sans = [], last = [null];
+    for (const san of Library.sanList(art.pgn)) {
+      const mv = Library.playSan(g, san);
+      if (!mv) break;
+      sans.push(g.history[g.history.length - 1].san);
+      fens.push(fenOf(g));
+      last.push({ from: mv.from, to: mv.to });
+    }
+    const r = { fens, sans, last };
+    gameCache.set(art.id, r);
+    return r;
+  }
+  const RESULT_TEXT = { '1-0': 'Trắng thắng', '0-1': 'Đen thắng', '1/2-1/2': 'Hoà' };
+
+  const TOPIC_IC = { opening: 'i-book', tactics: 'i-bolt', mates: 'i-crown', strategy: 'i-target', endgame: 'i-flag', games: 'i-trophy', rules: 'i-shield', training: 'i-route', general: 'i-globe' };
+  function gameViewer(art) {
+    const P = gamePositions(art);
+    if (!P) return '';
+    const n = P.sans.length;
+    const ply = kb.ply == null || kb.ply > n ? n : Math.max(0, kb.ply);
+    const moves = P.sans.map((m, i) => `${i % 2 === 0 ? `<span class="kg-no">${i / 2 + 1}.</span>` : ''}<button type="button" class="kg-mv${i + 1 === ply ? ' on' : ''}" data-kg-ply="${i + 1}">${esc(m)}</button>`).join('');
+    return `<div class="kb-game">
+      <div class="kb-game-board"><div class="lib-board">${Library.fenBoard(P.fens[ply], false, P.last[ply])}</div>
+        <div class="kg-nav"><button type="button" class="ghost" data-kg-ply="0" title="Về đầu">⏮</button><button type="button" class="ghost" data-kg-ply="${Math.max(0, ply - 1)}" title="Lùi">◀</button>
+          <span>${ply ? `${Math.ceil(ply / 2)}${ply % 2 ? '.' : '...'} ${esc(P.sans[ply - 1])}` : 'Thế xuất phát'}</span>
+          <button type="button" class="ghost" data-kg-ply="${Math.min(n, ply + 1)}" title="Tiến">▶</button><button type="button" class="ghost" data-kg-ply="${n}" title="Về cuối">⏭</button></div></div>
+      <div class="kb-game-side"><div class="kg-meta"><b>${esc(art.white || '')}</b> – <b>${esc(art.black || '')}</b>${art.year ? ` · ${art.year}` : ''}${art.result ? ` · ${esc(RESULT_TEXT[art.result] || art.result)} (${esc(art.result)})` : ''}</div>
+        <div class="kg-moves">${moves}</div>
+        <div class="kg-acts"><button type="button" class="ghost" data-cp-setup="${esc(P.fens[ply])}"><svg class="ic"><use href="#i-play"/></svg>Đặt thế này lên bàn</button></div></div>
+    </div>`;
+  }
+
   function renderKb() {
     const box = $('aiKb');
     if (!box || !hasKb()) return;
@@ -456,7 +493,7 @@ const Assistant = (() => {
       box.innerHTML = `<article class="kb-article">
         <button type="button" class="ghost kb-back" data-kb-back><svg class="ic"><use href="#i-chevron-left"/></svg>Quay lại</button>
         <small class="kb-topic"><svg class="ic"><use href="#${TOPIC_IC[art.topic] || 'i-book'}"/></svg>${esc(Knowledge.topicName(art.topic))}</small>
-        <h3>${esc(art.title)}</h3><p>${esc(art.body)}</p>
+        <h3>${esc(art.title)}</h3>${art.pgn ? gameViewer(art) : ''}<p>${esc(art.body)}</p>
         <div class="kb-acts">${seeActs([art]).map(actBtn).join('')}<button type="button" class="ai-inline primary" data-kb-ask="${esc(art.id)}"><svg class="ic"><use href="#i-spark"/></svg>Hỏi huấn luyện viên về bài này</button></div>
         ${related.length ? `<div class="kb-related"><small>Đọc thêm</small>${related.map(a => `<button type="button" class="ai-ref-chip" data-kb-open="${esc(a.id)}">${esc(a.title)}</button>`).join('')}</div>` : ''}
       </article>`;
@@ -712,13 +749,35 @@ const Assistant = (() => {
     return L.join('\n');
   }
 
+  // Tra Wikipedia (tiếng Việt hoặc tiếng Anh, API công khai, không cần khoá): lịch sử, kỳ thủ, giải đấu, ván cờ ngoài thư viện
+  async function wikipedia(query, lang, out) {
+    if (!query.trim()) return 'Thiếu từ khoá.';
+    const langs = lang ? [lang, lang === 'vi' ? 'en' : 'vi'] : ['vi', 'en'];
+    for (const L of langs) {
+      const api = `https://${L}.wikipedia.org/w/api.php?format=json&origin=*&`;
+      const sr = await getJson(api + 'action=query&list=search&srlimit=3&srsearch=' + encodeURIComponent(query), 6000);
+      const titles = ((sr && sr.query && sr.query.search) || []).map(x => x.title).slice(0, 2);
+      if (!titles.length) continue;
+      const ex = await getJson(api + 'action=query&prop=extracts&exintro=1&explaintext=1&exchars=2500&redirects=1&titles=' + encodeURIComponent(titles.join('|')), 6000);
+      const pages = Object.values((ex && ex.query && ex.query.pages) || {}).filter(p => p.extract);
+      if (!pages.length) continue;
+      for (const pg of pages) if (out) out.links.push({ title: `Wikipedia: ${pg.title}`, url: `https://${L}.wikipedia.org/wiki/${encodeURIComponent(pg.title.replace(/ /g, '_'))}` });
+      return `Nguồn: Wikipedia tiếng ${L === 'vi' ? 'Việt' : 'Anh'} (có thể chưa cập nhật hoặc chưa chính xác tuyệt đối).\n\n` + pages.map(pg => `## ${pg.title}\n${pg.extract}`).join('\n\n');
+    }
+    return 'Không tìm thấy bài Wikipedia phù hợp.';
+  }
+
   // Thực hiện một công cụ, trả về chữ cho AI đọc. hitsOut: gom các bài kiến thức đã dùng (để hiện nút và nguồn)
   async function runTool(name, args, hitsOut, out, onStep) {
     switch (name) {
       case 'search_knowledge': {
         const hs = hasKb() ? Knowledge.search(String(args.query || ''), 'any', 3) : [];
         for (const a of hs) if (!hitsOut.includes(a)) hitsOut.push(a);
-        return hs.length ? hs.map(a => `## ${a.title}\n${a.body}`).join('\n\n') : 'Không tìm thấy bài phù hợp trong Thư viện kiến thức.';
+        for (const a of hs) {
+          const P = a.pgn && gamePositions(a);
+          if (P && out && !out.boards.some(b => b.fen === P.fens[P.fens.length - 1])) out.boards.push({ fen: P.fens[P.fens.length - 1], cap: `${a.title}: thế cuối`, flip: false });
+        }
+        return hs.length ? hs.map(a => `## ${a.title}\n${a.body}${a.pgn ? `\nTrắng: ${a.white}; Đen: ${a.black}; năm ${a.year}; kết quả ${a.result}.\nNước đi: ${a.pgn}` : ''}`).join('\n\n') : 'Không tìm thấy bài phù hợp trong Thư viện kiến thức.';
       }
       case 'get_player_profile': return playerBrief(analyse());
       case 'get_recent_games': {
@@ -729,20 +788,21 @@ const Assistant = (() => {
       }
       case 'get_current_position': return currentPos();
       case 'review_game': return reviewGame(args.index, out, onStep);
+      case 'search_wikipedia': return wikipedia(String(args.query || ''), args.lang === 'en' ? 'en' : args.lang === 'vi' ? 'vi' : '', out);
       case 'analyse_position': return analysePos(args.fen, out);
       case 'endgame_tablebase': return tablebase(args.fen, out);
       default: return 'Công cụ không tồn tại.';
     }
   }
   const TOOL_LABEL = { search_knowledge: 'Tra Thư viện kiến thức', get_player_profile: 'Đọc hồ sơ lối chơi', get_recent_games: 'Xem các ván gần đây',
-    get_current_position: 'Xem thế cờ trên bàn', analyse_position: 'Stockfish 19 phân tích thế cờ', endgame_tablebase: 'Tra bảng tàn cuộc', review_game: 'Xem lại ván với Stockfish 19' };
+    get_current_position: 'Xem thế cờ trên bàn', analyse_position: 'Stockfish 19 phân tích thế cờ', endgame_tablebase: 'Tra bảng tàn cuộc', review_game: 'Xem lại ván với Stockfish 19', search_wikipedia: 'Tra Wikipedia' };
 
   const CLOUD_ERR = { LIMIT: 'Bạn hỏi hơi nhanh, đợi một phút rồi hỏi tiếp nhé.', BUSY: 'Máy chủ đang đông người dùng, bạn thử lại sau ít phút nhé.', NETWORK: 'Không kết nối được máy chủ của trợ lý.' };
   async function askAI(q) {
     if (aiBusy()) { toast('Trợ lý đang trả lời câu trước, đợi chút nhé.'); return; }
     const d = analyse();
     chat.push({ me: true, text: q });
-    const msg = { me: false, md: '', live: true, hits: [], steps: [], boards: [] };
+    const msg = { me: false, md: '', live: true, hits: [], steps: [], boards: [], links: [] };
     chat.push(msg);
     chat = chat.slice(-12);
     renderChat();
@@ -775,7 +835,7 @@ const Assistant = (() => {
         const results = await Promise.all(r.tools.map(async t => {
           let args = {};
           try { args = JSON.parse(t.arguments || '{}') || {}; } catch {}
-          const k = msg.steps.push(TOOL_LABEL[t.name] + (t.name === 'search_knowledge' && args.query ? `: ${String(args.query).slice(0, 40)}` : '')) - 1;
+          const k = msg.steps.push(TOOL_LABEL[t.name] + (/search_/.test(t.name) && args.query ? `: ${String(args.query).slice(0, 40)}` : '')) - 1;
           paint();
           const onStep = txt => { msg.steps[k] = txt; paint(); };
           let out;
@@ -824,13 +884,16 @@ const Assistant = (() => {
     if (m.live) return steps + body + '<button type="button" class="ai-inline ai-stop" data-ai-stop>Dừng</button>';
     const boards = (m.boards || []).slice(0, 2).map(b => `<figure class="cp-board"><div class="lib-board">${typeof Library !== 'undefined' ? Library.fenBoard(b.fen, b.flip) : ''}</div>
       <figcaption>${esc(b.cap)}</figcaption><button type="button" class="ghost" data-cp-setup="${esc(b.fen)}"><svg class="ic"><use href="#i-play"/></svg>Đặt lên bàn</button></figure>`).join('');
-    return steps + body + (boards ? `<div class="cp-boards">${boards}</div>` : '') + (m.hits && m.hits.length ? `<div class="ai-acts">${seeActs(m.hits, 2).map(actBtn).join('')}</div>${refChips(m.hits)}` : '');
+    const links = (m.links || []).slice(0, 4).map(l => `<a class="ai-ref-chip" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)} ↗</a>`).join('');
+    return steps + body + (boards ? `<div class="cp-boards">${boards}</div>` : '') + (m.hits && m.hits.length ? `<div class="ai-acts">${seeActs(m.hits, 2).map(actBtn).join('')}</div>${refChips(m.hits)}` : '')
+      + (links ? `<div class="ai-refs"><small>Nguồn ngoài:</small>${links}</div>` : '');
   }
   function renderLive(m) {
     const box = $('aiChat');
     const el = box && box.lastElementChild;
     if (!el || chat[chat.length - 1] !== m) return;
-    el.innerHTML = botHtml(m);
+    const body = el.querySelector('.cp-msg-body') || el;
+    body.innerHTML = botHtml(m);
     box.scrollTop = box.scrollHeight;
   }
 
@@ -845,15 +908,17 @@ const Assistant = (() => {
         : '<span class="ai-dot"></span>Chế độ cơ bản · chẩn đoán bằng Stockfish 19 trên máy bạn';
     if (hasCloud() && !ok) setTimeout(() => { renderEngine(); renderQuick(); }, 61000);
     if (priv) priv.textContent = hasCloud()
-      ? 'Câu hỏi và số liệu ván cần để trả lời (Elo, điểm yếu, nước đi) được gửi tới máy chủ của Royal Gambit để soạn câu trả lời (mô hình ngôn ngữ GLM-4.7 của Z.ai); thế cờ cần phân tích có thể được gửi tới Lichess. Stockfish 19 chạy ngay trên máy bạn.'
+      ? 'Câu hỏi và số liệu ván được gửi tới máy chủ của Royal Gambit (mô hình GLM-4.7 của Z.ai) để trả lời, thế cờ có thể được gửi tới Lichess. Stockfish 19 chạy trên máy bạn.'
       : 'Mọi phân tích chạy ngay trên máy bạn (Stockfish 19 và Thư viện kiến thức). Không gửi dữ liệu ra ngoài.';
   }
 
   // ---------- Giao diện (trang Trợ lý) ----------
+  // Bốn phần chuyển bằng thanh thẻ: Trò chuyện · Lộ trình · Ván đấu · Kiến thức (mỗi lúc chỉ hiện một phần cho gọn mắt).
 
   const bar = (v, max, cls = '') => `<span class="ai-bar ${cls}"><i style="width:${max ? Math.min(100, Math.round(100 * v / max)) : 0}%"></i></span>`;
   const meName = () => { try { return Profile.me().name || ''; } catch { return ''; } };
-  let pane = 'chat'; // phần đang xem trên điện thoại
+  const AVATAR = '<span class="cp-avatar"><img src="img/logo.svg?v=2" alt=""></span>';
+  let pane = 'chat';
 
   function setPane(p) {
     pane = p;
@@ -861,13 +926,19 @@ const Assistant = (() => {
     if (!page) return;
     page.dataset.pane = p;
     for (const b of page.querySelectorAll('[data-cp-tab]')) b.setAttribute('aria-selected', String(b.dataset.cpTab === p));
+    if (p === 'chat') { const box = $('aiChat'); if (box) box.scrollTop = box.scrollHeight; }
   }
 
-  function renderStats(d) {
+  function statsOf(d) {
     const avg = d.acc.length ? Math.round(d.acc.reduce((a, x) => a + x, 0) / d.acc.length) : null;
     const recent = d.acc.slice(0, 5), older = d.acc.slice(5, 10);
     const trend = recent.length >= 3 && older.length >= 3 ? Math.round(recent.reduce((a, x) => a + x, 0) / recent.length - older.reduce((a, x) => a + x, 0) / older.length) : null;
     const score = d.total ? Math.round(100 * (d.res.win + d.res.draw / 2) / d.total) : null;
+    return { avg, trend, score };
+  }
+  function renderStats(d) {
+    const { avg, trend, score } = statsOf(d);
+    $('cpMini').innerHTML = `<span><b>${elo()}</b> Elo</span><span><b>${d.total}</b> ván</span>${avg != null ? `<span><b>${avg}%</b> chính xác</span>` : ''}`;
     $('cpStats').innerHTML = `
       <div><b>${elo()}</b><small>Elo</small></div>
       <div><b>${d.total}</b><small>ván · ${d.analysed} đã chấm</small></div>
@@ -894,12 +965,10 @@ const Assistant = (() => {
 
   function renderDiag(d) {
     const P = d.phase;
-    const card = $('cpDiagCard');
     if (d.analysed < 2) {
       $('cpDiag').innerHTML = '<p class="muted cp-empty">Cần ít nhất 2 ván đã được Stockfish 19 chấm để chẩn đoán lối chơi.</p>';
       return;
     }
-    card.hidden = false;
     const maxErr = Math.max(0.0001, ...PHASES.map(([k]) => (P[k].n ? P[k].err / P[k].n : 0)));
     $('cpDiag').innerHTML = `<div class="ai-weak">${d.weak.slice(0, 5).map(w => `<div class="ai-weak-row${w.sev >= 0.5 ? ' hot' : w.sev >= 0.2 ? ' warm' : ''}">
         <span class="ai-weak-name"><svg class="ic"><use href="#${w.icon}"/></svg>${esc(w.name)}</span>${bar(w.sev, 1)}<small>${esc(w.why)}</small></div>`).join('')}</div>
@@ -910,40 +979,49 @@ const Assistant = (() => {
 
   function renderOps(d) {
     const ops = Object.values(d.openings).sort((a, b) => b.n - a.n).slice(0, 6);
-    $('cpOpsCard').hidden = !ops.length;
-    $('cpOps').innerHTML = `<div class="ai-ops">${ops.map(o => { const sc = Math.round(100 * (o.win + o.draw / 2) / o.n); const id = libIdByName(o.name);
+    $('cpOps').innerHTML = ops.length ? `<div class="ai-ops">${ops.map(o => { const sc = Math.round(100 * (o.win + o.draw / 2) / o.n); const id = libIdByName(o.name);
       return `<div class="ai-op"><span class="pz-side ${o.color}"></span><b>${esc(o.name)}</b>
         <small>${o.n} ván · ${o.win}T ${o.draw}H ${o.loss}B${o.accN ? ` · ${Math.round(o.acc / o.accN)}%` : ''}</small>
         <span class="ai-score ${sc >= 55 ? 'good' : sc < 40 ? 'bad' : ''}">${sc}%</span>
-        ${id ? `<button type="button" class="ghost" data-act='${esc(JSON.stringify({ kind: 'lib', id }))}'>Ôn</button>` : '<span></span>'}</div>`; }).join('')}</div>`;
+        ${id ? `<button type="button" class="ghost" data-act='${esc(JSON.stringify({ kind: 'lib', id }))}'>Ôn</button>` : '<span></span>'}</div>`; }).join('')}</div>`
+      : '<p class="muted cp-empty">Chơi vài ván từ thế xuất phát để thấy khai cuộc bạn hay chơi và tỉ lệ điểm của từng khai cuộc.</p>';
   }
 
-  const RES_CLS = { win: 'win', draw: 'draw', loss: 'loss' };
+  const RES = { win: ['win', 'Thắng'], draw: ['draw', 'Hoà'], loss: ['loss', 'Thua'] };
   function renderGames() {
-    const list = games().slice(0, 6);
-    if (!list.length) { $('cpGames').innerHTML = '<p class="muted cp-empty">Chưa có ván nào trong Nhật ký.</p>'; return; }
+    const list = games().slice(0, 12);
+    if (!list.length) { $('cpGames').innerHTML = '<p class="muted cp-empty">Chưa có ván nào trong Nhật ký. Chơi một ván với máy hoặc Online, ván sẽ hiện ở đây để trợ lý nhận xét.</p>'; return; }
     $('cpGames').innerHTML = `<div class="cp-games">${list.map((g, i) => {
-      const out = GameHistory.outcome(g);
-      return `<div class="cp-game"><span class="cp-res ${RES_CLS[out] || ''}">${out === 'win' ? 'T' : out === 'loss' ? 'B' : 'H'}</span>
-        <span class="cp-game-text"><b>${esc(g.opp || g.title || 'Ván cờ')}</b><small>${esc(new Date(g.at).toLocaleDateString('vi-VN'))} · cầm ${g.color === 'w' ? 'Trắng' : 'Đen'}${Number.isFinite(g.acc) ? ` · ${Math.round(g.acc)}%` : g.rev ? '' : ' · chưa chấm'}</small></span>
-        ${aiOn() ? `<button type="button" class="primary" data-cp-review="${i + 1}">Nhận xét</button>` : ''}
-        <button type="button" class="ghost" data-cp-replay="${esc(g.id)}">Xem lại</button></div>`; }).join('')}</div>`;
+      const [cls, label] = RES[GameHistory.outcome(g)] || ['', '–'];
+      return `<div class="cp-game"><span class="cp-res ${cls}">${label}</span>
+        <span class="cp-game-text"><b>${esc(g.opp || g.title || 'Ván cờ')}</b><small>${esc(new Date(g.at).toLocaleDateString('vi-VN'))} · cầm ${g.color === 'w' ? 'Trắng' : 'Đen'} · ${Math.ceil((g.moves || 0) / 2)} nước${Number.isFinite(g.acc) ? ` · chính xác ${Math.round(g.acc)}%` : g.rev ? '' : ' · chưa chấm'}</small></span>
+        <span class="cp-game-btns">${aiOn() ? `<button type="button" class="primary" data-cp-review="${i + 1}"><svg class="ic"><use href="#i-spark"/></svg>Nhận xét</button>` : ''}
+        <button type="button" class="ghost" data-cp-replay="${esc(g.id)}">Xem lại</button></span></div>`; }).join('')}</div>`;
   }
 
-  // Nút hỏi nhanh: chế độ huấn luyện viên (máy chủ) hỏi tự do, chế độ cơ bản dùng câu mẫu
+  // Gợi ý câu hỏi: chế độ huấn luyện viên (máy chủ) hỏi tự do, chế độ cơ bản dùng câu mẫu
   const QUICK = [
-    ['i-history', 'Nhận xét ván gần nhất', 'Nhận xét ván gần nhất của tôi'],
-    ['i-target', 'Điểm yếu lớn nhất', 'Điểm yếu lớn nhất trong lối chơi của tôi là gì và sửa thế nào?'],
-    ['i-route', 'Hôm nay tập gì?', 'Hôm nay tôi nên tập gì trong khoảng 30 phút?'],
-    ['i-cpu', 'Phân tích thế cờ trên bàn', 'Phân tích thế cờ đang trên bàn giúp tôi'],
-    ['i-book', 'Chọn khai cuộc', 'Tôi nên chơi khai cuộc nào với trình độ của mình?'],
+    ['i-history', 'Nhận xét ván gần nhất', 'Bước ngoặt, bài học và bài tập từ ván vừa chơi', 'Nhận xét ván gần nhất của tôi'],
+    ['i-target', 'Điểm yếu lớn nhất', 'Mình hay sai ở đâu và sửa thế nào', 'Điểm yếu lớn nhất trong lối chơi của tôi là gì và sửa thế nào?'],
+    ['i-route', 'Hôm nay tập gì?', 'Kế hoạch 30 phút hợp với trình độ', 'Hôm nay tôi nên tập gì trong khoảng 30 phút?'],
+    ['i-cpu', 'Phân tích thế cờ trên bàn', 'Stockfish 19 + lời giải thích dễ hiểu', 'Phân tích thế cờ đang trên bàn giúp tôi'],
+    ['i-book', 'Chọn khai cuộc', 'Bộ khai cuộc phù hợp với bạn', 'Tôi nên chơi khai cuộc nào với trình độ của mình?'],
   ];
+  const BASIC_SUB = { why: 'Nguyên nhân từ các ván đã chấm', today: 'Kế hoạch ngắn theo lộ trình', opening: 'Bộ khai cuộc theo Elo', strong: 'Những gì bạn làm tốt', elo: 'Các bước để tăng Elo' };
+  const BASIC_IC = { why: 'i-target', today: 'i-route', opening: 'i-book', strong: 'i-star', elo: 'i-podium' };
+  function suggestions() {
+    return aiOn() ? QUICK.slice(0, 4).map(([ic, t, sub, q]) => ({ ic, t, sub, attr: `data-cp-ask="${esc(q)}"` }))
+      : QUESTIONS.slice(0, 4).map(([k, q]) => ({ ic: BASIC_IC[k] || 'i-spark', t: q, sub: BASIC_SUB[k] || '', attr: `data-ask="${k}"` }));
+  }
+  // Hàng gợi ý nhỏ phía trên ô nhập (chỉ hiện khi đã có cuộc trò chuyện)
   function renderQuick() {
     const box = $('cpQuick');
     if (!box) return;
-    box.innerHTML = aiOn()
-      ? QUICK.map(([ic, label, q]) => `<button type="button" data-cp-ask="${esc(q)}"><svg class="ic"><use href="#${ic}"/></svg>${esc(label)}</button>`).join('')
-      : QUESTIONS.map(([k, q]) => `<button type="button" data-ask="${k}">${esc(q)}</button>`).join('');
+    box.hidden = !chat.length;
+    if (!chat.length) return;
+    const chips = aiOn() ? QUICK.map(([ic, label, , q]) => `<button type="button" data-cp-ask="${esc(q)}"><svg class="ic"><use href="#${ic}"/></svg>${esc(label)}</button>`)
+      : QUESTIONS.map(([k, q]) => `<button type="button" data-ask="${k}">${esc(q)}</button>`);
+    box.innerHTML = `<button type="button" class="cp-new" data-cp-new title="Bắt đầu cuộc trò chuyện mới"><svg class="ic"><use href="#i-plus"/></svg>Mới</button>${chips.join('')}`;
   }
 
   function render() {
@@ -951,7 +1029,6 @@ const Assistant = (() => {
     const d = analyse();
     renderStats(d);
     renderEngine();
-    renderQuick();
     renderChat();
     renderPlan(d);
     renderGames();
@@ -963,18 +1040,23 @@ const Assistant = (() => {
 
   function welcome() {
     const n = meName();
-    return `<p><b>Chào ${esc(n || 'bạn')}!</b> Mình là Trợ lý Royal Gambit, huấn luyện viên riêng của bạn.</p>
-      <p>${aiOn() ? 'Mình đọc các ván của bạn (Stockfish 19 chấm từng nước), tra Thư viện kiến thức và kiểm tra mọi biến cờ bằng máy trước khi trả lời. Bạn có thể nhờ mình nhận xét một ván, giải thích một nước đi, hay lên kế hoạch tập luyện.'
-        : 'Mình đọc các ván đã được Stockfish 19 chấm để tìm điểm yếu và gợi ý lộ trình. Chọn một câu hỏi bên dưới, hoặc gõ một khái niệm (ghim, Lucena, Sicily…) để tra Thư viện kiến thức.'}</p>`;
+    return `<div class="cp-hello">
+      <img class="cp-hello-crest" src="img/logo.svg?v=2" alt="">
+      <h2>Chào ${esc(n || 'bạn')}, hôm nay mình giúp gì cho bạn?</h2>
+      <p>${aiOn() ? 'Mình đọc các ván của bạn, kiểm tra từng biến cờ bằng Stockfish 19 và tra Thư viện kiến thức trước khi trả lời.'
+        : 'Mình đọc các ván đã được Stockfish 19 chấm để tìm điểm yếu và gợi ý lộ trình. Gõ một khái niệm (ghim, Lucena, Sicily…) để tra Thư viện kiến thức.'}</p>
+      <div class="cp-suggest">${suggestions().map(s => `<button type="button" ${s.attr}><svg class="ic"><use href="#${s.ic}"/></svg><b>${esc(s.t)}</b>${s.sub ? `<small>${esc(s.sub)}</small>` : ''}</button>`).join('')}</div>
+    </div>`;
   }
 
   function renderChat() {
     const box = $('aiChat');
     if (!box) return;
-    const w = `<div class="ai-msg bot cp-welcome"><span class="cp-avatar"><img src="img/logo.svg?v=2" alt=""></span><div>${welcome()}</div></div>`;
-    box.innerHTML = w + chat.map(m => (m.me ? `<p class="ai-msg me">${esc(m.text)}</p>`
-      : `<div class="ai-msg bot"${m.md != null && m.html == null ? ' data-raw' : ''}><span class="cp-avatar"><img src="img/logo.svg?v=2" alt=""></span><div class="cp-msg-body">${botHtml(m)}</div></div>`)).join('');
+    box.classList.toggle('empty', !chat.length);
+    box.innerHTML = !chat.length ? welcome() : chat.map(m => (m.me ? `<div class="ai-msg me"><p>${esc(m.text)}</p></div>`
+      : `<div class="ai-msg bot"${m.md != null && m.html == null ? ' data-raw' : ''}>${AVATAR}<div class="cp-msg-body">${botHtml(m)}</div></div>`)).join('');
     box.scrollTop = box.scrollHeight;
+    renderQuick();
   }
 
   function open() {
@@ -1010,11 +1092,14 @@ const Assistant = (() => {
       const ko = e.target.closest('[data-kb-open]');
       if (ko) {
         kb.open = ko.dataset.kbOpen;
+        kb.ply = null;
         renderKb();
-        if (!ko.closest('#aiKb')) { setPane('kb'); $('aiKb').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        if (!ko.closest('#aiKb')) { setPane('kb'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
         return;
       }
       if (e.target.closest('[data-kb-back]')) { kb.open = ''; renderKb(); return; }
+      const kp = e.target.closest('[data-kg-ply]');
+      if (kp) { kb.ply = Number(kp.dataset.kgPly); renderKb(); return; }
       const kt = e.target.closest('[data-kb-topic]');
       if (kt) { kb.topic = kt.dataset.kbTopic; kb.q = ''; renderKb(); return; }
       const ka = e.target.closest('[data-kb-ask]');
