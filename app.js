@@ -2403,16 +2403,23 @@ window.addEventListener('hashchange', routeProfile);
 
 let entered = false; // đã qua màn đăng nhập
 let homeOpen = false;
+let coachOpen = false; // trang Trợ lý Royal Gambit (assistant.js), che bàn cờ giống Trang chủ
 let homeTimer = null;
 const homeCache = { contests: null, contestsAt: 0, top: null, topAt: 0 };
 const homeVisible = () => !$('homePage').hidden;
 
 function applyHome() {
-  const show = homeOpen && entered && profileRoute() == null;
+  const coach = coachOpen && entered && profileRoute() == null;
+  const show = homeOpen && !coach && entered && profileRoute() == null;
   $('homePage').hidden = !show;
-  if (document.body.dataset.page !== 'profile') document.body.dataset.page = show ? 'home' : '';
+  const cp = $('coachPage');
+  const coachWas = !cp.hidden;
+  cp.hidden = !coach;
+  if (document.body.dataset.page !== 'profile') document.body.dataset.page = coach ? 'coach' : show ? 'home' : '';
   $('homeTab').setAttribute('aria-selected', String(show));
-  for (const tab of document.querySelectorAll('.tab[data-mode]')) tab.setAttribute('aria-selected', String(!show && document.body.dataset.page !== 'profile' && tab.dataset.mode === mode));
+  $('aiTab').setAttribute('aria-selected', String(coach));
+  for (const tab of document.querySelectorAll('.tab[data-mode]')) tab.setAttribute('aria-selected', String(!show && !coach && document.body.dataset.page !== 'profile' && tab.dataset.mode === mode));
+  if (coach && !coachWas && typeof Assistant !== 'undefined') Assistant.render();
   clearInterval(homeTimer);
   homeTimer = null;
   if (show) {
@@ -2424,15 +2431,26 @@ function applyHome() {
 function openHome() {
   if (!entered) return;
   homeOpen = true;
+  coachOpen = false;
   if (profileRoute() != null) closeProfilePage();
   else applyHome();
   window.scrollTo(0, 0);
 }
 
 function leaveHome() {
-  if (!homeOpen) return;
-  homeOpen = false;
+  if (!homeOpen && !coachOpen) return;
+  homeOpen = coachOpen = false;
   applyHome();
+}
+
+// Trang Trợ lý Royal Gambit
+function openCoach() {
+  if (!entered) return;
+  coachOpen = true;
+  homeOpen = false;
+  if (profileRoute() != null) closeProfilePage();
+  else applyHome();
+  window.scrollTo(0, 0);
 }
 
 // Đưa người chơi về bàn cờ (đóng Trang chủ / trang hồ sơ)

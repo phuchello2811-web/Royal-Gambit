@@ -98,7 +98,7 @@ const Online = (() => {
     setState('connecting');
     try { await loadLib(); } catch { return fail('Không tải được thư viện kết nối. Kiểm tra mạng Internet.'); }
     code = randomCode();
-    peer = new Peer(PREFIX + code);
+    peer = newPeer(PREFIX + code);
     peer.on('open', () => setState('waiting'));
     peer.on('connection', c => {
       if (conn) { // phòng đã đủ 2 người
@@ -117,13 +117,134 @@ const Online = (() => {
     info('');
     setState('connecting');
     try { await loadLib(); } catch { return fail('Không tải được thư viện kết nối. Kiểm tra mạng Internet.'); }
-    peer = new Peer();
+    peer = newPeer();
     peer.on('open', () => attach(peer.connect(PREFIX + code, { reliable: true })));
     peer.on('error', onPeerError);
   }
 
+  // Máy chủ STUN giúp hai bên tìm địa chỉ thật của nhau. TURN mặc định của PeerJS (eu-0/us-0.turn.peerjs.com)
+  // đã ngừng chạy nên không dùng nữa; muốn có TURN riêng thì điền iceServers trong config.js (xem README).
+  const STUN = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+  ];
+  function newPeer(id) {
+    const extra = (window.LEADERBOARD && Array.isArray(window.LEADERBOARD.iceServers)) ? window.LEADERBOARD.iceServers : [];
+    const opts = { config: { iceServers: [...STUN, ...extra] } };
+    return id ? new Peer(id, opts) : new Peer(opts);
+  }
+
+  // Hai mạng khác nhau (4G, Wi-Fi trường / công ty...) nhiều khi không nối thẳng được với nhau. Quá DIRECT_WAIT
+  // mà kết nối WebRTC chưa mở thì cả hai bên chuyển sang đường dự phòng: gửi tin qua Firebase (relayConn).
+  const DIRECT_WAIT = 5000, RELAY_WAIT = 10000;
+
   function attach(c) {
     conn = c;
+    wire(c);
+    if (c.relay) return;
+    setTimeout(() => {
+      if (conn !== c || c.open) return;
+      const r = relayFor(c);
+      if (!r) return noLink(c);
+      conn = r;
+      wire(r);
+      try { c.close(); } catch {}
+      setTimeout(() => { if (conn === r && !r.open) noLink(r); }, RELAY_WAIT);
+    }, DIRECT_WAIT);
+  }
+
+  // Không nối được cả trực tiếp lẫn qua đường dự phòng
+  function noLink(c) {
+    if (conn !== c) return;
+    conn = null;
+    try { c.close(); } catch {}
+    if (state === 'searching') { if (!isHost) retrySearch(search); return; } // người giữ phòng chờ: chờ người khác
+    fail('Không nối được với đối thủ: mạng của một trong hai bên chặn kết nối trực tiếp (hay gặp ở 4G, Wi-Fi trường / công ty). Hãy thử lại hoặc đổi sang mạng khác.');
+  }
+
+  function relayFor(c) {
+    const cfg = window.LEADERBOARD || {};
+    if (!cfg.databaseURL || !peer || !peer.id || !c.peer || typeof EventSource === 'undefined') return null;
+    const ch = (isHost ? [peer.id, c.peer] : [c.peer, peer.id]).join('~').replace(/[.#$[\]/]/g, '_');
+    return relayConn(cfg.databaseURL.replace(/\/+$/, '') + '/relay/' + ch, isHost ? 'h' : 'g', isHost ? 'g' : 'h', c.peer);
+  }
+
+  // Kết nối qua Firebase Realtime Database, cùng kiểu với DataConnection của PeerJS (on / send / close / open).
+  // Mỗi bên ghi tin của mình vào /relay/<kênh>/<h|g>/<số thứ tự> và nghe nhánh của bên kia (REST streaming).
+  // Tin lưu dạng chuỗi JSON để Firebase không đổi mảng / bỏ giá trị rỗng; số thứ tự giúp nhận đúng thứ tự.
+  // Tin đầu tiên '_r' báo "tôi đã vào kênh": nhận được nó là kênh mở. '_x' báo đóng kênh.
+  function relayConn(base, mine, theirs, peerId) {
+    const on = { open: [], data: [], close: [] };
+    const emit = (ev, x) => { for (const f of on[ev]) try { f(x); } catch (e) { console.error(e); } };
+    let seq = 0, next = 0, queue = {}, flying = false, closed = false, fails = 0;
+    const got = new Map();
+    const key = n => String(n).padStart(6, '0');
+
+    const r = {
+      relay: true, open: false, peer: peerId,
+      on(ev, f) { if (on[ev]) on[ev].push(f); return r; },
+      send(d) { if (!closed) { queue[key(seq++)] = JSON.stringify(d); flush(); } },
+      close() {
+        if (closed) return;
+        queue[key(seq++)] = JSON.stringify({ t: '_x' });
+        flush();
+        shut();
+        // Dọn nhánh của mình sau khi tin '_x' đã tới bên kia
+        setTimeout(() => fetch(`${base}/${mine}.json`, { method: 'DELETE' }).catch(() => {}), 3000);
+      },
+    };
+
+    async function flush() {
+      if (flying || !Object.keys(queue).length) return;
+      const batch = queue;
+      queue = {};
+      flying = true;
+      try {
+        const res = await fetch(`${base}/${mine}.json`, { method: 'PATCH', body: JSON.stringify(batch) });
+        if (res.status === 401 || res.status === 403) { flying = false; shut(); return; } // luật Firebase chưa có mục relay
+        if (!res.ok) throw new Error(res.status);
+        fails = 0;
+      } catch {
+        queue = { ...batch, ...queue };
+        flying = false;
+        if (++fails <= 20 && !(closed && fails > 2)) setTimeout(flush, 1000); // mạng chập chờn: gửi lại
+        return;
+      }
+      flying = false;
+      flush();
+    }
+
+    function take(entries) {
+      for (const [k, v] of entries) if (/^\d{6}$/.test(k) && typeof v === 'string' && Number(k) >= next) got.set(Number(k), v);
+      while (got.has(next)) {
+        let d = null;
+        try { d = JSON.parse(got.get(next)); } catch {}
+        got.delete(next++);
+        if (closed || !d) continue;
+        if (d.t === '_r') { if (!r.open) { r.open = true; emit('open'); } continue; }
+        if (d.t === '_x') { shut(); emit('close'); return; }
+        if (r.open) emit('data', d);
+      }
+    }
+
+    const es = new EventSource(`${base}/${theirs}.json`);
+    const onEvent = e => {
+      let m = null;
+      try { m = JSON.parse(e.data); } catch {}
+      if (!m || !m.data) return;
+      if (m.path === '/') take(Object.entries(m.data));
+      else take([[m.path.slice(1), m.data]]);
+    };
+    es.addEventListener('put', onEvent);
+    es.addEventListener('patch', onEvent);
+    es.addEventListener('cancel', shut); // luật Firebase chưa có mục relay: hết RELAY_WAIT thì báo không nối được
+    function shut() { closed = true; r.open = false; try { es.close(); } catch {} }
+
+    r.send({ t: '_r' });
+    return r;
+  }
+
+  function wire(c) {
     c.on('open', () => {
       sendHello(c);
       // Trạng thái kết nối mạng thật (ICE): 'failed' / 'closed' nghĩa là đối thủ đã mất hẳn
@@ -251,6 +372,7 @@ const Online = (() => {
     if (!oppKnown) askWho();
     else if (again) sendHello(conn, false); // chơi lại: gửi Elo / exp vừa đổi sau ván trước để đối thủ tính đúng
     chat(null, `Bắt đầu ván mới – bạn cầm quân ${COLOR_NAME[color]}.` + (contestId ? ' Ván này tính điểm Contest.' : ''));
+    if (conn && conn.relay && !again) chat(null, 'Hai mạng không nối thẳng được với nhau nên ván này đi qua máy chủ dự phòng (nước đi có thể chậm hơn một chút).');
     if (clk) chat(null, clk.inc ? `Đồng hồ: ${clk.base / 60000} phút mỗi bên, cộng ${clk.inc / 1000} giây mỗi nước.` : `Đồng hồ: ${clk.base / 60000} phút mỗi bên.`);
   }
 
@@ -651,7 +773,7 @@ const Online = (() => {
     if (search !== s) return;
     killPeer();
     isHost = true;
-    const p = peer = new Peer(s.lobby);
+    const p = peer = newPeer(s.lobby);
     p.on('connection', c => {
       if (peer !== p || search !== s) return;
       if (conn) { // đã có người nối vào trước, người này tìm vòng sau
@@ -670,12 +792,12 @@ const Online = (() => {
   function joinLobby(s) {
     killPeer();
     isHost = false;
-    const p = peer = new Peer();
+    const p = peer = newPeer();
     p.on('open', () => {
       if (peer !== p || search !== s) return;
       attach(p.connect(s.lobby, { reliable: true }));
-      // Không được phản hồi (người chờ đã đóng tab...) thì thử lại
-      s.guard = setTimeout(() => { if (search === s && peer === p) retrySearch(s); }, 7000);
+      // Không được phản hồi (người chờ đã đóng tab...) thì thử lại; chờ đủ lâu cho cả đường dự phòng qua Firebase
+      s.guard = setTimeout(() => { if (search === s && peer === p) retrySearch(s); }, DIRECT_WAIT + RELAY_WAIT + 2000);
     });
     p.on('error', err => {
       if (peer !== p || search !== s) return;

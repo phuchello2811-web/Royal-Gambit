@@ -571,5 +571,5 @@ const GameHistory = (() => {
     $('histSync').addEventListener('click', () => { if (!syncing) sync().then(ok => { if (ok && !$('histModal').hidden) render(); }); });
   }
 
-  return { save, update, read, open, bind, render, remove, clear, replay, runAnalysis, resultLabel, outcome, label, normalFen, sync, onChange: f => listeners.push(f) };
+  return { save, update, read, open, bind, render, remove, clear, replay, runAnalysis, loadOnBoard, loadPosition, resultLabel, outcome, label, normalFen, sync, onChange: f => listeners.push(f) };
 })();

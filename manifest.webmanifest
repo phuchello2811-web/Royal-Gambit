@@ -24,6 +24,6 @@
     { "name": "Chơi với máy", "short_name": "Chơi", "url": "./?go=play", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] },
     { "name": "Học cờ", "short_name": "Học", "url": "./?go=learn", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] },
     { "name": "Câu đố", "short_name": "Câu đố", "url": "./?go=puzzle", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Trợ lý AI", "short_name": "Trợ lý", "url": "./?go=ai", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Trợ lý Royal Gambit", "short_name": "Trợ lý", "url": "./?go=ai", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] }
   ]
 }

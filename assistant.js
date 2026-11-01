@@ -1,9 +1,10 @@
-// Trợ lý AI chọn lộ trình: đọc các ván trong Nhật ký (đã được Stockfish chấm từng nước), Sổ luyện lỗi và tiến độ Học cờ,
+// Trợ lý Royal Gambit (trang riêng, mở bằng tab Trợ lý): huấn luyện viên riêng và lộ trình học: đọc các ván trong Nhật ký (đã được Stockfish chấm từng nước), Sổ luyện lỗi và tiến độ Học cờ,
 // tìm điểm yếu của người chơi rồi gợi ý lộ trình: phần học, câu đố theo chủ đề, khai cuộc nên ôn, mức máy nên đấu.
 // Chạy hoàn toàn trên máy người chơi (không gửi dữ liệu đi đâu), không cần khoá API.
-// Hỏi đáp: nếu đã bật AI mã nguồn mở chạy trên máy (localai.js, Qwen3.5 qua WebLLM), mỗi câu hỏi được gửi cho mô hình
-// kèm số liệu thật của người chơi và các bài liên quan trong Thư viện kiến thức (knowledge.js), mô hình chỉ diễn giải
-// dữ liệu đó. Chưa bật / máy không hỗ trợ: trả lời theo mẫu như cũ, câu hỏi lạ thì tra Thư viện kiến thức.
+// Hỏi đáp: nếu đã cài máy chủ AI (aiApi trong config.js, tools/ai-worker.js), câu hỏi được gửi cho GLM-4.7 của Z.ai;
+// AI tự gọi công cụ để tra Thư viện kiến thức (knowledge.js), hồ sơ và ván đấu của người chơi, phân tích thế cờ
+// (Lichess cloud eval / Stockfish) và bảng tàn cuộc, rồi mới trả lời. Chưa cài / máy chủ lỗi: trả lời theo mẫu như cũ,
+// câu hỏi lạ thì tra Thư viện kiến thức. Cách chẩn đoán điểm yếu và lộ trình bên dưới vẫn chạy hoàn toàn trên máy.
 //
 //   • Giai đoạn mỗi nước: khai cuộc (10 nước đầu), tàn cuộc (mỗi bên còn ≤ 13 điểm quân, không tính Tốt), còn lại là trung cuộc.
 //   • Kiểu lỗi: để quân treo, bỏ lỡ đòn chiến thuật, bỏ lỡ chiếu hết, ra Hậu sớm, chậm nhập thành, thua ngay từ khai cuộc,
@@ -266,8 +267,9 @@ const Assistant = (() => {
   // ---------- Thực hiện gợi ý ----------
 
   function act(a) {
-    $('aiModal').hidden = true;
     if (!a) return;
+    // Câu đố, ôn lỗi, chơi, học cần bàn cờ: rời trang Trợ lý trước (Thư viện là hộp thoại, mở đè lên trang)
+    if (a.kind !== 'lib' && typeof showBoard === 'function') showBoard();
     if (a.kind === 'review') { Puzzles.startReview(); return; }
     if (a.kind === 'puzzle') { if (!Puzzles.startTheme(a.themes)) Puzzles.open(); return; }
     if (a.kind === 'lib') { Library.show(a.id); return; }
@@ -294,7 +296,7 @@ const Assistant = (() => {
     let done = 0;
     try {
       for (const g of todo) {
-        if ($('aiModal').hidden) break;
+        if ($('coachPage').hidden) break;
         if (btn) btn.innerHTML = `<svg class="ic"><use href="#i-cpu"/></svg>Đang chấm ván ${done + 1}/${todo.length}…`;
         const r = await GameHistory.runAnalysis(g, f => { if (btn) btn.innerHTML = `<svg class="ic"><use href="#i-cpu"/></svg>Đang chấm ván ${done + 1}/${todo.length} · ${Math.round(f * 100)}%`; });
         if (!r) break;
@@ -436,60 +438,77 @@ const Assistant = (() => {
   // Chế độ cơ bản: câu hỏi không khớp mẫu nào thì tra Thư viện kiến thức
   function kbAnswer(q) {
     const hits = hasKb() ? Knowledge.search(q, 'any', 3) : [];
-    if (!hits.length) return 'Mình chưa hiểu câu hỏi và cũng chưa tìm thấy bài nào phù hợp trong Thư viện kiến thức. Hãy thử một câu gợi ý bên dưới, hoặc bật <b>AI chạy trên máy</b> để hỏi tự do.';
+    if (!hits.length) return 'Mình chưa hiểu câu hỏi và cũng chưa tìm thấy bài nào phù hợp trong Thư viện kiến thức. Hãy thử một câu gợi ý bên dưới, hoặc gõ không dấu / từ khoá ngắn hơn (ví dụ: ghim, tốt thông, Lucena).';
     return `Mình tìm thấy trong Thư viện kiến thức:${hits.map(a => `<div class="ai-ref"><b>${esc(a.title)}</b><p>${esc(snippet(a.body, 280))}</p>
       <button type="button" class="ai-inline" data-kb-open="${esc(a.id)}">Đọc cả bài</button>${seeActs([a], 1).map(actBtn).join('')}</div>`).join('')}`;
   }
 
   let kb = { q: '', topic: 'tactics', open: '' };
+  const TOPIC_IC = { opening: 'i-book', tactics: 'i-bolt', mates: 'i-crown', strategy: 'i-target', endgame: 'i-flag', rules: 'i-shield', training: 'i-route', general: 'i-globe' };
   function renderKb() {
     const box = $('aiKb');
     if (!box || !hasKb()) return;
+    const cnt = $('cpKbCount');
+    if (cnt) cnt.textContent = `${Knowledge.count()} bài`;
     const art = kb.open && Knowledge.get(kb.open);
     if (art) {
-      box.innerHTML = `<div class="kb-article">
+      const related = Knowledge.search(art.title + ' ' + art.tags, 'any', 5).filter(a => a.id !== art.id).slice(0, 3);
+      box.innerHTML = `<article class="kb-article">
         <button type="button" class="ghost kb-back" data-kb-back><svg class="ic"><use href="#i-chevron-left"/></svg>Quay lại</button>
-        <small class="kb-topic">${esc(Knowledge.topicName(art.topic))}</small><h4>${esc(art.title)}</h4><p>${esc(art.body)}</p>
-        <div class="kb-acts">${seeActs([art]).map(actBtn).join('')}<button type="button" class="ai-inline" data-kb-ask="${esc(art.id)}">Hỏi trợ lý về bài này</button></div></div>`;
+        <small class="kb-topic"><svg class="ic"><use href="#${TOPIC_IC[art.topic] || 'i-book'}"/></svg>${esc(Knowledge.topicName(art.topic))}</small>
+        <h3>${esc(art.title)}</h3><p>${esc(art.body)}</p>
+        <div class="kb-acts">${seeActs([art]).map(actBtn).join('')}<button type="button" class="ai-inline primary" data-kb-ask="${esc(art.id)}"><svg class="ic"><use href="#i-spark"/></svg>Hỏi huấn luyện viên về bài này</button></div>
+        ${related.length ? `<div class="kb-related"><small>Đọc thêm</small>${related.map(a => `<button type="button" class="ai-ref-chip" data-kb-open="${esc(a.id)}">${esc(a.title)}</button>`).join('')}</div>` : ''}
+      </article>`;
       return;
     }
-    const list = kb.q.trim() ? Knowledge.search(kb.q, 'any', 8) : Knowledge.byTopic(kb.topic);
-    box.innerHTML = `<div class="kb-search"><input id="kbInput" type="search" maxlength="80" autocomplete="off" placeholder="Tìm: ghim, tốt thông, Lucena, Sicily…" aria-label="Tìm trong thư viện kiến thức" value="${esc(kb.q)}"></div>
-      <div class="ai-chips kb-topics">${Knowledge.TOPICS.filter(t => t[0] !== 'lesson').map(([id, n]) => `<button type="button" class="${!kb.q.trim() && kb.topic === id ? 'on' : ''}" data-kb-topic="${id}">${esc(n)}</button>`).join('')}</div>
-      <div class="kb-list">${list.length ? list.map(a => `<button type="button" class="kb-item" data-kb-open="${esc(a.id)}"><b>${esc(a.title)}</b><small>${esc(snippet(a.body, 110))}</small></button>`).join('')
+    const q = kb.q.trim();
+    const list = q ? Knowledge.search(q, 'any', 12) : Knowledge.byTopic(kb.topic);
+    box.innerHTML = `<div class="kb-search"><svg class="ic"><use href="#i-search"/></svg><input id="kbInput" type="search" maxlength="80" autocomplete="off" placeholder="Tìm: ghim, tốt thông, Lucena, Sicily, nhà vô địch…" aria-label="Tìm trong thư viện kiến thức" value="${esc(kb.q)}"></div>
+      <div class="kb-topics">${Knowledge.TOPICS.filter(t => t[0] !== 'lesson').map(([id, n]) => `<button type="button" class="${!q && kb.topic === id ? 'on' : ''}" data-kb-topic="${id}"><svg class="ic"><use href="#${TOPIC_IC[id] || 'i-book'}"/></svg>${esc(n)}<small>${Knowledge.byTopic(id).length}</small></button>`).join('')}</div>
+      <div class="kb-grid">${list.length ? list.map(a => `<button type="button" class="kb-item" data-kb-open="${esc(a.id)}"><small class="kb-topic">${esc(Knowledge.topicName(a.topic))}</small><b>${esc(a.title)}</b><span>${esc(snippet(a.body, 120))}</span></button>`).join('')
         : '<p class="muted">Không tìm thấy bài nào. Thử từ khác (có thể gõ không dấu).</p>'}</div>
-      <p class="ai-privacy">${Knowledge.count()} bài: kiến thức soạn sẵn, ${Library.OPENINGS.length} khai cuộc, các thế tàn cuộc và 20 phần Học cờ.</p>`;
+      <p class="ai-privacy">Gồm bài soạn sẵn, ${Library.OPENINGS.length} khai cuộc và các thế tàn cuộc trong Thư viện, 20 phần Học cờ. Huấn luyện viên tra thư viện này trước khi giải thích.</p>`;
   }
 
-  // ---------- AI chạy trên máy ----------
+  // ---------- AI qua máy chủ (GLM-4.7) ----------
+  // AI tự gọi công cụ (định nghĩa trong tools/ai-worker.js), trình duyệt thực hiện rồi gửi kết quả ở lượt gọi tiếp:
+  // Thư viện kiến thức, hồ sơ / ván đấu của người chơi, thế cờ trên bàn, phân tích thế cờ, bảng tàn cuộc.
 
-  const hasAI = () => typeof LocalAI !== 'undefined';
-  const aiOn = () => hasAI() && LocalAI.state() === 'ready';
+  const hasCloud = () => typeof CloudAI !== 'undefined' && CloudAI.available();
+  const aiOn = () => hasCloud() && CloudAI.usable();
+  const aiBusy = () => typeof CloudAI !== 'undefined' && CloudAI.busy();
+  const MAX_ROUNDS = 4; // số lượt tra công cụ tối đa cho mỗi câu hỏi
+  let hist = [];        // các lượt hỏi đáp gần nhất (chỉ câu hỏi và câu trả lời, không kèm dữ liệu công cụ)
   const en = () => typeof I18N !== 'undefined' && I18N.lang() === 'en';
-  let last = null; // câu hỏi + trả lời trước (cho câu hỏi nối tiếp)
 
   const OUT = { win: 'thắng', draw: 'hoà', loss: 'thua' };
-  // Tóm tắt một ván: kết quả, khai cuộc, 3 lỗi lớn nhất của mình (theo bản chấm Stockfish)
-  function gameBrief(g) {
+  const openingText = vi => (/^(khai cuộc|phòng thủ|gambit|phản|hệ thống|ván)/i.test(vi) ? vi : 'khai cuộc ' + vi);
+  const fenOf = g => (typeof Engine !== 'undefined' ? Engine.positionFen(g) : g.fen());
+  // Tóm tắt một ván: kết quả, khai cuộc, các lỗi lớn nhất của mình (theo bản chấm Stockfish); withFen: kèm FEN trước mỗi lỗi
+  function gameBrief(g, withFen = false) {
     const tmp = new Chess();
     const moves = GameHistory.replay(g.pgn, tmp);
     if (!moves || !moves.length) return '';
     const sans = tmp.history.map(h => h.san);
     const o = typeof OPENING_BOOK !== 'undefined' && !/\[FEN\s/.test(g.pgn || '') ? OPENING_BOOK.name(sans.slice(0, 16)) : null;
     let s = `cầm ${g.color === 'w' ? 'Trắng' : 'Đen'} gặp ${g.opp || g.title || 'đối thủ'}, ${OUT[GameHistory.outcome(g)] || 'chưa rõ kết quả'}, ${Math.ceil(sans.length / 2)} nước`
-      + (o ? `, khai cuộc ${o.vi}` : '') + (Number.isFinite(g.acc) ? `, độ chính xác ${Math.round(g.acc)}%` : '');
+      + (o ? `, ${openingText(o.vi)}` : '') + (Number.isFinite(g.acc) ? `, độ chính xác ${Math.round(g.acc)}%` : '');
     const rev = g.rev;
     if (rev && typeof rev.cls === 'string' && typeof Coach !== 'undefined') {
-      const first = new Chess(tmp.startFen).turn;
+      const gg = new Chess(tmp.startFen);
       const ev = Array.isArray(rev.evals) ? rev.evals : [], best = Array.isArray(rev.best) ? rev.best : [];
       const pov = cp => (g.color === 'w' ? cp : -cp) / 100;
       const bad = [];
       for (let i = 0; i < rev.cls.length && i < sans.length; i++) {
-        const side = i % 2 === 0 ? first : first === 'w' ? 'b' : 'w';
+        const side = gg.turn, no = gg.fullmove;
+        const fen = withFen ? fenOf(gg) : '';
         const cls = (Coach.BY_CODE[rev.cls[i]] || {}).id;
+        if (!gg.move(moves[i])) break;
         if (side !== g.color || !/blunder|mistake|miss/.test(cls || '')) continue;
         const drop = ev.length > i + 1 ? pov(ev[i]) - pov(ev[i + 1]) : 0;
-        bad.push({ i, drop, txt: `nước ${Math.floor(i / 2) + 1}${side === 'w' ? '.' : '...'}${sans[i]}${best[i] ? ` (nên đi ${best[i]})` : ''}${ev.length > i + 1 ? `, đánh giá từ ${pov(ev[i]).toFixed(1)} xuống ${pov(ev[i + 1]).toFixed(1)}` : ''}` });
+        bad.push({ drop, txt: `nước ${no}${side === 'w' ? '.' : '...'}${sans[i]}${best[i] ? ` (Stockfish đề nghị ${best[i]})` : ''}`
+          + (ev.length > i + 1 ? `, đánh giá theo phía mình từ ${pov(ev[i]).toFixed(1)} xuống ${pov(ev[i + 1]).toFixed(1)}` : '') + (fen ? `, FEN trước nước này: ${fen}` : '') });
       }
       bad.sort((a, b) => b.drop - a.drop);
       s += bad.length ? `. Lỗi lớn: ${bad.slice(0, 3).map(b => b.txt).join('; ')}` : '. Không có lỗi lớn.';
@@ -516,8 +535,9 @@ const Assistant = (() => {
       if (good.length) L.push('Ít gặp vấn đề về: ' + good.join(', ') + '.');
       const ex = top[0] && d.examples[top[0].id];
       if (ex) L.push(`Ví dụ lỗi "${top[0].name}": nước ${ex.no} ván với ${ex.opp}, đi ${ex.san}, nên đi ${ex.best}.`);
+      L.push(`Thói quen: ${d.pat.earlyQueen} ván ra Hậu trong 5 nước đầu, ${d.pat.lateCastle} ván chưa nhập thành sau 12 nước, ${d.pat.mated} ván bị chiếu hết, ${d.pat.thrown} ván đang hơn ≥ 3 điểm mà không thắng.`);
     } else L.push('Chưa đủ ván đã chấm (cần ít nhất 2) để chẩn đoán điểm yếu.');
-    const ops = Object.values(d.openings).sort((a, b) => b.n - a.n).slice(0, 3);
+    const ops = Object.values(d.openings).sort((a, b) => b.n - a.n).slice(0, 4);
     if (ops.length) L.push('Khai cuộc hay chơi: ' + ops.map(o => `${o.name} cầm ${o.color === 'w' ? 'Trắng' : 'Đen'} ${o.n} ván, ${Math.round(100 * (o.win + o.draw / 2) / o.n)}% điểm`).join('; ') + '.');
     const us = units();
     if (us.length) {
@@ -532,48 +552,249 @@ const Assistant = (() => {
     return L.join('\n');
   }
 
-  const SELF = /t[oô]i|m[iì]nh|\bem\b|y[eế]u|thua|sai|l[oỗ]i|t[aậ]p g[iì]|h[oô]m nay|ti[eế]n b[oộ]|elo|v[aá]n (v[uừ]a|g[aầ]n|tr[uư][oớ]c)|\bmy\b|\bme\b|\bi\b/i;
-  const FOLLOW = /^(c[oò]n|v[aậ]y|th[eế] th[iì]|t[aạ]i sao|v[iì] sao v[aậ]y|v[ií] d[uụ]|n[oó]i r[oõ]|gi[aả]i th[ií]ch th[eê]m|c[uụ] th[eể]|and |what about|why|example)/i;
-  function buildPrompt(q, d) {
-    // Câu hỏi về bản thân: kèm số liệu ván đấu; câu hỏi khái niệm: chỉ kèm kiến thức (mô hình nhỏ dễ lẫn khi đọc thừa dữ liệu)
-    const personal = SELF.test(q) && !CONCEPT.test(q);
-    const top = d.analysed >= 2 && d.weak[0] && d.weak[0].sev >= 0.15 ? d.weak[0] : null;
-    const query = personal ? q + ' ' + (top ? top.name : 'nên học gì theo trình độ xem lại ván') : q;
-    const hits = hasKb() ? Knowledge.search(query, 'any', personal ? 2 : 3) : [];
-    const system = `Bạn là huấn luyện viên cờ vua của web Royal Gambit. Trả lời trực tiếp câu hỏi của người chơi ${en() ? 'bằng tiếng Anh' : 'bằng tiếng Việt'}, giọng thân thiện, ngắn gọn: 3-6 câu hoặc 3-5 gạch đầu dòng, in đậm ý chính bằng **...**.
-Chỉ dùng thông tin trong TÀI LIỆU; không tự nghĩ ra số liệu, nước đi hay thế cờ. Nếu tài liệu không đủ để trả lời, nói ngắn gọn là chưa đủ dữ liệu.
-Không nhắc tới tài liệu, quy tắc hay cách bạn trả lời. Chỉ nói về cờ vua.`;
-    const kbText = hits.map(a => `- ${a.title}: ${snippet(a.body, personal ? 450 : 700)}`).join('\n');
-    // Chỉ kèm lượt trước khi câu hỏi là câu hỏi nối tiếp ("còn…", "ví dụ?"): mô hình nhỏ hay chép lại câu trả lời cũ
-    const prev = last && FOLLOW.test(q.trim()) ? `\n\nCÂU HỎI TRƯỚC: ${last.q}\nTRẢ LỜI TRƯỚC: ${snippet(last.a, 300)}` : '';
-    const user = `TÀI LIỆU:\n${kbText ? 'Kiến thức:\n' + kbText : ''}${personal ? '\n\nSố liệu của người chơi (từ Nhật ký và bản chấm Stockfish):\n' + playerBrief(d) : `\n\nNgười chơi khoảng ${elo()} Elo.`}${prev}\n\nCÂU HỎI: ${q}`;
-    return { messages: [{ role: 'system', content: system }, { role: 'user', content: user }], hits };
+  // Ván đang đấu (online, hoặc với máy chưa xong): không xem / phân tích thế cờ của ván đó để giữ công bằng
+  function liveGame() {
+    try { if (typeof Online !== 'undefined' && Online.inGame && Online.inGame()) return true; } catch {}
+    try { return mode === 'play' && aiColor !== 'none' && !playResult && !game.isGameOver() && game.history.length > 0; } catch { return false; }
+  }
+  const placement = fen => String(fen || '').trim().split(/\s+/).slice(0, 2).join(' ');
+  const LIVE_NO = 'Ván đang diễn ra nên không xem hay phân tích thế cờ của ván này (giữ công bằng). Hãy hỏi lại sau khi ván kết thúc.';
+
+  // Kiểm tra FEN: đúng 8 hàng, mỗi bên đúng một Vua
+  function parseFen(fen) {
+    const f = String(fen || '').trim();
+    const pl = f.split(/\s+/)[0];
+    if (pl.split('/').length !== 8 || (pl.match(/K/g) || []).length !== 1 || (pl.match(/k/g) || []).length !== 1) return null;
+    try { const g = new Chess(f); return g.board && g.board.length === 64 ? g : null; } catch { return null; }
+  }
+  // Chuỗi nước UCI → SAN có số nước ("12. Nf3 Nc6 13. Bb5")
+  function sanLine(fen, ucis, max = 10) {
+    const g = new Chess(fen);
+    const out = [];
+    for (const raw of ucis.slice(0, max)) {
+      // Lichess ghi nhập thành là Vua đi tới ô Xe (e1h1, e8a8…): đổi về ô đích của Vua (e1g1, e8c8…)
+      const p = g.board[sqIndex(raw.slice(0, 2))];
+      const u = p && p[1] === 'K' ? ({ e1h1: 'e1g1', e1a1: 'e1c1', e8h8: 'e8g8', e8a8: 'e8c8' }[raw] || raw) : raw;
+      const from = sqIndex(u.slice(0, 2)), to = sqIndex(u.slice(2, 4)), promo = u[4] ? u[4].toUpperCase() : undefined;
+      const m = g.legalMoves().find(x => x.from === from && x.to === to && (!promo || x.promotion === promo));
+      const side = g.turn, no = g.fullmove;
+      if (!m || !g.move({ from: m.from, to: m.to, promotion: m.promotion || undefined })) break;
+      out.push((side === 'w' ? no + '. ' : !out.length ? no + '... ' : '') + g.history[g.history.length - 1].san);
+    }
+    return out.join(' ');
+  }
+  const evalText = (cp, mate) => (mate != null ? (mate > 0 ? `Trắng chiếu hết sau ${mate} nước` : `Đen chiếu hết sau ${-mate} nước`)
+    : `${cp >= 0 ? '+' : ''}${(cp / 100).toFixed(2)} (${Math.abs(cp) < 40 ? 'cân bằng' : cp > 0 ? (cp < 120 ? 'Trắng hơn một chút' : cp < 300 ? 'Trắng hơn rõ' : 'Trắng thắng thế') : (cp > -120 ? 'Đen hơn một chút' : cp > -300 ? 'Đen hơn rõ' : 'Đen thắng thế')})`);
+  const getJson = async (u, ms) => {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), ms);
+    try { const r = await fetch(u, { signal: c.signal }); return r.ok ? await r.json() : null; } catch { return null; } finally { clearTimeout(t); }
+  };
+
+  // Stockfish 19 trên máy người chơi (điểm theo bên tới lượt → đổi về góc nhìn Trắng), kèm Lichess cloud eval nếu thế cờ đã có sẵn
+  let sfTag = 0; // mỗi lượt phân tích một nhãn riêng: Engine huỷ lượt cũ cùng nhãn, mà AI có thể phân tích nhiều thế cờ cùng lúc
+  async function analysePos(fen, out) {
+    const tag = 'coach-' + (++sfTag);
+    const g = parseFen(fen);
+    if (!g) return 'FEN không hợp lệ.';
+    if (liveGame() && placement(fenOf(game)) === placement(fen)) return LIVE_NO;
+    const st = g.status();
+    if (st === 'checkmate') return `Thế cờ đã chiếu hết, ${g.turn === 'w' ? 'Đen' : 'Trắng'} thắng.`;
+    if (st !== 'playing') return 'Thế cờ đã kết thúc (hoà).';
+    if (out) out.boards.push({ fen, cap: 'Thế cờ đã phân tích', flip: g.turn === 'b' });
+    const head = `Bên tới lượt: ${g.turn === 'w' ? 'Trắng' : 'Đen'}.`;
+    const sf = (async () => {
+      if (typeof Engine === 'undefined' || !Engine.analyse) return null;
+      try { return await Engine.analyse(fen, { depth: 20, movetime: 4000, multipv: 2, tag }); } catch { return null; }
+    })();
+    const cloud = getJson('https://lichess.org/api/cloud-eval?multiPv=2&fen=' + encodeURIComponent(fen), 5000);
+    const [lines, c] = await Promise.all([sf, cloud]);
+    const parts = [head];
+    if (lines && lines.length) {
+      const s = g.turn === 'w' ? 1 : -1;
+      parts.push(`${typeof Engine !== 'undefined' && Engine.name ? Engine.name() : 'Stockfish 19'} (trên máy, độ sâu ~20):\n` + lines.slice(0, 2).map((l, i) =>
+        `Biến ${i + 1}: ${evalText(l.mate != null ? 0 : s * l.cp, l.mate != null ? s * l.mate : null)} · ${sanLine(fen, l.pv || [l.move])}`).join('\n'));
+    }
+    if (c && Array.isArray(c.pvs) && c.pvs.length) {
+      parts.push(`Lichess cloud eval (độ sâu ${c.depth}):\n` + c.pvs.slice(0, 2).map((p, i) => `Biến ${i + 1}: ${evalText(p.cp, p.mate)} · ${sanLine(fen, String(p.moves || '').split(' '))}`).join('\n'));
+    }
+    // Đe doạ: nếu bên tới lượt "bỏ lượt", bên kia sẽ làm gì (giúp giải thích ý đồ của nước vừa đi)
+    if (lines && lines.length && !g.inCheck?.()) {
+      const parts2 = fen.trim().split(/\s+/);
+      parts2[1] = parts2[1] === 'w' ? 'b' : 'w';
+      parts2[3] = '-';
+      const nf = parts2.join(' ');
+      const gg = parseFen(nf);
+      if (gg && gg.status() === 'playing' && typeof Engine !== 'undefined') {
+        let t = null;
+        try { t = await Engine.analyse(nf, { depth: 14, movetime: 1200, multipv: 1, tag: tag + 't' }); } catch {}
+        if (t && t[0]) parts.push(`Đe doạ của ${gg.turn === 'w' ? 'Trắng' : 'Đen'} nếu được đi tiếp: ${sanLine(nf, t[0].pv || [t[0].move], 3)}`);
+      }
+    }
+    return parts.length > 1 ? parts.join('\n') : 'Không phân tích được thế cờ này lúc này.';
   }
 
+  const TB_CAT = { win: 'thắng', 'cursed-win': 'thắng nhưng vướng luật 50 nước (thực tế hoà)', 'maybe-win': 'có thể thắng', draw: 'hoà', 'blessed-loss': 'thua nhưng được cứu nhờ luật 50 nước (thực tế hoà)', 'maybe-loss': 'có thể thua', loss: 'thua', unknown: 'chưa rõ' };
+  const TB_FLIP = { win: 'loss', 'cursed-win': 'blessed-loss', 'maybe-win': 'maybe-loss', draw: 'draw', 'blessed-loss': 'cursed-win', 'maybe-loss': 'maybe-win', loss: 'win', unknown: 'unknown' };
+  async function tablebase(fen, out) {
+    const g = parseFen(fen);
+    if (!g) return 'FEN không hợp lệ.';
+    if (liveGame() && placement(fenOf(game)) === placement(fen)) return LIVE_NO;
+    if (out && !out.boards.some(b => b.fen === fen)) out.boards.push({ fen, cap: 'Thế tàn cuộc', flip: g.turn === 'b' });
+    const n = g.board.filter(Boolean).length;
+    if (n > 7) return `Thế cờ còn ${n} quân, bảng tàn cuộc chỉ dùng được khi còn tối đa 7 quân. Hãy dùng analyse_position.`;
+    const r = await getJson('https://tablebase.lichess.ovh/standard?fen=' + encodeURIComponent(fen), 6000);
+    if (!r || !r.category) return 'Không tra được bảng tàn cuộc lúc này.';
+    const side = g.turn === 'w' ? 'Trắng' : 'Đen';
+    const mateIn = dtm => (dtm ? ` (chiếu hết sau khoảng ${Math.ceil(Math.abs(dtm) / 2)} nước)` : '');
+    const dist = mateIn(r.dtm);
+    const moves = (r.moves || []).slice(0, 4).map(m => `${m.san}: ${side} ${TB_CAT[TB_FLIP[m.category] || 'unknown']}${mateIn(m.dtm)}`);
+    return `Bảng tàn cuộc Lichess (chính xác tuyệt đối): ${side} tới lượt, kết quả với nước đi tốt nhất: ${side} ${TB_CAT[r.category] || r.category}${dist}.\nCác nước: ${moves.join('; ')}.`;
+  }
+
+  function currentPos() {
+    if (liveGame()) return LIVE_NO;
+    const sans = game.history.map(h => h.san);
+    if (!sans.length) return `Bàn cờ chưa có nước nào. FEN: ${fenOf(game)}`;
+    const g0 = new Chess(game.startFen || undefined);
+    let no = g0.fullmove, side = g0.turn;
+    const list = sans.map((s, i) => { const t = (side === 'w' ? no + '. ' : i === 0 ? no + '... ' : '') + s; if (side === 'b') no++; side = side === 'w' ? 'b' : 'w'; return t; });
+    const o = typeof OPENING_BOOK !== 'undefined' && (!game.startFen || /^rnbqkbnr\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/RNBQKBNR w/.test(game.startFen)) ? OPENING_BOOK.name(sans.slice(0, 16)) : null;
+    const st = game.status();
+    return `FEN: ${fenOf(game)}\nBên tới lượt: ${game.turn === 'w' ? 'Trắng' : 'Đen'}. Trạng thái: ${st === 'checkmate' ? 'chiếu hết' : st === 'playing' ? (game.isGameOver() ? 'đã kết thúc' : 'ván đã dừng / đang xem lại') : 'hoà'}.`
+      + (o ? ` Khai cuộc: ${o.vi}.` : '') + `\nCác nước${list.length > 40 ? ' (40 nước cuối)' : ''}: ${list.slice(-40).join(' ') || '(chưa có)'}`;
+  }
+
+  // Nhận xét một ván: Stockfish 19 chấm từng nước (chấm ngay nếu ván chưa chấm), trả về các khoảnh khắc quyết định
+  async function reviewGame(index, out, onStep) {
+    const list = games();
+    let g = list[Math.max(1, Math.min(20, Number(index) || 1)) - 1];
+    if (!g) return list.length ? `Nhật ký chỉ có ${list.length} ván.` : 'Nhật ký chưa có ván nào.';
+    if (!g.rev || typeof g.rev.cls !== 'string') {
+      onStep('Stockfish 19 đang chấm ván…');
+      const r = await GameHistory.runAnalysis(g, f => onStep(`Stockfish 19 đang chấm ván · ${Math.round(f * 100)}%`));
+      if (!r) return 'Chưa chấm được ván này (máy phân tích đang bận). Hãy thử lại sau ít phút.';
+      g = GameHistory.read().find(x => x.id === g.id) || g;
+      cache = null;
+    }
+    const tmp = new Chess();
+    const moves = GameHistory.replay(g.pgn, tmp);
+    if (!moves || !moves.length) return 'Không đọc được nước đi của ván này.';
+    const rev = g.rev, ev = Array.isArray(rev.evals) ? rev.evals : [], best = Array.isArray(rev.best) ? rev.best : [];
+    const sans = tmp.history.map(h => h.san);
+    const o = typeof OPENING_BOOK !== 'undefined' && !/\[FEN\s/.test(g.pgn || '') ? OPENING_BOOK.name(sans.slice(0, 16)) : null;
+    const gg = new Chess(tmp.startFen);
+    const rows = [];
+    for (let i = 0; i < rev.cls.length && i < sans.length; i++) {
+      const side = gg.turn, no = gg.fullmove, fen = fenOf(gg);
+      const c = Coach.BY_CODE[rev.cls[i]] || Coach.CLASS.good;
+      if (!gg.move(moves[i])) break;
+      const b = ev.length > i + 1 ? ev[i] / 100 : null, a = ev.length > i + 1 ? ev[i + 1] / 100 : null;
+      rows.push({ i, side, no, fen, san: sans[i], cls: c.id, name: c.name, best: best[i] || '', b, a, swing: b != null ? Math.abs(a - b) : 0 });
+    }
+    const mine = rows.filter(r => r.side === g.color);
+    const cnt = ids => mine.filter(r => ids.includes(r.cls)).length;
+    const acc = rev.acc || {};
+    const key = rows.filter(r => /blunder|mistake|miss/.test(r.cls) || (r.side === g.color && /brilliant|great/.test(r.cls)))
+      .sort((x, y) => y.swing - x.swing).slice(0, 7).sort((x, y) => x.i - y.i);
+    const fmt = v => (v == null ? '?' : (Math.abs(v) >= 90 ? (v > 0 ? 'Trắng chiếu hết' : 'Đen chiếu hết') : (v >= 0 ? '+' : '') + v.toFixed(1)));
+    const worst = mine.filter(r => /blunder|mistake|miss/.test(r.cls)).sort((x, y) => y.swing - x.swing)[0];
+    if (worst && out) out.boards.push({ fen: worst.fen, cap: `Trước nước ${worst.no}${worst.side === 'w' ? '.' : '...'}${worst.san}: tìm nước tốt hơn`, flip: g.color === 'b' });
+    const L = [
+      `Ván ${index}: ${new Date(g.at).toLocaleDateString('vi-VN')}, ${g.mode === 'online' ? 'online' : g.mode === 'import' ? 'ván nhập' : 'với máy'}, người chơi cầm ${g.color === 'w' ? 'Trắng' : 'Đen'} gặp ${g.opp || g.title || 'đối thủ'}, kết quả: ${OUT[GameHistory.outcome(g)] || 'chưa rõ'}, ${Math.ceil(sans.length / 2)} nước${o ? `, ${openingText(o.vi)}` : ''}.`,
+      `Độ chính xác (Stockfish 19): Trắng ${acc.w != null ? acc.w + '%' : '?'}, Đen ${acc.b != null ? acc.b + '%' : '?'}.`,
+      `Nước của người chơi: ${cnt(['brilliant', 'great'])} nước hay, ${cnt(['best', 'excellent'])} nước tốt nhất / xuất sắc, ${cnt(['inaccuracy'])} thiếu chính xác, ${cnt(['mistake', 'miss'])} sai lầm / bỏ lỡ, ${cnt(['blunder'])} nước hớ.`,
+      'Khoảnh khắc quyết định (đánh giá theo góc nhìn Trắng, trước → sau):',
+      ...key.map(r => `- Nước ${r.no}${r.side === 'w' ? '.' : '...'}${r.san} (${r.side === g.color ? 'người chơi' : 'đối thủ'}, ${r.name})${r.best ? `, tốt nhất là ${r.best}` : ''}, ${fmt(r.b)} → ${fmt(r.a)}. FEN trước nước này: ${r.fen}`),
+      `Toàn bộ nước đi: ${sans.map((x, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ` : '') + x).join(' ').slice(0, 1600)}`,
+    ];
+    if (!key.length) L.splice(3, 1, 'Không có sai lầm lớn nào của hai bên.');
+    return L.join('\n');
+  }
+
+  // Thực hiện một công cụ, trả về chữ cho AI đọc. hitsOut: gom các bài kiến thức đã dùng (để hiện nút và nguồn)
+  async function runTool(name, args, hitsOut, out, onStep) {
+    switch (name) {
+      case 'search_knowledge': {
+        const hs = hasKb() ? Knowledge.search(String(args.query || ''), 'any', 3) : [];
+        for (const a of hs) if (!hitsOut.includes(a)) hitsOut.push(a);
+        return hs.length ? hs.map(a => `## ${a.title}\n${a.body}`).join('\n\n') : 'Không tìm thấy bài phù hợp trong Thư viện kiến thức.';
+      }
+      case 'get_player_profile': return playerBrief(analyse());
+      case 'get_recent_games': {
+        const n = Math.max(1, Math.min(5, Number(args.count) || 3));
+        const list = games().slice(0, n);
+        if (!list.length) return 'Nhật ký chưa có ván nào.';
+        return list.map((g, i) => `Ván ${i + 1} (${new Date(g.at).toLocaleDateString('vi-VN')}${g.mode === 'online' ? ', online' : g.mode === 'import' ? ', ván nhập' : ', với máy'}): ${gameBrief(g, true)}`).join('\n');
+      }
+      case 'get_current_position': return currentPos();
+      case 'review_game': return reviewGame(args.index, out, onStep);
+      case 'analyse_position': return analysePos(args.fen, out);
+      case 'endgame_tablebase': return tablebase(args.fen, out);
+      default: return 'Công cụ không tồn tại.';
+    }
+  }
+  const TOOL_LABEL = { search_knowledge: 'Tra Thư viện kiến thức', get_player_profile: 'Đọc hồ sơ lối chơi', get_recent_games: 'Xem các ván gần đây',
+    get_current_position: 'Xem thế cờ trên bàn', analyse_position: 'Stockfish 19 phân tích thế cờ', endgame_tablebase: 'Tra bảng tàn cuộc', review_game: 'Xem lại ván với Stockfish 19' };
+
+  const CLOUD_ERR = { LIMIT: 'Bạn hỏi hơi nhanh, đợi một phút rồi hỏi tiếp nhé.', BUSY: 'Máy chủ đang đông người dùng, bạn thử lại sau ít phút nhé.', NETWORK: 'Không kết nối được máy chủ của trợ lý.' };
   async function askAI(q) {
-    if (LocalAI.busy()) { toast('Trợ lý đang trả lời câu trước, đợi chút nhé.'); return; }
+    if (aiBusy()) { toast('Trợ lý đang trả lời câu trước, đợi chút nhé.'); return; }
     const d = analyse();
-    const { messages, hits } = buildPrompt(q, d);
     chat.push({ me: true, text: q });
-    const msg = { me: false, md: '', live: true, hits };
+    const msg = { me: false, md: '', live: true, hits: [], steps: [], boards: [] };
     chat.push(msg);
     chat = chat.slice(-12);
     renderChat();
     let raf = 0;
+    const paint = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderLive(msg); }); };
+    const sys = `Trả lời ${en() ? 'bằng tiếng Anh' : 'bằng tiếng Việt'}. Tên người chơi: ${meName() || 'không rõ'}. Khoảng ${elo()} Elo, có ${d.total} ván trong Nhật ký (${d.analysed} ván đã được Stockfish 19 chấm).`;
+    // Luôn kèm bài liên quan nhất trong Thư viện kiến thức (mô hình đôi khi quên tự tra, định nghĩa phải khớp thư viện)
+    const refs = hasKb() ? Knowledge.search(q, 'any', 2).filter(a => !a.id.startsWith('unit:')) : [];
+    const userMsg = refs.length ? `${q}\n\n---\nTHAM KHẢO TỪ THƯ VIỆN KIẾN THỨC (có thể không liên quan, chỉ dùng khi đúng chủ đề):\n${refs.map(a => `## ${a.title}\n${snippet(a.body, 900)}`).join('\n\n')}` : q;
+    for (const a of refs) if (!msg.hits.includes(a)) msg.hits.push(a);
+    const messages = [{ role: 'system', content: sys }, ...hist.flatMap(h => [{ role: 'user', content: h.q }, { role: 'assistant', content: h.a }]), { role: 'user', content: userMsg }];
     try {
-      const text = await LocalAI.chat(messages, t => {
-        msg.md = t;
-        if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderLive(msg); });
-      });
-      msg.md = text || 'Mình chưa nghĩ ra câu trả lời, bạn hỏi lại theo cách khác nhé.';
-      last = { q, a: msg.md };
+      for (let round = 0; ; round++) {
+        const final = round >= MAX_ROUNDS;
+        let r;
+        try { r = await CloudAI.chat(messages, t => { msg.md = t; paint(); }, final); } catch (e) {
+          if (e.message !== 'BUSY') throw e;
+          // Máy chủ mô hình đang quá tải: đợi một chút rồi hỏi lại một lần
+          const k = msg.steps.push('Máy chủ đang đông, đang thử lại…') - 1;
+          paint();
+          await new Promise(res => setTimeout(res, 2500));
+          r = await CloudAI.chat(messages, t => { msg.md = t; paint(); }, final);
+          msg.steps.splice(k, 1);
+        }
+        if (r.stopped) { msg.md = msg.md || 'Đã dừng.'; break; }
+        if (!r.tools.length || final) { msg.md = r.text || 'Mình chưa nghĩ ra câu trả lời, bạn hỏi lại theo cách khác nhé.'; break; }
+        // AI muốn tra cứu: thực hiện các công cụ rồi gửi kết quả
+        messages.push({ role: 'assistant', content: r.text || '', tool_calls: r.tools.map(t => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.arguments } })) });
+        msg.md = '';
+        const results = await Promise.all(r.tools.map(async t => {
+          let args = {};
+          try { args = JSON.parse(t.arguments || '{}') || {}; } catch {}
+          const k = msg.steps.push(TOOL_LABEL[t.name] + (t.name === 'search_knowledge' && args.query ? `: ${String(args.query).slice(0, 40)}` : '')) - 1;
+          paint();
+          const onStep = txt => { msg.steps[k] = txt; paint(); };
+          let out;
+          try { out = await runTool(t.name, args, msg.hits, msg, onStep); } catch (e) { console.warn(e); out = 'Công cụ gặp lỗi.'; }
+          if (t.name === 'review_game') msg.steps[k] = TOOL_LABEL.review_game;
+          return { role: 'tool', tool_call_id: t.id, content: String(out).slice(0, 12000) };
+        }));
+        messages.push(...results);
+      }
+      hist = [...hist, { q, a: snippet(msg.md, 1500) }].slice(-4);
     } catch (e) {
       console.warn(e);
       msg.md = '';
-      msg.html = 'AI trên máy gặp lỗi khi trả lời, mình dùng chế độ cơ bản nhé:<br>' + (() => { const hit = INTENTS.find(([, re]) => re.test(q)); return hit ? answer(hit[0], d) : kbAnswer(q); })();
+      msg.html = esc(CLOUD_ERR[e.message] || 'Máy chủ của trợ lý gặp lỗi.') + ' Mình trả lời theo chế độ cơ bản nhé:<br>' + (() => { const hit = INTENTS.find(([, re]) => re.test(q)); return hit && !CONCEPT.test(q) ? answer(hit[0], d) : kbAnswer(q); })();
+      renderEngine();
     }
     msg.live = false;
     if (raf) cancelAnimationFrame(raf);
+    if (!msg.hits.length && hasKb()) msg.hits = Knowledge.search(q, 'any', 2); // vẫn gợi ý bài đọc thêm
     renderChat();
   }
 
@@ -598,9 +819,12 @@ Không nhắc tới tài liệu, quy tắc hay cách bạn trả lời. Chỉ n�
 
   function botHtml(m) {
     if (m.html != null) return m.html;
+    const steps = m.steps && m.steps.length ? `<div class="ai-steps">${m.steps.map(s => `<span>${esc(s)}</span>`).join('')}</div>` : '';
     const body = md(m.md) || '<p class="ai-typing"><span></span><span></span><span></span></p>';
-    if (m.live) return body + '<button type="button" class="ai-inline ai-stop" data-ai-stop>Dừng</button>';
-    return body + (m.hits && m.hits.length ? `<div class="ai-acts">${seeActs(m.hits, 2).map(actBtn).join('')}</div>${refChips(m.hits)}` : '');
+    if (m.live) return steps + body + '<button type="button" class="ai-inline ai-stop" data-ai-stop>Dừng</button>';
+    const boards = (m.boards || []).slice(0, 2).map(b => `<figure class="cp-board"><div class="lib-board">${typeof Library !== 'undefined' ? Library.fenBoard(b.fen, b.flip) : ''}</div>
+      <figcaption>${esc(b.cap)}</figcaption><button type="button" class="ghost" data-cp-setup="${esc(b.fen)}"><svg class="ic"><use href="#i-play"/></svg>Đặt lên bàn</button></figure>`).join('');
+    return steps + body + (boards ? `<div class="cp-boards">${boards}</div>` : '') + (m.hits && m.hits.length ? `<div class="ai-acts">${seeActs(m.hits, 2).map(actBtn).join('')}</div>${refChips(m.hits)}` : '');
   }
   function renderLive(m) {
     const box = $('aiChat');
@@ -610,166 +834,184 @@ Không nhắc tới tài liệu, quy tắc hay cách bạn trả lời. Chỉ n�
     box.scrollTop = box.scrollHeight;
   }
 
-  // Khung bật / tải AI
-  let gpuInfo = null;
+  // Dòng trạng thái AI
   function renderEngine() {
-    const box = $('aiEngine');
-    if (!box) return;
-    if (!hasAI()) { box.hidden = true; return; }
-    box.hidden = false;
-    const st = LocalAI.state(), p = LocalAI.pref();
-    if (!gpuInfo) {
-      box.innerHTML = '<p class="ai-engine-note">Đang kiểm tra thiết bị…</p>';
-      LocalAI.checkGpu().then(g => { gpuInfo = g; renderEngine(); });
-      return;
-    }
-    if (!gpuInfo.ok) {
-      box.innerHTML = `<p class="ai-engine-note"><b>Chế độ cơ bản.</b> Trình duyệt này chưa hỗ trợ WebGPU nên chưa chạy được AI trên máy. Dùng Chrome hoặc Edge bản mới (máy tính, Android) hoặc Safari trên iOS 26 trở lên để bật AI hỏi tự do.</p>`;
-      return;
-    }
-    if (st === 'ready') {
-      const m = LocalAI.model(LocalAI.loaded());
-      box.innerHTML = `<div class="ai-engine-on"><span class="ai-dot"></span><span><b>AI đang chạy trên máy bạn</b><small>${esc(m.label)} · mã nguồn mở · miễn phí · không gửi dữ liệu đi đâu</small></span>
-        <button type="button" class="ghost" data-ai-off>Tắt</button></div>`;
-      return;
-    }
-    if (st === 'loading') {
-      const pr = LocalAI.progress();
-      box.innerHTML = `<div class="ai-engine-load"><b>Đang tải ${esc(LocalAI.model(p.id).label)}…</b>
-        <span class="ai-bar"><i style="width:${Math.round(100 * pr.p)}%"></i></span><small>${Math.round(100 * pr.p)}% · Chỉ tải lần đầu, lần sau mở ngay. Có thể tiếp tục dùng web trong lúc chờ.</small></div>`;
-      return;
-    }
-    const ERR = { MEMORY: 'Máy không đủ bộ nhớ đồ hoạ cho mô hình này. Hãy chọn mức nhẹ hơn.', NETWORK: 'Mất mạng khi đang tải. Bấm tải lại để tiếp tục (phần đã tải được giữ lại).',
-      STORAGE: 'Trình duyệt hết chỗ lưu. Hãy giải phóng dung lượng hoặc chọn mức nhẹ hơn.', NO_GPU: 'Trình duyệt chưa hỗ trợ WebGPU.', FAIL: 'Không mở được mô hình trên máy này. Thử mức nhẹ hơn hoặc trình duyệt khác.' };
-    box.innerHTML = `<div class="ai-engine-off">
-      <p><b>Bật AI hỏi tự do (miễn phí, chạy ngay trên máy bạn)</b><small>Mô hình mã nguồn mở Qwen3.5 đọc số liệu ván đấu của bạn và Thư viện kiến thức để trả lời. Tải một lần, nên dùng Wi-Fi.</small></p>
-      ${st === 'error' ? `<p class="ai-engine-err">${esc(ERR[LocalAI.error()] || ERR.FAIL)}</p>` : ''}
-      <div class="ai-models">${LocalAI.MODELS.map(m => `<label class="ai-model${m.id === p.id ? ' on' : ''}"><input type="radio" name="aiModel" value="${m.id}"${m.id === p.id ? ' checked' : ''}>
-        <b>${esc(m.name)}</b><small>${esc(m.size)} · ${esc(m.note)}</small></label>`).join('')}</div>
-      <button type="button" class="primary" data-ai-load><svg class="ic"><use href="#i-download"/></svg>Tải và bật AI</button></div>`;
+    const st = $('cpStatus'), priv = $('aiPrivacy');
+    if (!st) return;
+    const ok = aiOn();
+    st.className = 'cp-status' + (ok ? ' on' : hasCloud() ? ' warn' : '');
+    st.innerHTML = ok ? '<span class="ai-dot"></span>Đang trực tuyến · kiểm tra nước đi bằng Stockfish 19'
+      : hasCloud() ? '<span class="ai-dot"></span>Máy chủ tạm bận · đang dùng chế độ cơ bản, 1 phút nữa thử lại'
+        : '<span class="ai-dot"></span>Chế độ cơ bản · chẩn đoán bằng Stockfish 19 trên máy bạn';
+    if (hasCloud() && !ok) setTimeout(() => { renderEngine(); renderQuick(); }, 61000);
+    if (priv) priv.textContent = hasCloud()
+      ? 'Câu hỏi và số liệu ván cần để trả lời (Elo, điểm yếu, nước đi) được gửi tới máy chủ của Royal Gambit để soạn câu trả lời (mô hình ngôn ngữ GLM-4.7 của Z.ai); thế cờ cần phân tích có thể được gửi tới Lichess. Stockfish 19 chạy ngay trên máy bạn.'
+      : 'Mọi phân tích chạy ngay trên máy bạn (Stockfish 19 và Thư viện kiến thức). Không gửi dữ liệu ra ngoài.';
   }
 
-  // ---------- Giao diện ----------
+  // ---------- Giao diện (trang Trợ lý) ----------
 
   const bar = (v, max, cls = '') => `<span class="ai-bar ${cls}"><i style="width:${max ? Math.min(100, Math.round(100 * v / max)) : 0}%"></i></span>`;
+  const meName = () => { try { return Profile.me().name || ''; } catch { return ''; } };
+  let pane = 'chat'; // phần đang xem trên điện thoại
 
-  function render() {
-    const box = $('aiBody');
-    if (!box) return;
-    const d = analyse();
-    const games = d.total;
+  function setPane(p) {
+    pane = p;
+    const page = $('coachPage');
+    if (!page) return;
+    page.dataset.pane = p;
+    for (const b of page.querySelectorAll('[data-cp-tab]')) b.setAttribute('aria-selected', String(b.dataset.cpTab === p));
+  }
+
+  function renderStats(d) {
     const avg = d.acc.length ? Math.round(d.acc.reduce((a, x) => a + x, 0) / d.acc.length) : null;
     const recent = d.acc.slice(0, 5), older = d.acc.slice(5, 10);
     const trend = recent.length >= 3 && older.length >= 3 ? Math.round(recent.reduce((a, x) => a + x, 0) / recent.length - older.reduce((a, x) => a + x, 0) / older.length) : null;
-    const score = games ? Math.round(100 * (d.res.win + d.res.draw / 2) / games) : null;
+    const score = d.total ? Math.round(100 * (d.res.win + d.res.draw / 2) / d.total) : null;
+    $('cpStats').innerHTML = `
+      <div><b>${elo()}</b><small>Elo</small></div>
+      <div><b>${d.total}</b><small>ván · ${d.analysed} đã chấm</small></div>
+      <div><b>${avg != null ? avg + '%' : '–'}</b><small>chính xác${trend != null ? ` <span class="${trend >= 0 ? 'up' : 'down'}">${trend >= 0 ? '▲' : '▼'}${Math.abs(trend)}</span>` : ''}</small></div>
+      <div><b>${score != null ? score + '%' : '–'}</b><small>điểm số</small></div>`;
+  }
+
+  function renderPlan(d) {
     const steps = roadmap(d);
-    const P = d.phase;
-    const maxErr = Math.max(0.0001, ...PHASES.map(([k]) => (P[k].n ? P[k].err / P[k].n : 0)));
-
-    let html = `<div class="ai-stats">
-        <div><b>${games}</b><small>ván trong nhật ký</small></div>
-        <div><b>${d.analysed}</b><small>ván đã chấm</small></div>
-        <div><b>${avg != null ? avg + '%' : '–'}</b><small>độ chính xác TB${trend != null ? ` · <span class="${trend >= 0 ? 'up' : 'down'}">${trend >= 0 ? '▲' : '▼'} ${Math.abs(trend)}</span>` : ''}</small></div>
-        <div><b>${score != null ? score + '%' : '–'}</b><small>điểm số (thắng + ½ hòa)</small></div>
-      </div>`;
-
+    let html = '';
     if (d.unanalysed.length) {
-      html += `<div class="ai-note"><span>${d.analysed < 2 ? '<b>Cần thêm dữ liệu.</b> ' : ''}Còn ${d.unanalysed.length} ván chưa được Stockfish chấm. Chấm xong thì lộ trình sát với lỗi của bạn hơn.</span>
-        <button type="button" id="aiBatch" class="primary"${busy ? ' disabled' : ''}><svg class="ic"><use href="#i-cpu"/></svg>Chấm ${Math.min(5, d.unanalysed.length)} ván gần nhất</button></div>`;
-    } else if (!games) {
-      html += `<div class="ai-note"><span><b>Chưa có ván nào.</b> Chơi vài ván với máy hoặc Online: sau mỗi ván, web tự chấm từng nước và trợ lý sẽ tìm điểm yếu của bạn. Trong lúc chờ, đây là lộ trình theo tiến độ học.</span></div>`;
+      html += `<div class="ai-note"><span>${d.analysed < 2 ? '<b>Cần thêm dữ liệu.</b> ' : ''}Còn ${d.unanalysed.length} ván chưa được Stockfish 19 chấm. Chấm xong thì lộ trình sát với lỗi của bạn hơn.</span>
+        <button type="button" id="aiBatch" class="primary"${busy ? ' disabled' : ''}><svg class="ic"><use href="#i-cpu"/></svg>Chấm ${Math.min(5, d.unanalysed.length)} ván</button></div>`;
+    } else if (!d.total) {
+      html += '<div class="ai-note"><span><b>Chưa có ván nào.</b> Chơi vài ván với máy hoặc Online: Stockfish 19 chấm từng nước và trợ lý sẽ tìm điểm yếu của bạn. Trong lúc chờ, đây là lộ trình theo tiến độ học.</span></div>';
     }
-
-    // Lộ trình
-    html += `<section class="ai-sec"><h3><svg class="ic"><use href="#i-route"/></svg>Lộ trình đề xuất cho bạn</h3><ol class="ai-road">
-      ${steps.map((s, i) => `<li><span class="ai-step-n">${i + 1}</span><span class="ai-step-ic"><svg class="ic"><use href="#${s.icon}"/></svg></span>
-        <span class="ai-step-text"><b>${esc(s.title)}</b><small>${esc(s.why)}</small></span>
-        <button type="button" class="${i === 0 ? 'primary' : ''}" data-act='${esc(JSON.stringify(s.act))}'>${esc(s.btn)}</button></li>`).join('')}
-    </ol></section>`;
-
-    if (d.analysed >= 2) {
-      // Điểm yếu
-      html += `<section class="ai-sec"><h3><svg class="ic"><use href="#i-search"/></svg>Chẩn đoán từ ván của bạn</h3><div class="ai-weak">
-        ${d.weak.slice(0, 5).map(w => `<div class="ai-weak-row${w.sev >= 0.5 ? ' hot' : w.sev >= 0.2 ? ' warm' : ''}">
-          <span class="ai-weak-name"><svg class="ic"><use href="#${w.icon}"/></svg>${esc(w.name)}</span>${bar(w.sev, 1)}
-          <small>${esc(w.why)}</small></div>`).join('')}
-      </div></section>`;
-      // Giai đoạn
-      html += `<section class="ai-sec"><h3><svg class="ic"><use href="#i-gauge"/></svg>Theo giai đoạn ván</h3><div class="ai-phase">
-        ${PHASES.map(([k, n]) => { const p = P[k]; return `<div><b>${n}</b>${bar(p.n ? p.err / p.n : 0, maxErr, 'err')}
-          <small>${p.n} nước · ${p.err} lỗi lớn${p.n ? ` · chính xác ~${Math.round(p.acc / p.n)}%` : ''}</small></div>`; }).join('')}
-      </div></section>`;
-    }
-
-    // Khai cuộc
-    const ops = Object.values(d.openings).sort((a, b) => b.n - a.n).slice(0, 6);
-    if (ops.length) {
-      html += `<section class="ai-sec"><h3><svg class="ic"><use href="#i-book"/></svg>Khai cuộc bạn hay chơi</h3><div class="ai-ops">
-        ${ops.map(o => { const sc = Math.round(100 * (o.win + o.draw / 2) / o.n); const id = libIdByName(o.name);
-          return `<div class="ai-op"><span class="pz-side ${o.color}"></span><b>${esc(o.name)}</b>
-          <small>${o.n} ván · ${o.win}T ${o.draw}H ${o.loss}B${o.accN ? ` · ${Math.round(o.acc / o.accN)}%` : ''}</small>
-          <span class="ai-score ${sc >= 55 ? 'good' : sc < 40 ? 'bad' : ''}">${sc}%</span>
-          ${id ? `<button type="button" class="ghost" data-act='${esc(JSON.stringify({ kind: 'lib', id }))}'>Ôn</button>` : '<span></span>'}</div>`; }).join('')}
-      </div></section>`;
-    }
-
-    // Hỏi đáp
-    html += `<section class="ai-sec ai-chat-sec"><h3><svg class="ic"><use href="#i-spark"/></svg>Hỏi trợ lý</h3>
-      <div id="aiEngine" class="ai-engine"></div>
-      <div id="aiChat" class="ai-chat"></div>
-      <div class="ai-chips">${QUESTIONS.map(([k, q]) => `<button type="button" data-ask="${k}">${esc(q)}</button>`).join('')}</div>
-      <form id="aiForm" class="ai-form"><input id="aiInput" maxlength="300" autocomplete="off" placeholder="Hỏi về khai cuộc, tàn cuộc, chiến thuật, ván vừa chơi…" aria-label="Câu hỏi cho trợ lý">
-        <button type="submit" class="primary" title="Gửi"><svg class="ic"><use href="#i-send"/></svg></button></form>
-      <p class="ai-privacy">Trợ lý chạy ngay trên máy bạn, dựa trên các ván đã được Stockfish chấm và Thư viện kiến thức. Không gửi dữ liệu ra ngoài.</p>
-    </section>`;
-
-    if (hasKb()) html += `<section class="ai-sec"><h3><svg class="ic"><use href="#i-book"/></svg>Thư viện kiến thức</h3><div id="aiKb" class="ai-kb"></div></section>`;
-
-    box.innerHTML = html;
+    html += `<ol class="ai-road">${steps.map((s, i) => `<li><span class="ai-step-n">${i + 1}</span><span class="ai-step-ic"><svg class="ic"><use href="#${s.icon}"/></svg></span>
+      <span class="ai-step-text"><b>${esc(s.title)}</b><small>${esc(s.why)}</small></span>
+      <button type="button" class="${i === 0 ? 'primary' : ''}" data-act='${esc(JSON.stringify(s.act))}'>${esc(s.btn)}</button></li>`).join('')}</ol>`;
+    $('cpPlan').innerHTML = html;
     const b = $('aiBatch');
     if (b) b.addEventListener('click', () => analyseBatch(5));
+  }
+
+  function renderDiag(d) {
+    const P = d.phase;
+    const card = $('cpDiagCard');
+    if (d.analysed < 2) {
+      $('cpDiag').innerHTML = '<p class="muted cp-empty">Cần ít nhất 2 ván đã được Stockfish 19 chấm để chẩn đoán lối chơi.</p>';
+      return;
+    }
+    card.hidden = false;
+    const maxErr = Math.max(0.0001, ...PHASES.map(([k]) => (P[k].n ? P[k].err / P[k].n : 0)));
+    $('cpDiag').innerHTML = `<div class="ai-weak">${d.weak.slice(0, 5).map(w => `<div class="ai-weak-row${w.sev >= 0.5 ? ' hot' : w.sev >= 0.2 ? ' warm' : ''}">
+        <span class="ai-weak-name"><svg class="ic"><use href="#${w.icon}"/></svg>${esc(w.name)}</span>${bar(w.sev, 1)}<small>${esc(w.why)}</small></div>`).join('')}</div>
+      <h3 class="cp-sub">Theo giai đoạn ván</h3>
+      <div class="ai-phase">${PHASES.map(([k, n]) => { const p = P[k]; return `<div><b>${n}</b>${bar(p.n ? p.err / p.n : 0, maxErr, 'err')}
+        <small>${p.n} nước · ${p.err} lỗi lớn${p.n ? ` · ~${Math.round(p.acc / p.n)}%` : ''}</small></div>`; }).join('')}</div>`;
+  }
+
+  function renderOps(d) {
+    const ops = Object.values(d.openings).sort((a, b) => b.n - a.n).slice(0, 6);
+    $('cpOpsCard').hidden = !ops.length;
+    $('cpOps').innerHTML = `<div class="ai-ops">${ops.map(o => { const sc = Math.round(100 * (o.win + o.draw / 2) / o.n); const id = libIdByName(o.name);
+      return `<div class="ai-op"><span class="pz-side ${o.color}"></span><b>${esc(o.name)}</b>
+        <small>${o.n} ván · ${o.win}T ${o.draw}H ${o.loss}B${o.accN ? ` · ${Math.round(o.acc / o.accN)}%` : ''}</small>
+        <span class="ai-score ${sc >= 55 ? 'good' : sc < 40 ? 'bad' : ''}">${sc}%</span>
+        ${id ? `<button type="button" class="ghost" data-act='${esc(JSON.stringify({ kind: 'lib', id }))}'>Ôn</button>` : '<span></span>'}</div>`; }).join('')}</div>`;
+  }
+
+  const RES_CLS = { win: 'win', draw: 'draw', loss: 'loss' };
+  function renderGames() {
+    const list = games().slice(0, 6);
+    if (!list.length) { $('cpGames').innerHTML = '<p class="muted cp-empty">Chưa có ván nào trong Nhật ký.</p>'; return; }
+    $('cpGames').innerHTML = `<div class="cp-games">${list.map((g, i) => {
+      const out = GameHistory.outcome(g);
+      return `<div class="cp-game"><span class="cp-res ${RES_CLS[out] || ''}">${out === 'win' ? 'T' : out === 'loss' ? 'B' : 'H'}</span>
+        <span class="cp-game-text"><b>${esc(g.opp || g.title || 'Ván cờ')}</b><small>${esc(new Date(g.at).toLocaleDateString('vi-VN'))} · cầm ${g.color === 'w' ? 'Trắng' : 'Đen'}${Number.isFinite(g.acc) ? ` · ${Math.round(g.acc)}%` : g.rev ? '' : ' · chưa chấm'}</small></span>
+        ${aiOn() ? `<button type="button" class="primary" data-cp-review="${i + 1}">Nhận xét</button>` : ''}
+        <button type="button" class="ghost" data-cp-replay="${esc(g.id)}">Xem lại</button></div>`; }).join('')}</div>`;
+  }
+
+  // Nút hỏi nhanh: chế độ huấn luyện viên (máy chủ) hỏi tự do, chế độ cơ bản dùng câu mẫu
+  const QUICK = [
+    ['i-history', 'Nhận xét ván gần nhất', 'Nhận xét ván gần nhất của tôi'],
+    ['i-target', 'Điểm yếu lớn nhất', 'Điểm yếu lớn nhất trong lối chơi của tôi là gì và sửa thế nào?'],
+    ['i-route', 'Hôm nay tập gì?', 'Hôm nay tôi nên tập gì trong khoảng 30 phút?'],
+    ['i-cpu', 'Phân tích thế cờ trên bàn', 'Phân tích thế cờ đang trên bàn giúp tôi'],
+    ['i-book', 'Chọn khai cuộc', 'Tôi nên chơi khai cuộc nào với trình độ của mình?'],
+  ];
+  function renderQuick() {
+    const box = $('cpQuick');
+    if (!box) return;
+    box.innerHTML = aiOn()
+      ? QUICK.map(([ic, label, q]) => `<button type="button" data-cp-ask="${esc(q)}"><svg class="ic"><use href="#${ic}"/></svg>${esc(label)}</button>`).join('')
+      : QUESTIONS.map(([k, q]) => `<button type="button" data-ask="${k}">${esc(q)}</button>`).join('');
+  }
+
+  function render() {
+    if (!$('coachPage')) return;
+    const d = analyse();
+    renderStats(d);
     renderEngine();
+    renderQuick();
     renderChat();
+    renderPlan(d);
+    renderGames();
+    renderDiag(d);
+    renderOps(d);
     renderKb();
+    setPane(pane);
+  }
+
+  function welcome() {
+    const n = meName();
+    return `<p><b>Chào ${esc(n || 'bạn')}!</b> Mình là Trợ lý Royal Gambit, huấn luyện viên riêng của bạn.</p>
+      <p>${aiOn() ? 'Mình đọc các ván của bạn (Stockfish 19 chấm từng nước), tra Thư viện kiến thức và kiểm tra mọi biến cờ bằng máy trước khi trả lời. Bạn có thể nhờ mình nhận xét một ván, giải thích một nước đi, hay lên kế hoạch tập luyện.'
+        : 'Mình đọc các ván đã được Stockfish 19 chấm để tìm điểm yếu và gợi ý lộ trình. Chọn một câu hỏi bên dưới, hoặc gõ một khái niệm (ghim, Lucena, Sicily…) để tra Thư viện kiến thức.'}</p>`;
   }
 
   function renderChat() {
     const box = $('aiChat');
     if (!box) return;
-    if (!chat.length) {
-      box.innerHTML = '<p class="ai-msg bot">Xin chào! Mình là trợ lý của Royal Gambit. Hãy chọn một câu hỏi bên dưới, hoặc gõ câu hỏi của bạn.</p>';
-      return;
-    }
-    box.innerHTML = chat.map(m => (m.me ? `<p class="ai-msg me">${esc(m.text)}</p>` : `<div class="ai-msg bot"${m.md != null && m.html == null ? ' data-raw' : ''}>${botHtml(m)}</div>`)).join('');
+    const w = `<div class="ai-msg bot cp-welcome"><span class="cp-avatar"><img src="img/logo.svg?v=2" alt=""></span><div>${welcome()}</div></div>`;
+    box.innerHTML = w + chat.map(m => (m.me ? `<p class="ai-msg me">${esc(m.text)}</p>`
+      : `<div class="ai-msg bot"${m.md != null && m.html == null ? ' data-raw' : ''}><span class="cp-avatar"><img src="img/logo.svg?v=2" alt=""></span><div class="cp-msg-body">${botHtml(m)}</div></div>`)).join('');
     box.scrollTop = box.scrollHeight;
   }
 
   function open() {
     cache = null;
-    openModal('aiModal');
-    render();
-    if (hasAI()) LocalAI.resume();
+    if (typeof openCoach === 'function') openCoach();
   }
 
+  function autosize(t) { t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px'; }
+
   function bind() {
+    const page = $('coachPage');
     $('aiTab').addEventListener('click', () => {
       if (typeof Profile !== 'undefined' && !Profile.signedIn() && !Profile.isGuest()) return;
       open();
     });
-    $('aiModal').addEventListener('click', e => {
+    page.addEventListener('click', e => {
       const a = e.target.closest('[data-act]');
       if (a) { try { act(JSON.parse(a.dataset.act)); } catch {} return; }
       const q = e.target.closest('[data-ask]');
-      if (q) { ask(q.dataset.ask); return; }
-      if (e.target.closest('[data-ai-load]')) { LocalAI.load(LocalAI.pref().id); return; }
-      if (e.target.closest('[data-ai-off]')) { LocalAI.unload(); return; }
-      if (e.target.closest('[data-ai-stop]')) { LocalAI.stop(); return; }
+      if (q) { setPane('chat'); ask(q.dataset.ask); return; }
+      const cq = e.target.closest('[data-cp-ask]');
+      if (cq) { setPane('chat'); askText(cq.dataset.cpAsk); return; }
+      const tab = e.target.closest('[data-cp-tab]');
+      if (tab) { setPane(tab.dataset.cpTab); return; }
+      const rv = e.target.closest('[data-cp-review]');
+      if (rv) { setPane('chat'); const g = games()[Number(rv.dataset.cpReview) - 1]; askAI(`Nhận xét ván số ${rv.dataset.cpReview} của tôi${g && g.opp ? ` (gặp ${g.opp})` : ''}`); return; }
+      const rp = e.target.closest('[data-cp-replay]');
+      if (rp) { const g = games().find(x => String(x.id) === rp.dataset.cpReplay); if (g) { if (typeof showBoard === 'function') showBoard(); GameHistory.loadOnBoard(g, true); } return; }
+      const sb = e.target.closest('[data-cp-setup]');
+      if (sb) { if (typeof showBoard === 'function') showBoard(); GameHistory.loadPosition(sb.dataset.cpSetup); return; }
+      if (e.target.closest('[data-cp-new]')) { if (aiBusy()) CloudAI.stop(); chat = []; hist = []; renderChat(); $('aiInput').focus(); return; }
+      if (e.target.closest('[data-ai-stop]')) { if (typeof CloudAI !== 'undefined') CloudAI.stop(); return; }
       const ko = e.target.closest('[data-kb-open]');
       if (ko) {
         kb.open = ko.dataset.kbOpen;
         renderKb();
-        const sec = $('aiKb');
-        if (sec && !ko.closest('#aiKb')) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!ko.closest('#aiKb')) { setPane('kb'); $('aiKb').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
         return;
       }
       if (e.target.closest('[data-kb-back]')) { kb.open = ''; renderKb(); return; }
@@ -778,14 +1020,12 @@ Không nhắc tới tài liệu, quy tắc hay cách bạn trả lời. Chỉ n�
       const ka = e.target.closest('[data-kb-ask]');
       if (ka && hasKb()) {
         const art = Knowledge.get(ka.dataset.kbAsk);
-        if (art) { const inp = $('aiInput'); if (inp) { inp.value = `Giải thích "${art.title}" và áp dụng vào ván của tôi`; inp.focus(); inp.scrollIntoView({ block: 'center' }); } }
+        if (art) { setPane('chat'); const inp = $('aiInput'); inp.value = `Giải thích "${art.title}" và cho mình một ví dụ áp dụng vào ván của mình`; autosize(inp); inp.focus(); }
       }
     });
-    $('aiModal').addEventListener('change', e => {
-      if (e.target.name === 'aiModel') { LocalAI.setPref(e.target.value); renderEngine(); }
-    });
     let kbT = 0;
-    $('aiModal').addEventListener('input', e => {
+    page.addEventListener('input', e => {
+      if (e.target.id === 'aiInput') { autosize(e.target); return; }
       if (e.target.id !== 'kbInput') return;
       kb.q = e.target.value;
       clearTimeout(kbT);
@@ -796,16 +1036,21 @@ Không nhắc tới tài liệu, quy tắc hay cách bạn trả lời. Chỉ n�
         if (inp) { inp.focus(); try { inp.setSelectionRange(pos, pos); } catch {} }
       }, 180);
     });
-    if (hasAI()) LocalAI.onChange(renderEngine);
-    $('aiModal').addEventListener('submit', e => {
-      if (e.target.id !== 'aiForm') return;
-      e.preventDefault();
-      const t = $('aiInput').value.trim();
+    const send = () => {
+      const inp = $('aiInput');
+      const t = inp.value.trim();
       if (!t) return;
-      $('aiInput').value = '';
+      inp.value = '';
+      autosize(inp);
       askText(t);
-    });
-    if (typeof GameHistory !== 'undefined' && GameHistory.onChange) GameHistory.onChange(() => { cache = null; });
+    };
+    $('aiForm').addEventListener('submit', e => { e.preventDefault(); send(); });
+    // Enter gửi, Shift+Enter xuống dòng (trên máy tính)
+    $('aiInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(pointer: fine)').matches) { e.preventDefault(); send(); } });
+    // Bản trước cho tải mô hình AI về máy (WebLLM, vài trăm MB tới vài GB): đã bỏ, dọn bộ nhớ đệm còn sót lại
+    try { localStorage.removeItem('rg-ai-model'); } catch {}
+    if (typeof caches !== 'undefined') caches.keys().then(ks => ks.filter(k => /^webllm/i.test(k)).forEach(k => caches.delete(k))).catch(() => {});
+    if (typeof GameHistory !== 'undefined' && GameHistory.onChange) GameHistory.onChange(() => { cache = null; if (!page.hidden && !aiBusy()) { const d = analyse(); renderStats(d); renderPlan(d); renderGames(); renderDiag(d); renderOps(d); } });
   }
 
   // Thẻ gợi ý trên Trang chủ: điểm yếu lớn nhất + bước đầu tiên của lộ trình
@@ -817,8 +1062,8 @@ Không nhắc tới tài liệu, quy tắc hay cách bạn trả lời. Chỉ n�
     const s = steps.find(x => x.act.kind !== 'review') || steps[0];
     const top = d.analysed >= 2 && d.weak[0] && d.weak[0].sev >= 0.15 ? d.weak[0] : null;
     el.hidden = false;
-    el.innerHTML = `<header class="hm-card-head"><h2><svg class="ic"><use href="#i-spark"/></svg>Trợ lý AI gợi ý</h2>
-        <button type="button" class="hm-link" data-ai-open>Lộ trình<svg class="ic"><use href="#i-chevron-right"/></svg></button></header>
+    el.innerHTML = `<header class="hm-card-head"><h2><svg class="ic"><use href="#i-spark"/></svg>Trợ lý Royal Gambit</h2>
+        <button type="button" class="hm-link" data-ai-open>Trò chuyện<svg class="ic"><use href="#i-chevron-right"/></svg></button></header>
       <p class="hm-ai-text">${top ? `Điểm cần cải thiện nhất: <b>${esc(top.name)}</b> · ${esc(top.why)}.` : d.total ? `Đã đọc ${d.total} ván của bạn${d.analysed ? ` (${d.analysed} ván đã chấm)` : ''}. Chơi và chấm thêm vài ván để trợ lý tìm điểm yếu chính xác hơn.` : 'Chơi vài ván để trợ lý tìm điểm yếu và xây lộ trình riêng cho bạn.'}</p>
       ${s ? `<button type="button" class="hm-ai-step" data-act='${esc(JSON.stringify(s.act))}'><span class="ai-step-ic"><svg class="ic"><use href="#${s.icon}"/></svg></span><span><b>${esc(s.title)}</b><small>${esc(s.why)}</small></span><svg class="ic"><use href="#i-chevron-right"/></svg></button>` : ''}`;
     el.onclick = e => {

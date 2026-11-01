@@ -5,17 +5,17 @@
 // • Không đụng tới Firebase, PeerJS, Google đăng nhập (/__/auth/…) và mọi yêu cầu khác GET.
 // Sửa danh sách CORE hoặc đổi VERSION khi thêm file mới cần có sẵn lúc offline.
 
-const VERSION = 'rg-v5';
+const VERSION = 'rg-v9';
 const CORE = [
   './', 'index.html', 'style.css', 'manifest.webmanifest',
   'i18n.js', 'chess.js', 'ai.js', 'engine.js', 'config.js', 'profile.js', 'contest.js', 'sound.js',
   'lessons.js', 'lessons-en.js', 'learn.js', 'online.js', 'library.js', 'coach.js', 'puzzles.js',
-  'history.js', 'openings.js', 'knowledge.js', 'localai.js', 'assistant.js', 'pwa.js', 'app.js',
+  'history.js', 'openings.js', 'knowledge.js', 'cloudai.js', 'assistant.js', 'pwa.js', 'app.js',
   'img/logo.svg', 'img/logo.png', 'img/favicon.svg', 'img/favicon.png', 'img/apple-touch-icon.png',
   'img/icon-192.png', 'img/icon-512.png', 'img/icon-maskable-512.png',
   ...['wK', 'wQ', 'wR', 'wB', 'wN', 'wP', 'bK', 'bQ', 'bR', 'bB', 'bN', 'bP'].map(p => `pieces/${p}.svg`),
 ];
-// Stockfish (vài MB): chỉ lưu khi dùng tới lần đầu. Mô hình AI chạy trên máy (localai.js) do WebLLM tự lưu, không qua đây
+// Stockfish (vài MB): chỉ lưu khi dùng tới lần đầu.
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {

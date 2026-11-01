@@ -18,8 +18,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=64">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700;900&display=swap">
+  <link rel="stylesheet" href="style.css?v=67">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -98,7 +98,7 @@
   <header class="topbar">
     <a class="brand" href="./">
       <img src="img/logo.svg?v=2" alt="Royal Gambit">
-      <span class="wordmark">Royal Gambit</span>
+      <span class="wordmark wm-logo"><span class="wm-a">Royal</span><span class="wm-b">Gambit</span></span>
     </a>
     <nav class="tabs" role="tablist">
       <button class="tab" id="homeTab" type="button" aria-selected="false"><svg class="ic"><use href="#i-home"/></svg><span>Trang chủ</span></button>
@@ -109,7 +109,7 @@
       <button class="tab" role="tab" data-mode="learn" aria-selected="false"><svg class="ic"><use href="#i-cap"/></svg><span>Học cờ</span></button>
       <button class="tab" id="libTab" type="button"><svg class="ic"><use href="#i-library"/></svg><span>Thư viện</span></button>
       <button class="tab" id="puzzleTab" type="button"><svg class="ic"><use href="#i-puzzle"/></svg><span>Câu đố</span><b id="puzzleBadge" class="nav-badge" title="Thế cờ trong Sổ luyện lỗi đến hạn ôn" hidden></b></button>
-      <button class="tab" id="aiTab" type="button" title="Trợ lý AI chọn lộ trình học theo ván đấu và lỗi sai của bạn"><svg class="ic"><use href="#i-spark"/></svg><span>Trợ lý AI</span></button>
+      <button class="tab" id="aiTab" type="button" title="Trợ lý Royal Gambit: huấn luyện viên riêng, nhận xét ván và lộ trình học"><svg class="ic"><use href="#i-spark"/></svg><span>Trợ lý</span></button>
       <button class="tab" id="histTab" type="button"><svg class="ic"><use href="#i-history"/></svg><span>Nhật ký</span></button>
       <button class="tab" id="lbTab" type="button"><svg class="ic"><use href="#i-podium"/></svg><span>Xếp hạng</span></button>
     </nav>
@@ -524,6 +524,51 @@
     </div>
   </section>
 
+  <!-- Trang Trợ lý Royal Gambit: huấn luyện viên riêng (assistant.js) -->
+  <section id="coachPage" class="coach-page" hidden aria-label="Trợ lý Royal Gambit">
+    <header class="cp-hero">
+      <div class="cp-hero-main">
+        <img class="cp-crest" src="img/logo.svg?v=2" alt="">
+        <div>
+          <small class="cp-kicker">Huấn luyện viên riêng của bạn</small>
+          <h1 class="cp-title">Trợ lý <span class="wordmark wm-inline">Royal Gambit</span></h1>
+          <p id="cpStatus" class="cp-status"></p>
+        </div>
+      </div>
+      <div id="cpStats" class="cp-stats"></div>
+    </header>
+    <nav class="cp-tabs" role="tablist" aria-label="Phần của trang Trợ lý">
+      <button type="button" role="tab" data-cp-tab="chat" aria-selected="true"><svg class="ic"><use href="#i-spark"/></svg><span>Trò chuyện</span></button>
+      <button type="button" role="tab" data-cp-tab="plan" aria-selected="false"><svg class="ic"><use href="#i-route"/></svg><span>Lộ trình</span></button>
+      <button type="button" role="tab" data-cp-tab="kb" aria-selected="false"><svg class="ic"><use href="#i-book"/></svg><span>Kiến thức</span></button>
+    </nav>
+    <div class="cp-grid">
+      <section class="cp-card cp-chat-card" data-cp-pane="chat">
+        <header class="cp-card-head">
+          <h2><svg class="ic"><use href="#i-spark"/></svg>Trò chuyện với huấn luyện viên</h2>
+          <button type="button" class="ghost cp-new" data-cp-new title="Bắt đầu cuộc trò chuyện mới"><svg class="ic"><use href="#i-plus"/></svg><span>Cuộc trò chuyện mới</span></button>
+        </header>
+        <div id="aiChat" class="ai-chat cp-chat" aria-live="polite"></div>
+        <div id="cpQuick" class="cp-quick"></div>
+        <form id="aiForm" class="cp-composer">
+          <textarea id="aiInput" rows="1" maxlength="600" placeholder="Nhắn cho huấn luyện viên…" aria-label="Câu hỏi cho Trợ lý Royal Gambit"></textarea>
+          <button type="submit" class="primary" title="Gửi"><svg class="ic"><use href="#i-send"/></svg></button>
+        </form>
+        <p id="aiPrivacy" class="ai-privacy"></p>
+      </section>
+      <aside class="cp-side" data-cp-pane="plan">
+        <section class="cp-card"><header class="cp-card-head"><h2><svg class="ic"><use href="#i-route"/></svg>Lộ trình cho bạn</h2></header><div id="cpPlan"></div></section>
+        <section class="cp-card"><header class="cp-card-head"><h2><svg class="ic"><use href="#i-history"/></svg>Ván gần đây</h2></header><div id="cpGames"></div></section>
+        <section class="cp-card" id="cpDiagCard"><header class="cp-card-head"><h2><svg class="ic"><use href="#i-search"/></svg>Chẩn đoán lối chơi</h2></header><div id="cpDiag"></div></section>
+        <section class="cp-card" id="cpOpsCard"><header class="cp-card-head"><h2><svg class="ic"><use href="#i-book"/></svg>Khai cuộc của bạn</h2></header><div id="cpOps"></div></section>
+      </aside>
+      <section class="cp-card cp-kb-card" data-cp-pane="kb">
+        <header class="cp-card-head"><h2><svg class="ic"><use href="#i-library"/></svg>Thư viện kiến thức cờ vua</h2><small id="cpKbCount"></small></header>
+        <div id="aiKb" class="ai-kb"></div>
+      </section>
+    </div>
+  </section>
+
   <section id="profilePage" class="pf-page" hidden aria-label="Hồ sơ người chơi">
     <div class="pf-bar">
       <button id="pfBack" type="button" class="ghost pf-back"><svg class="ic"><use href="#i-chevron-left"/></svg>Quay lại</button>
@@ -685,7 +730,7 @@
     <div class="auth-shell">
       <!-- Cột giới thiệu (máy tính) -->
       <aside class="auth-hero" aria-hidden="true">
-        <div class="ah-brand"><img src="img/logo.svg?v=2" alt=""><span class="wordmark">Royal Gambit</span></div>
+        <div class="ah-brand"><img src="img/logo.svg?v=2" alt=""><span class="wordmark wm-logo"><span class="wm-a">Royal</span><span class="wm-b">Gambit</span></span></div>
         <h2 class="ah-title">Chơi cờ vua, học cờ và leo rank ngay trên trình duyệt</h2>
         <div id="authBoard" class="ah-board lib-card-board lib-frame"></div>
         <ul class="ah-feats">
@@ -697,7 +742,7 @@
       </aside>
       <div class="modal-box auth-box">
       <div class="auth-lang" role="group" aria-label="Ngôn ngữ / Language"><button type="button" data-lang="vi">Tiếng Việt</button><button type="button" data-lang="en">English</button></div>
-      <div class="auth-brand"><img src="img/logo.svg?v=2" alt=""><h1 class="wordmark">Royal Gambit</h1></div>
+      <div class="auth-brand"><img src="img/logo.svg?v=2" alt=""><h1 class="wordmark wm-logo"><span class="wm-a">Royal</span><span class="wm-b">Gambit</span></h1></div>
       <p id="authWelcome" class="auth-welcome">Chào mừng trở lại! Đăng nhập để tiếp tục.</p>
       <div class="auth-tabs" role="tablist">
         <button id="authTabLogin" class="on" type="button" role="tab">Đăng nhập</button>
@@ -813,20 +858,6 @@
   </div>
 
   <!-- Thư viện khai cuộc & tàn cuộc -->
-  <!-- Trợ lý AI: lộ trình theo ván đấu và lỗi sai (assistant.js) -->
-  <div id="aiModal" class="modal" hidden>
-    <div class="modal-box ai-box">
-      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
-      <div class="rank-head">
-        <svg class="ic big-ic"><use href="#i-spark"/></svg>
-        <div>
-          <h2>Trợ lý AI</h2>
-          <p class="muted">Đọc ván đấu và lỗi sai của bạn để chọn lộ trình học phù hợp</p>
-        </div>
-      </div>
-      <div id="aiBody" class="ai-body"></div>
-    </div>
-  </div>
 
   <!-- Hướng dẫn cài ứng dụng (iPhone / trình duyệt không có hộp cài đặt) -->
   <div id="installModal" class="modal" hidden>
@@ -1278,11 +1309,11 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=37"></script>
+  <script src="i18n.js?v=40"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=9"></script>
-  <script src="config.js?v=16"></script>
+  <script src="config.js?v=17"></script>
   <script src="profile.js?v=27"></script>
   <script src="contest.js?v=15"></script>
   <script src="sound.js?v=13"></script>
@@ -1293,12 +1324,12 @@
   <script src="library.js?v=9"></script>
   <script src="coach.js?v=6"></script>
   <script src="puzzles.js?v=11"></script>
-  <script src="history.js?v=10"></script>
+  <script src="history.js?v=11"></script>
   <script src="openings.js?v=5"></script>
-  <script src="knowledge.js?v=1"></script>
-  <script src="localai.js?v=1"></script>
-  <script src="assistant.js?v=2"></script>
+  <script src="knowledge.js?v=2"></script>
+  <script src="cloudai.js?v=5"></script>
+  <script src="assistant.js?v=6"></script>
   <script src="pwa.js?v=2"></script>
-  <script src="app.js?v=62"></script>
+  <script src="app.js?v=63"></script>
 </body>
 </html>
