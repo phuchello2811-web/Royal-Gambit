@@ -8,6 +8,8 @@ Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần 
 
 - **Ứng dụng cho điện thoại và máy tính (PWA)**: cài Royal Gambit lên màn hình chính Android / iPhone / iPad hoặc thành ứng dụng trên Windows / macOS (Chrome, Edge) bằng nút **Cài ứng dụng**; mở toàn màn hình, có biểu tượng riêng, lối tắt (nhấn giữ biểu tượng: Chơi với máy, Học cờ, Câu đố, Trợ lý AI), **chạy khi mất mạng** (đấu máy, câu đố, học cờ, thư viện), tự báo **"Có phiên bản mới"** để cập nhật. Trên điện thoại có **thanh điều hướng dưới đáy** (Trang chủ, Chơi, Học cờ, Câu đố, Trợ lý AI, Khác) và màn hình **luôn sáng khi đang đánh cờ**. Xem mục [Ứng dụng (PWA)](#ứng-dụng-pwa)
 - **Trợ lý AI chọn lộ trình** (tab **Trợ lý AI**, thẻ trên Trang chủ): đọc các ván trong Nhật ký đã được Stockfish chấm, Sổ luyện lỗi và tiến độ Học cờ để tìm điểm yếu (để mất quân oan, bỏ lỡ chiến thuật, bỏ lỡ chiếu hết, khai cuộc, Vua kém an toàn, trung cuộc, tàn cuộc), thống kê lỗi theo giai đoạn ván và khai cuộc hay chơi, rồi đưa ra **lộ trình từng bước** có nút mở thẳng phần học / câu đố theo chủ đề / khai cuộc trong Thư viện / mức máy nên đấu. Có ô **Hỏi trợ lý** ("Vì sao tôi hay thua?", "Hôm nay nên tập gì?", "Tôi nên chơi khai cuộc nào?"…) và nút **Chấm các ván chưa phân tích**. Chạy hoàn toàn trên máy người chơi (`assistant.js`), không cần khoá API, không gửi dữ liệu đi đâu
+- **AI hỏi tự do chạy ngay trên máy (mã nguồn mở, miễn phí)**: trong Trợ lý AI bấm **Tải và bật AI** để tải mô hình **Qwen3.5** (giấy phép Apache-2.0) chạy bằng WebGPU qua thư viện WebLLM. Có 3 mức: **Nhẹ** 0.8B (~450 MB, hợp điện thoại), **Chuẩn** 2B (~1,1 GB, khuyên dùng trên máy tính), **Mạnh** 4B (~2,4 GB). Chỉ tải một lần (trình duyệt lưu lại), lần sau mở trong vài giây, chạy được cả khi mất mạng. Mỗi câu hỏi được kèm **số liệu thật** của người chơi (Elo, điểm yếu, lỗi trong ván gần nhất theo Stockfish) và các bài liên quan trong **Thư viện kiến thức**, nên AI giải thích dựa trên dữ liệu thay vì tự bịa; dưới câu trả lời có nút mở bài học / câu đố / khai cuộc và danh sách nguồn. Không cần máy chủ, không cần khoá API, không gửi dữ liệu đi đâu. Cần Chrome / Edge bản mới (máy tính, Android) hoặc Safari iOS 26 trở lên; máy không hỗ trợ thì Trợ lý tự dùng chế độ cơ bản (trả lời theo mẫu + tra Thư viện kiến thức). Xem mục [AI chạy trên máy](#ai-chạy-trên-máy)
+- **Thư viện kiến thức** (trong Trợ lý AI): hơn 200 bài tra cứu được (gõ có dấu hoặc không dấu, cả từ tiếng Anh như *fork*, *pin*): nguyên tắc khai cuộc, chiến thuật (chĩa, ghim, xiên, chiếu mở, quá tải, nước trung gian…), mẫu chiếu hết, chiến lược (cột mở, tiền đồn, cấu trúc Tốt…), tàn cuộc (đối Vua, ô vuông, Lucena, Philidor…), luật cờ, cách luyện tập; tự gộp thêm 100 khai cuộc, thế tàn cuộc trong Thư viện và 20 phần Học cờ (`knowledge.js`)
 - **Trang chủ** (tab đầu tiên, hoặc bấm logo): lời chào, rank + thanh exp, Elo, số ván, tỉ lệ thắng, chuỗi ngày học, số câu đố đã giải; thẻ **Ván đang dở** (bấm Tiếp tục để quay lại bàn); 4 nút bắt đầu nhanh (Chơi với máy, Online, Câu đố, Học cờ); **Câu đố hôm nay**; danh sách **Việc hôm nay** (giải câu đố, mục tiêu học, ôn Sổ luyện lỗi, chơi 1 ván); 5 ván gần đây; contest đang / sắp diễn ra kèm đếm ngược; top 5 Elo; **Khai cuộc hôm nay**. Vào web là mở Trang chủ (trừ khi vào bằng link mời phòng)
 - **Contest**: lọc Đang diễn ra / Sắp diễn ra / Đã kết thúc / Của tôi; mỗi contest hiện đồng hồ đếm ngược, số người tham gia, nhà vô địch. Trang chi tiết có thanh tiến độ thời gian, thống kê, thẻ "Thành tích của bạn", **link chia sẻ** (`#contest/<id>` mở thẳng contest đó), **Thêm vào lịch** (file .ics, nhắc trước 10 phút) và nút **Sửa** cho admin (đổi tên / mô tả; đổi giờ khi chưa bắt đầu)
 - **Nhật ký ván**: lưu riêng theo tài khoản (tối đa 100 ván) và **đồng bộ qua tài khoản** ở bản Firebase: chơi trên máy tính thì mở trên điện thoại vẫn thấy, xoá ở máy này thì máy kia cũng xoá, chơi lúc mất mạng thì có mạng lại tự đồng bộ (dòng trạng thái ☁ trong hộp Nhật ký). **Cần dán lại `firebase-rules.json` mới (có mục `history`) rồi bấm Publish**; ghi đối thủ, màu quân, Elo ± và độ chính xác; thống kê tổng, lọc Thắng / Hòa / Thua và theo chế độ, tìm kiếm, nhóm theo ngày, bàn cờ thu nhỏ. **Xem lại** từng nước trên bàn, **Phân tích** / **Xem phân tích** (xếp loại từng nước), sao chép / **tải PGN** các ván đang lọc. Ván 2 người cùng máy hiện "Trắng thắng / Đen thắng" và không tính vào tỉ lệ thắng của bạn
@@ -58,6 +60,8 @@ Mở file `index.html` bằng trình duyệt là chơi được.
 
 Chế độ Online cần mạng Internet. Hai trình duyệt kết nối trực tiếp với nhau qua WebRTC; máy chủ công cộng miễn phí của PeerJS chỉ dùng để hai bên tìm thấy nhau. Link mời có dạng `…/index.html?room=MÃPHÒNG`, nên nên đăng trang lên GitHub Pages để gửi link cho bạn bè.
 
+**Chơi khác mạng (4G, Wi-Fi trường / công ty):** nhiều mạng (nhất là 4G dùng CGNAT) không cho hai máy nối thẳng với nhau. Khi đó, sau 5 giây chưa nối được, web tự chuyển sang **đường dự phòng qua Firebase**: tin nhắn của ván đi qua mục `/relay` trong Realtime Database, chậm hơn một chút nhưng chơi bình thường (khung chat báo "đi qua máy chủ dự phòng"). **Cần dán lại `firebase-rules.json` mới (có mục `relay`) vào Firebase › Realtime Database › Rules rồi bấm Publish**, nếu không thì khác mạng sẽ báo "Không nối được với đối thủ". Muốn nhanh hơn nữa có thể thêm máy chủ TURN riêng (ví dụ tài khoản miễn phí ở metered.ca) vào `iceServers` trong `config.js`. Máy chủ TURN mặc định cũ của PeerJS đã ngừng chạy nên web không dùng nữa.
+
 ## Cấu trúc
 
 | File | Nội dung |
@@ -83,6 +87,8 @@ Chế độ Online cần mạng Internet. Hai trình duyệt kết nối trực 
 | `puzzles.js` | Câu đố chiến thuật, câu đố hôm nay, tiến độ giải |
 | `app.js` | Vẽ bàn cờ, xử lý thao tác, chuyển chế độ, trang Hồ sơ |
 | `assistant.js` | Trợ lý AI: chẩn đoán điểm yếu từ các ván đã chấm, lộ trình học, hỏi đáp |
+| `localai.js` | AI mã nguồn mở chạy trên máy (WebLLM + Qwen3.5 qua WebGPU): tải / mở / tắt mô hình, trả lời từng chữ |
+| `knowledge.js` | Thư viện kiến thức: bài viết theo chủ đề và tìm kiếm không dấu, gộp cả Thư viện khai cuộc và Học cờ |
 | `pwa.js` | Ứng dụng (PWA): đăng ký service worker, nút cài đặt, thanh cập nhật, thanh điều hướng dưới đáy trên điện thoại, giữ màn hình sáng |
 | `sw.js` | Service worker: lưu file để mở nhanh và chơi khi mất mạng |
 | `manifest.webmanifest` | Thông tin ứng dụng: tên, biểu tượng, lối tắt |
@@ -261,3 +267,14 @@ Muốn đăng luôn luật cơ sở dữ liệu từ máy: `firebase deploy --on
 ## Bản quyền
 
 Bộ quân cờ `pieces/` là bộ *cburnett* của Colin M.L. Burnett, phát hành theo giấy phép GPLv2+ (lấy từ [lichess-org/lila](https://github.com/lichess-org/lila)).
+
+## AI chạy trên máy
+
+Trợ lý AI dùng mô hình ngôn ngữ **mã nguồn mở chạy ngay trong trình duyệt** của người chơi, không qua máy chủ nào nên **không tốn tiền**.
+
+- **Thư viện:** [WebLLM](https://github.com/mlc-ai/web-llm) 0.2.85 (Apache-2.0), tải từ jsDelivr khi người chơi bấm bật. Mô hình [Qwen3.5](https://huggingface.co/mlc-ai) (Apache-2.0) do WebLLM tải từ Hugging Face rồi lưu trong bộ nhớ đệm của trình duyệt.
+- **Cách AI "hiểu" lối chơi:** AI không tự đánh giá thế cờ (mô hình nhỏ làm việc này rất kém). Stockfish chấm từng nước, `assistant.js` tổng hợp điểm yếu, rồi gửi cho mô hình một bản tóm tắt cùng các bài phù hợp trong `knowledge.js`. Mô hình chỉ diễn giải dữ liệu đó, nên câu trả lời bám sát ván thật của người chơi.
+- **Đổi mô hình:** sửa danh sách `MODELS` trong `localai.js` (tên mô hình phải có trong `prebuiltAppConfig` của bản WebLLM đang dùng). Mô hình lớn hơn trả lời hay hơn nhưng cần nhiều bộ nhớ đồ hoạ hơn.
+- **Thêm kiến thức:** thêm một dòng `A(...)` vào `knowledge.js`. Đây là cách "dạy" AI hiệu quả và rẻ nhất: AI tra thư viện trước khi trả lời.
+- **Tự huấn luyện (fine-tune) mô hình riêng:** làm được (ví dụ LoRA cho Qwen3.5 trên Google Colab, rồi chuyển sang định dạng MLC để WebLLM chạy), nhưng tốn công chuẩn bị dữ liệu và GPU, còn mô hình nhỏ sau khi huấn luyện vẫn không "tính" cờ được như Stockfish. Với web này, cách hiện tại (Stockfish + Thư viện kiến thức + mô hình mã nguồn mở) cho kết quả tốt hơn với chi phí bằng 0.
+
