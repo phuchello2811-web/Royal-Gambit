@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700;900&display=swap">
-  <link rel="stylesheet" href="style.css?v=71">
+  <link rel="stylesheet" href="style.css?v=72">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -720,6 +720,7 @@
         <h3>Nhận xét ván đấu</h3>
         <div id="resultReviewBody"></div>
       </div>
+      <button id="resultCoachAsk" type="button" class="result-coach-ask" hidden><svg class="ic"><use href="#i-spark"/></svg>Nhờ trợ lý nhận xét ván này</button>
       <div class="buttons two">
         <button id="resultAgain" class="primary">Ván mới</button>
         <button data-close>Xem bàn cờ</button>
@@ -1311,7 +1312,7 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=42"></script>
+  <script src="i18n.js?v=43"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=9"></script>
@@ -1326,12 +1327,12 @@
   <script src="library.js?v=9"></script>
   <script src="coach.js?v=6"></script>
   <script src="puzzles.js?v=11"></script>
-  <script src="history.js?v=11"></script>
+  <script src="history.js?v=12"></script>
   <script src="openings.js?v=5"></script>
-  <script src="knowledge.js?v=3"></script>
+  <script src="knowledge.js?v=4"></script>
   <script src="cloudai.js?v=5"></script>
-  <script src="assistant.js?v=8"></script>
+  <script src="assistant.js?v=9"></script>
   <script src="pwa.js?v=2"></script>
-  <script src="app.js?v=63"></script>
+  <script src="app.js?v=64"></script>
 </body>
 </html>
