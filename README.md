@@ -1,6 +1,6 @@
 # <img width="64" height="64" alt="image" src="https://github.com/user-attachments/assets/78f0a244-6b0c-4638-8bcf-cd04c28ed057" />  Royal Gambit
 
-<img width="1200" height="630" alt="og-image" src="https://github.com/user-attachments/assets/8dc068c4-7fa5-4d7a-a2e0-f77af9a95df7" />
+<img width="1774" height="887" alt="image" src="https://github.com/user-attachments/assets/f57a991c-6397-4ca3-bb62-2f321fc01434" />
 
 Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần build. Thư viện duy nhất là [PeerJS](https://peerjs.com/), chỉ được tải khi bạn dùng chế độ Online.
 
@@ -35,7 +35,7 @@ Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần 
 - **Contest**: tab **Contest** cạnh tab Online. Chỉ **admin** tạo được contest. Người chơi **đăng ký trước giờ bắt đầu**; đến giờ web **tự ghép cặp** những người đã đăng ký, ván xong tự ghép ván tiếp. Thắng +2 điểm, hòa +1, thua 0. Kết thúc contest, hạng 1 / 2 / 3 nhận **huy chương Vàng / Bạc / Đồng** hiện trong trang Hồ sơ và bảng xếp hạng; bảng điểm contest đã kết thúc có bục trao giải
 - **Học cờ kiểu Duolingo**: **159 bài trong 20 phần (chủ đề)**, chia 2 chặng. Chặng 1: làm quen bàn cờ tới chiếu hết 2 nước, tàn cuộc, khai cuộc và ván đấu với máy. Chặng 2: Phòng thủ & giữ quân, Chiến thuật nâng cao (chiếu đôi, đòn lôi, phá phòng thủ, quá tải), Mẫu chiếu hết nâng cao (Opera, Boden, Ả Rập, Damiano), Tấn công Vua (Fried Liver, món quà Hy Lạp), Trung cuộc & kế hoạch, Tàn cuộc Tốt, Tàn cuộc Xe (Lucena, Philidor), Tính toán & bài kiểm tra tốt nghiệp. Có lộ trình zig-zag, 3 tim mỗi bài, sao, XP, chuỗi ngày học, mục tiêu hằng ngày và bài kiểm tra **Nhảy cóc**. Đầu lộ trình có thẻ tổng quan (phần đang học, bài tiếp theo, vòng tiến độ khoá học, mục tiêu hôm nay, Học tiếp / Luyện tập); mỗi phần có số sao và **cúp** cuối phần; thẻ **Thành tích** với 8 huy hiệu; câu hỏi trắc nghiệm không cần bàn cờ hiện thành màn hỏi đáp rộng; học xong có nút **Học bài tiếp theo** và thanh tiến độ của phần
 - Giao diện mới: quân cờ SVG, **kéo thả** hoặc bấm để đi, hiệu ứng trượt quân, âm thanh, chuột phải để đánh dấu ô, 12 kiểu bàn cờ (3 bàn gradient có viền **toả sáng** và vệt sáng lướt qua)
-- **Skin quân cờ**: 5 bộ quân riêng (Hoàng gia, Pha lê, Gỗ khắc, Ngọc, Cyber phát sáng), mỗi bộ có màu riêng cho quân Trắng và quân Đen, cùng 6 kiểu lọc màu cho bộ gốc. Đổi trong Hồ sơ › Cài đặt. Các bộ quân được tạo từ bộ cburnett bằng `node tools/make-skins.js` (thêm skin: sửa danh sách `SKINS` trong file đó)
+- **Skin quân cờ**: 5 bộ đổi màu (Hoàng gia, Pha lê, Gỗ khắc, Ngọc, Cyber phát sáng) và 5 bộ **vẽ riêng** có hình trang trí: Băng giá (tinh thể băng mọc sau lưng, tuyết dưới chân), Hỏa ngục (lửa bùng phía sau, thân nứt dung nham), Hoàng kim (tia nắng, hào quang, vòng nguyệt quế), Rừng thiêng (tán lá xuân / lá thu, rêu, hoa, nấm), Thiên hà (tinh vân, bụi sao, vành hành tinh). Kèm 5 **bàn cờ có hoạ tiết** cùng chủ đề: Băng giá, Dung nham, Hoàng kim, Rừng rêu, Thiên hà. Đổi trong Hồ sơ › Cài đặt. Tạo lại các bộ quân: `node tools/make-skins.js` (bộ đổi màu) và `node tools/make-art-skins.js` (bộ vẽ riêng)
 - Gợi ý các nước đi hợp lệ, tô sáng nước vừa đi và vua đang bị chiếu
 - **Bảng phân tích Stockfish 19** (chỉ admin và chủ web thấy, kể cả trong ván Online; chọn 1 / 3 / 5 biến, nút **Đe doạ** cho biết đối thủ đang doạ đi nước gì bằng mũi tên đỏ; khung "Stockfish 19" trên Biên bản, phím **A**): điểm, độ sâu và 3 biến tốt nhất của thế cờ đang xem, kể cả khi lùi xem lại từng nước; mũi tên xanh dương chỉ nước tốt nhất, thanh đánh giá dùng điểm Stockfish. Tắt khi giải câu đố
 - **Máy Elo tuỳ chỉnh** (thẻ "Stockfish tuỳ chỉnh", ai cũng dùng được): kéo thanh chọn Elo 1350–3190 trước khi bắt đầu ván (Stockfish tự giới hạn sức mạnh bằng `UCI_Elo`); có tính Elo theo đúng mức đã chọn
@@ -80,6 +80,7 @@ Chế độ Online cần mạng Internet. Hai trình duyệt kết nối trực 
 | `tools/email-notify.gs` | Google Apps Script: thông báo qua Gmail, Gmail khôi phục, quên mật khẩu (xem mục Cài Apps Script) |
 | `tools/appsscript.json` | Manifest (quyền) cho Apps Script ở trên |
 | `tools/make-skins.js` | Tạo các bộ quân skin trong `pieces/<skin>/` từ bộ gốc: `node tools/make-skins.js` |
+| `tools/make-art-skins.js` | Tạo 5 bộ quân vẽ riêng (ice, fire, gold, forest, galaxy): `node tools/make-art-skins.js` |
 | `online.js` | Chế độ chơi online (PeerJS / WebRTC), gồm tìm trận tự động |
 | `contest.js` | Contest: tạo (admin), đăng ký, cộng điểm, bảng điểm, huy chương |
 | `profile.js` | Tài khoản, hồ sơ, rank (exp và sao), Elo và lịch sử Elo, ảnh đại diện, bảng xếp hạng |

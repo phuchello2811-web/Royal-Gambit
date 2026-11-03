@@ -1134,6 +1134,8 @@ const Profile = (() => {
 
   // Gọi Realtime Database bằng tài khoản đang đăng nhập. path như 'contests/abc'.
   async function dbCall(path, method = 'GET', body) {
+    // Khách (chưa đăng nhập) vẫn đọc được các nhánh công khai (contest, BXH…) — luật Firebase cho phép
+    if (!auth && method === 'GET') return call(`${db}/${path}.json`, { method });
     const t = await token();
     const opts = { method };
     if (body !== undefined) opts.body = JSON.stringify(body);

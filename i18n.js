@@ -328,7 +328,7 @@ const I18N = (() => {
     'Trình duyệt đang chặn thông báo của web này. Hãy cho phép trong cài đặt trang (biểu tượng ổ khoá cạnh địa chỉ web).': 'Your browser is blocking notifications from this site. Allow them in the site settings (padlock icon next to the address).',
     'Đã bật thông báo: web sẽ nhắc khi contest bạn đăng ký sắp bắt đầu (cần mở web trong trình duyệt).': 'Notifications on: you will be reminded when a registered contest is about to start (keep the site open in a tab).',
     'Xanh lá': 'Green', 'Gỗ': 'Wood', 'Xanh dương': 'Blue', 'Tím': 'Purple', 'Đêm': 'Night', 'Cẩm thạch': 'Marble', 'Đỏ': 'Red', 'Ngọc lục': 'Emerald',
-    'Gỗ tối': 'Dark wood', 'Hoàng hôn': 'Sunset', 'Đại dương': 'Ocean', 'Mặc định': 'Default', 'Đen trắng': 'Mono', 'Băng': 'Ice', 'Lửa': 'Fire', 'Mềm': 'Soft', 'Hoàng gia': 'Royal', 'Pha lê': 'Crystal', 'Gỗ khắc': 'Carved wood', 'Ngọc': 'Jewel',
+    'Gỗ tối': 'Dark wood', 'Hoàng hôn': 'Sunset', 'Đại dương': 'Ocean', 'Mặc định': 'Default', 'Đen trắng': 'Mono', 'Băng': 'Ice', 'Lửa': 'Fire', 'Mềm': 'Soft', 'Hoàng gia': 'Royal', 'Băng giá': 'Frost', 'Hỏa ngục': 'Inferno', 'Hoàng kim': 'Gilded', 'Rừng thiêng': 'Sacred forest', 'Rừng rêu': 'Moss', 'Thiên hà': 'Galaxy', 'Dung nham': 'Lava', 'Pha lê': 'Crystal', 'Gỗ khắc': 'Carved wood', 'Ngọc': 'Jewel',
     'Khách': 'Guest',
 
     // ----- Phím tắt -----

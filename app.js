@@ -36,9 +36,15 @@ const THEMES = [
   ['gradient', 'Gradient', 'linear-gradient(135deg,#667eea,#764ba2)', 'linear-gradient(135deg,#f093fb,#f5576c)'],
   ['sunset', 'Hoàng hôn', 'linear-gradient(160deg,#ff9a3c,#e85d04)', 'linear-gradient(160deg,#7209b7,#240046)'],
   ['ocean', 'Đại dương', 'linear-gradient(145deg,#00f5d4,#00bbf9)', 'linear-gradient(145deg,#0096c7,#023e8a)'],
+  // Bàn có hoạ tiết vẽ liền cả bàn (style.css: --tex-*), hợp với 5 bộ quân vẽ riêng cùng tên
+  ['frost', 'Băng giá', '#f2faff', '#5b8fc0', true],
+  ['lava', 'Dung nham', '#d4bc9f', '#2c1a15', true],
+  ['gilded', 'Hoàng kim', '#f4e7c3', '#22222c', true],
+  ['moss', 'Rừng rêu', '#efe6c4', '#4c7a32', true],
+  ['cosmos', 'Thiên hà', '#d6ccf5', '#24185a', true],
 ];
 
-// Skin quân cờ. Skin có `true` là bộ quân SVG riêng (pieces/<skin>/, tạo bằng: node tools/make-skins.js),
+// Skin quân cờ. Skin có `true` là bộ quân SVG riêng (pieces/<skin>/, tạo bằng: node tools/make-skins.js hoặc tools/make-art-skins.js),
 // các skin còn lại dùng bộ gốc kèm bộ lọc màu trong style.css
 const PIECE_SKINS = [
   ['default', 'Mặc định'],
@@ -47,13 +53,17 @@ const PIECE_SKINS = [
   ['walnut', 'Gỗ khắc', true],
   ['jewel', 'Ngọc', true],
   ['cyber', 'Cyber', true],
-  ['gold', 'Vàng'],
+  // Bộ quân vẽ riêng: tinh thể băng / lửa / hào quang / lá / vành sao sau lưng quân (node tools/make-art-skins.js)
+  ['ice', 'Băng giá', true],
+  ['fire', 'Hỏa ngục', true],
+  ['gold', 'Hoàng kim', true],
+  ['forest', 'Rừng thiêng', true],
+  ['galaxy', 'Thiên hà', true],
   ['neon', 'Neon'],
-  ['mono', 'Đen trắng'],
-  ['ice', 'Băng'],
-  ['fire', 'Lửa'],
-  ['soft', 'Mềm'],
 ];
+// Skin cũ đã bỏ → bộ gần nhất (người chơi đã chọn trước đây không bị mất quân)
+const OLD_SKINS = { mono: 'default', soft: 'default' };
+const pieceSkin = () => { const k = Profile.prefs().pieces || 'default'; return OLD_SKINS[k] || (PIECE_SKINS.some(s => s[0] === k) ? k : 'default'); };
 const SVG_SKINS = new Set(PIECE_SKINS.filter(s => s[2]).map(s => s[0]));
 const GLOW_BOARDS = new Set(['gradient', 'sunset', 'ocean']); // bàn gradient có viền toả sáng (style.css)
 
@@ -98,7 +108,7 @@ const Auto = {
 };
 
 const skinSrc = (skin, p) => SVG_SKINS.has(skin) ? `pieces/${skin}/${p}.svg` : `pieces/${p}.svg`;
-const pieceSrc = p => skinSrc(Profile.prefs().pieces, p);
+const pieceSrc = p => skinSrc(pieceSkin(), p);
 const disp = i => flipped ? 63 - i : i; // vị trí hiển thị của ô i
 const rowCol = i => [disp(i) >> 3, disp(i) & 7];
 
@@ -906,7 +916,7 @@ function renderHeader() {
   if (rankBtn) rankBtn.title = `${rank.name} · ${me.elo} Elo`;
   setAvatar($('meAvatar'), { name: me.name, photo: me.photo, me: true }, 'w');
   document.body.dataset.board = Profile.prefs().board;
-  document.body.dataset.pieces = Profile.prefs().pieces || 'default';
+  document.body.dataset.pieces = pieceSkin();
   document.body.dataset.coords = Profile.prefs().coords === false ? 'off' : 'on';
   document.body.dataset.dots = Profile.prefs().dots === false ? 'off' : 'on';
   const view = boardView();
@@ -3169,14 +3179,14 @@ function renderThemes() {
   box.appendChild(boardTitle);
   const boardGrid = document.createElement('div');
   boardGrid.className = 'themes';
-  for (const [key, name, light, dark] of THEMES) {
+  for (const [key, name, light, dark, tex] of THEMES) {
     const b = document.createElement('button');
     b.className = 'theme' + (prefs.board === key ? ' on' : '') + (GLOW_BOARDS.has(key) ? ' glow' : '');
     b.title = name;
     const bg = light.startsWith('linear')
       ? `background-image:${light},${dark};background-size:50% 100%,50% 100%;background-position:0 0,100% 0;background-repeat:no-repeat`
       : `background:linear-gradient(135deg, ${light} 50%, ${dark} 50%)`;
-    b.innerHTML = `<span style="${bg}"></span><small>${name}</small>`;
+    b.innerHTML = `<span ${tex ? `data-tex="${key}"` : `style="${bg}"`}></span><small>${name}</small>`;
     b.addEventListener('click', () => {
       Profile.setPref('board', key);
       document.body.dataset.board = key;
@@ -3194,7 +3204,7 @@ function renderThemes() {
   pieceGrid.className = 'themes';
   for (const [key, name] of PIECE_SKINS) {
     const b = document.createElement('button');
-    b.className = 'theme' + ((prefs.pieces || 'default') === key ? ' on' : '');
+    b.className = 'theme' + (pieceSkin() === key ? ' on' : '');
     b.title = name;
     b.innerHTML = `<div class="piece-preview${SVG_SKINS.has(key) ? ' pair' : ''}" data-pieces="${key}"><img src="${skinSrc(key, 'wN')}" alt="">${SVG_SKINS.has(key) ? `<img src="${skinSrc(key, 'bN')}" alt="">` : ''}</div><small>${name}</small>`;
     b.addEventListener('click', () => {
