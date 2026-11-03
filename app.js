@@ -42,6 +42,7 @@ const THEMES = [
   ['gilded', 'Hoàng kim', '#f4e7c3', '#22222c', true],
   ['moss', 'Rừng rêu', '#efe6c4', '#4c7a32', true],
   ['cosmos', 'Thiên hà', '#d6ccf5', '#24185a', true],
+  ['neon', 'Neon', '#2a1f6a', '#0b0722', true], // gradient chảy + viền toả sáng, hợp bộ quân Neon
 ];
 
 // Skin quân cờ. Skin có `true` là bộ quân SVG riêng (pieces/<skin>/, tạo bằng: node tools/make-skins.js hoặc tools/make-art-skins.js),
@@ -59,13 +60,13 @@ const PIECE_SKINS = [
   ['gold', 'Hoàng kim', true],
   ['forest', 'Rừng thiêng', true],
   ['galaxy', 'Thiên hà', true],
-  ['neon', 'Neon'],
+  ['neon', 'Neon', true], // vẽ từ đầu: ống đèn neon (node tools/make-neon-skin.js)
 ];
 // Skin cũ đã bỏ → bộ gần nhất (người chơi đã chọn trước đây không bị mất quân)
 const OLD_SKINS = { mono: 'default', soft: 'default' };
 const pieceSkin = () => { const k = Profile.prefs().pieces || 'default'; return OLD_SKINS[k] || (PIECE_SKINS.some(s => s[0] === k) ? k : 'default'); };
 const SVG_SKINS = new Set(PIECE_SKINS.filter(s => s[2]).map(s => s[0]));
-const GLOW_BOARDS = new Set(['gradient', 'sunset', 'ocean']); // bàn gradient có viền toả sáng (style.css)
+const GLOW_BOARDS = new Set(['gradient', 'sunset', 'ocean', 'neon']); // bàn gradient có viền toả sáng (style.css)
 
 const game = new Chess();
 const $ = id => document.getElementById(id);
