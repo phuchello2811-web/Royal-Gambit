@@ -5555,3 +5555,10 @@ body[data-page="coach"] .layout { display: none; }
 @media (max-width: 700px) { .kb-game { grid-template-columns: minmax(0, 1fr); } .kb-game-board { max-width: 340px; margin: 0 auto; width: 100%; } }
 a.ai-ref-chip { text-decoration: none; }
 a.ai-ref-chip:hover { color: var(--text); border-color: #ffffff30; }
+.result-coach-ask {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 4px 0 2px; padding: 11px 14px;
+  border-radius: 12px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #3a3220, #2b2925); border: 1px solid #f5b83d66; box-shadow: 0 4px 14px #0005;
+}
+.result-coach-ask .ic { width: 18px; height: 18px; color: var(--gold); }
+.result-coach-ask:hover { border-color: var(--gold); }
+.hist-ai .ic { color: var(--gold); }

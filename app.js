@@ -1942,6 +1942,8 @@ function showResult(o, change, note) {
   $('resultAgain').hidden = mode === 'online' && !inContest && !Online.connected();
   try { renderGameReview(o); } catch (e) { const b = $('resultReview'); if (b) b.hidden = true; }
   renderCoachResult();
+  // Trợ lý Royal Gambit nhận xét ván vừa chơi (khi máy chủ trò chuyện đã cài)
+  $('resultCoachAsk').hidden = !(typeof Assistant !== 'undefined' && Assistant.chatReady() && Assistant.canReviewLatest());
   $('resultModal').hidden = false;
   if (o.score === 1) celebrate();
 }
@@ -2197,6 +2199,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') for (const m of document.querySelectorAll('.modal:not(.auth-gate)')) m.hidden = true;
 });
 
+$('resultCoachAsk').addEventListener('click', () => { $('resultModal').hidden = true; Assistant.reviewLatest(); });
 $('resultAgain').addEventListener('click', () => {
   $('resultModal').hidden = true;
   if (mode === 'online' && Online.contest()) autoNow();

@@ -45,7 +45,7 @@ const Assistant = (() => {
 
   let cache = null;      // { sig, data }
   let busy = false;      // đang phân tích hàng loạt
-  let chat = [];         // hội thoại hỏi đáp (chỉ trong phiên)
+  let chat = [];         // hội thoại hỏi đáp (lưu theo tài khoản trong trình duyệt, xem saveChat)
 
   // ---------- Phân tích dữ liệu ----------
 
@@ -393,8 +393,9 @@ const Assistant = (() => {
     const d = analyse();
     chat.push({ me: true, text: q });
     chat.push({ me: false, html: intent === 'unknown' ? kbAnswer(q) : answer(intent, d) });
-    chat = chat.slice(-12);
+    chat = chat.slice(-20);
     renderChat();
+    saveChat();
   }
   // Câu hỏi về khái niệm ("ghim là gì?") thì tra Thư viện kiến thức thay vì nhận xét ván của người chơi
   const CONCEPT = /l[aà] g[iì]|gi[aả]i th[ií]ch|ngh[iĩ]a l[aà]|th[eế] n[aà]o l[aà]|kh[aá]i ni[eệ]m|what is|explain|meaning of/i;
@@ -804,7 +805,7 @@ const Assistant = (() => {
     chat.push({ me: true, text: q });
     const msg = { me: false, md: '', live: true, hits: [], steps: [], boards: [], links: [] };
     chat.push(msg);
-    chat = chat.slice(-12);
+    chat = chat.slice(-20);
     renderChat();
     let raf = 0;
     const paint = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderLive(msg); }); };
@@ -856,6 +857,7 @@ const Assistant = (() => {
     if (raf) cancelAnimationFrame(raf);
     if (!msg.hits.length && hasKb()) msg.hits = Knowledge.search(q, 'any', 2); // vẫn gợi ý bài đọc thêm
     renderChat();
+    saveChat();
   }
 
   // Markdown tối giản cho câu trả lời của AI (chữ đã được thoát HTML trước)
@@ -1026,6 +1028,7 @@ const Assistant = (() => {
 
   function render() {
     if (!$('coachPage')) return;
+    loadChat();
     const d = analyse();
     renderStats(d);
     renderEngine();
@@ -1059,6 +1062,29 @@ const Assistant = (() => {
     renderQuick();
   }
 
+  // Giữ cuộc trò chuyện khi rời trang / tải lại web: lưu 20 tin gần nhất theo tài khoản (chỉ trên trình duyệt này)
+  const CHAT_KEY = () => 'rg-coach-chat:' + ((typeof Profile !== 'undefined' && Profile.uid && Profile.uid()) || 'guest');
+  let chatKey = '';
+  function saveChat() {
+    try {
+      const keep = chat.filter(m => !m.live).slice(-20).map(m => (m.me ? { me: true, text: m.text }
+        : { md: m.md, html: m.html, steps: m.steps || [], boards: m.boards || [], links: m.links || [], hits: (m.hits || []).map(a => a.id) }));
+      localStorage.setItem(chatKey || CHAT_KEY(), JSON.stringify({ chat: keep, hist }));
+    } catch {}
+  }
+  function loadChat() {
+    const k = CHAT_KEY();
+    if (k === chatKey) return;
+    chatKey = k;
+    chat = []; hist = [];
+    try {
+      const d = JSON.parse(localStorage.getItem(k) || 'null');
+      if (!d) return;
+      chat = (d.chat || []).map(m => (m.me ? m : { ...m, me: false, live: false, hits: hasKb() ? (m.hits || []).map(id => Knowledge.get(id)).filter(Boolean) : [] }));
+      hist = Array.isArray(d.hist) ? d.hist.slice(-4) : [];
+    } catch {}
+  }
+
   function open() {
     cache = null;
     if (typeof openCoach === 'function') openCoach();
@@ -1087,7 +1113,7 @@ const Assistant = (() => {
       if (rp) { const g = games().find(x => String(x.id) === rp.dataset.cpReplay); if (g) { if (typeof showBoard === 'function') showBoard(); GameHistory.loadOnBoard(g, true); } return; }
       const sb = e.target.closest('[data-cp-setup]');
       if (sb) { if (typeof showBoard === 'function') showBoard(); GameHistory.loadPosition(sb.dataset.cpSetup); return; }
-      if (e.target.closest('[data-cp-new]')) { if (aiBusy()) CloudAI.stop(); chat = []; hist = []; renderChat(); $('aiInput').focus(); return; }
+      if (e.target.closest('[data-cp-new]')) { if (aiBusy()) CloudAI.stop(); chat = []; hist = []; renderChat(); saveChat(); $('aiInput').focus(); return; }
       if (e.target.closest('[data-ai-stop]')) { if (typeof CloudAI !== 'undefined') CloudAI.stop(); return; }
       const ko = e.target.closest('[data-kb-open]');
       if (ko) {
@@ -1158,5 +1184,19 @@ const Assistant = (() => {
     };
   }
 
-  return { open, bind, render, homeCard, analyse, roadmap, reply: intent => answer(intent, analyse()) };
+  // Nhờ trợ lý nhận xét một ván trong Nhật ký (theo id). Chưa có máy chủ trò chuyện: mở phần Ván đấu của trang Trợ lý.
+  function reviewGameById(id) {
+    const list = games();
+    const i = list.findIndex(g => g.id === id);
+    open();
+    if (i < 0 || i >= 20 || !aiOn()) { setPane('games'); return; }
+    const g = list[i];
+    setPane('chat');
+    askAI(`Nhận xét ván số ${i + 1} của tôi${g.opp ? ` (gặp ${g.opp})` : ''}`);
+  }
+  // Ván mới nhất trong Nhật ký (vừa chơi xong) có nhờ nhận xét được không
+  const canReviewLatest = () => { const g = typeof GameHistory !== 'undefined' ? GameHistory.read()[0] : null; return !!(g && (g.color === 'w' || g.color === 'b') && Date.now() - g.at < 5 * 60000); };
+  const reviewLatest = () => { const g = GameHistory.read()[0]; if (g) reviewGameById(g.id); };
+
+  return { open, bind, render, homeCard, analyse, roadmap, reviewGameById, reviewLatest, canReviewLatest, chatReady: () => aiOn(), reply: intent => answer(intent, analyse()) };
 })();

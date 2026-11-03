@@ -332,6 +332,7 @@ const GameHistory = (() => {
         <button type="button" class="hist-load" title="Xem lại trên bàn cờ"><svg class="ic"><use href="#i-play"/></svg><span>Xem lại</span></button>
         ${g.rev ? '<button type="button" class="hist-rev" title="Xem lại từng nước kèm xếp loại (thiên tài, tốt nhất, nước hớ…)"><svg class="ic"><use href="#i-search"/></svg><span>Xem phân tích</span></button>'
           : typeof Coach !== 'undefined' ? '<button type="button" class="hist-an" title="Chấm từng nước bằng Stockfish, thêm nước hớ vào Sổ luyện lỗi"><svg class="ic"><use href="#i-target"/></svg><span>Phân tích</span></button>' : ''}
+        ${(g.color === 'w' || g.color === 'b') && typeof Assistant !== 'undefined' && Assistant.chatReady() ? '<button type="button" class="hist-ai" title="Nhờ Trợ lý Royal Gambit nhận xét ván này cùng Stockfish 19"><svg class="ic"><use href="#i-spark"/></svg><span>Nhận xét</span></button>' : ''}
         <button type="button" class="hist-pgn icon" title="Sao chép PGN"><svg class="ic"><use href="#i-copy"/></svg></button>
         <button type="button" class="hist-del icon" title="Xóa ván này"><svg class="ic"><use href="#i-close"/></svg></button>
       </div>`;
@@ -343,6 +344,8 @@ const GameHistory = (() => {
     if (an) an.addEventListener('click', () => analyse(g, an));
     const rv = el.querySelector('.hist-rev');
     if (rv) rv.addEventListener('click', () => loadOnBoard(g, true));
+    const ai = el.querySelector('.hist-ai');
+    if (ai) ai.addEventListener('click', () => { $('histModal').hidden = true; Assistant.reviewGameById(g.id); });
     el.querySelector('.hist-pgn').addEventListener('click', () => copyText(g.pgn, 'Đã sao chép PGN'));
     el.querySelector('.hist-del').addEventListener('click', () => {
       if (!confirm('Xóa ván này khỏi nhật ký?')) return;

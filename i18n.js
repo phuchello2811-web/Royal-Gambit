@@ -475,6 +475,8 @@ const I18N = (() => {
     "Khai cuộc bạn hay chơi": "Your most played openings",
     "Hỏi trợ lý": "Ask the coach",
     "Thư viện kiến thức": "Knowledge library",
+    "Nhờ trợ lý nhận xét ván này": "Ask the coach to review this game",
+    "Nhờ Trợ lý Royal Gambit nhận xét ván này cùng Stockfish 19": "Ask the Royal Gambit Coach to review this game with Stockfish 19",
     "Ván cờ nổi tiếng": "Famous games",
     "Lịch sử & kiến thức chung": "History & general",
     "Đặt thế này lên bàn": "Set up this position",
