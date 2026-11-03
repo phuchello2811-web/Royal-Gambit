@@ -1499,7 +1499,7 @@ function buildGameReview(o) {
   const tags = [];
   const lines = [];
   let checks = 0, captures = 0, promotions = 0;
-  let queenLostBy = { w: 0, b: 0 }; // nước đầu tiên mất hậu (0 = chưa)
+  let queenLostBy = { w: 0, b: 0 }; // nước (ply) đầu tiên mất hậu (0 = chưa)
   let bigSwing = null; // { ply, san, drop, side }
   let prevEval = 0;
   let maxMaterialLead = 0;
@@ -1537,16 +1537,15 @@ function buildGameReview(o) {
 
     const moverVal = VAL[m.piece[1]] || 0;
     const capVal = m.captured ? (VAL[m.captured[1]] || 0) : 0;
-    // Blunder heuristic: đổi quân bất lợi
-    if (m.captured && moverVal > capVal + 1 && !san.includes('+')) {
-      const drop = moverVal - capVal;
-      if (drop >= 4 && (!bigSwing || drop > bigSwing.drop)) {
-        bigSwing = { ply: i + 1, san, drop, side, kind: 'trade' };
+    // Đổi quân bất lợi: quân lớn ăn quân nhỏ rồi bị ăn lại ngay ở nước sau (và không gỡ lại được ở nước tiếp theo).
+    // Không bị ăn lại (ăn quân treo, ăn lại sau khi đối thủ ăn trước) thì không phải đổi quân bất lợi.
+    if (m.captured && moverVal > capVal + 1) {
+      const next = hist[i + 1] && hist[i + 1].move, back = hist[i + 2] && hist[i + 2].move;
+      if (next && next.to === m.to && next.captured) {
+        const regained = back && back.to === m.to && back.captured ? (VAL[back.captured[1]] || 0) : 0;
+        const drop = moverVal - capVal - regained;
+        if (drop >= 4 && (!bigSwing || drop > bigSwing.drop)) bigSwing = { ply: i + 1, san, drop, side, kind: m.piece[1] === 'Q' ? 'queen' : 'trade' };
       }
-    }
-    // Hậu đổi quân nhỏ
-    if (m.piece[1] === 'Q' && m.captured && capVal <= 3) {
-      bigSwing = { ply: i + 1, san, drop: 9 - capVal, side, kind: 'queen' };
     }
   }
 
@@ -1617,13 +1616,34 @@ function buildGameReview(o) {
     if (human && earlyQueenOut.side === human) tags.push({ t: 'Hậu ra sớm', c: 'mid' });
   }
 
-  // --- Lost queen ---
-  if (human && queenLostBy[human]) {
-    lines.push(`Bạn mất Hậu ở nước thứ ${Math.ceil(queenLostBy[human] / 2)}. Đây thường là bước ngoặt — hãy kiểm tra ô bị tấn công trước khi để Hậu đứng trên đường nguy hiểm.`);
-    tags.push({ t: 'Mất Hậu', c: 'bad' });
-  } else if (human && queenLostBy[opposite(human)]) {
-    lines.push(`Đối thủ mất Hậu ở nước ${Math.ceil(queenLostBy[opposite(human)] / 2)} — bạn đã tận dụng tốt cơ hội.`);
-    tags.push({ t: 'Ăn Hậu', c: 'good' });
+  // --- Hậu: đổi Hậu / thí Hậu để chiếu hết / mất Hậu thật ---
+  const mateBy = status === 'checkmate' ? opposite(game.turn) : null;
+  const queenFate = c => {
+    const at = queenLostBy[c];
+    if (!at) return null;
+    const other = queenLostBy[opposite(c)];
+    if (other && Math.abs(other - at) <= 3) return 'trade';            // hai bên cùng mất Hậu trong vài nước
+    if (mateBy === c && plies - at <= 6) return 'sac';                  // mất Hậu rồi chiếu hết ngay sau đó: thí Hậu
+    return 'lost';
+  };
+  if (human) {
+    const mine = queenFate(human), theirs = queenFate(opposite(human));
+    if (mine === 'trade') {
+      lines.push(`Hai bên đổi Hậu ở nước ${Math.ceil(queenLostBy[human] / 2)}: ván cờ chuyển sang thế ít quân, Vua có thể tham chiến sớm hơn.`);
+      tags.push({ t: 'Đổi Hậu', c: 'mid' });
+    } else if (mine === 'sac') {
+      lines.push(`Bạn thí Hậu ở nước ${Math.ceil(queenLostBy[human] / 2)} để chiếu hết. Đòn kết thúc rất đẹp!`);
+      tags.push({ t: 'Thí Hậu', c: 'good' });
+    } else if (mine === 'lost') {
+      lines.push(`Bạn mất Hậu ở nước thứ ${Math.ceil(queenLostBy[human] / 2)}. Đây thường là bước ngoặt — hãy kiểm tra ô bị tấn công trước khi để Hậu đứng trên đường nguy hiểm.`);
+      tags.push({ t: 'Mất Hậu', c: 'bad' });
+    }
+    if (theirs === 'lost' && mine !== 'trade') {
+      lines.push(`Đối thủ mất Hậu ở nước ${Math.ceil(queenLostBy[opposite(human)] / 2)} — bạn đã tận dụng tốt cơ hội.`);
+      tags.push({ t: 'Ăn Hậu', c: 'good' });
+    } else if (theirs === 'sac') {
+      lines.push(`Đối thủ thí Hậu ở nước ${Math.ceil(queenLostBy[opposite(human)] / 2)} để chiếu hết: khi Vua bị vây, luôn kiểm tra các nước chiếu bằng thí quân của đối thủ.`);
+    }
   }
 
   // --- Checks ---
@@ -1636,17 +1656,20 @@ function buildGameReview(o) {
   // --- Material ---
   const lead = matW - matB;
   if (Math.abs(lead) >= 5 && status === 'checkmate') {
-    const ahead = lead > 0 ? 'Trắng' : 'Đen';
-    lines.push(`Lợi thế chất liệu nghiêng về ${ahead} (${matW}–${matB} điểm tạm tính).`);
+    const ahead = lead > 0 ? 'w' : 'b';
+    lines.push(ahead === mateBy
+      ? `${COLOR_NAME[ahead]} hơn ${Math.abs(lead)} điểm quân khi kết thúc (${matW}–${matB}).`
+      : `Dù kém ${Math.abs(lead)} điểm quân (${matW}–${matB}), ${COLOR_NAME[mateBy]} vẫn chiếu hết được: hoạt động của quân và an toàn của Vua quan trọng hơn số quân.`);
   }
 
   // --- Bad trade ---
-  if (bigSwing && bigSwing.drop >= 4) {
+  // Nước "đổi quân bất lợi" ngay trước khi chính bên đó chiếu hết là thí quân có tính toán, không nhắc
+  if (bigSwing && bigSwing.drop >= 4 && !(mateBy === bigSwing.side && plies - bigSwing.ply <= 6)) {
     const who = human && bigSwing.side === human ? 'Bạn' : COLOR_NAME[bigSwing.side];
     if (bigSwing.kind === 'queen') {
-      lines.push(`Điểm đáng chú ý: ${who} dùng Hậu đổi quân nhỏ tại <span class="rv-move">${bigSwing.san}</span> (nước ${Math.ceil(bigSwing.ply / 2)}) — thường là thiệt lớn trừ khi có chiếu hết hoặc bắt lại ngay.`);
+      lines.push(`Điểm đáng chú ý: ${who} dùng Hậu ăn quân nhỏ tại <span class="rv-move">${bigSwing.san}</span> (nước ${Math.ceil(bigSwing.ply / 2)}) rồi bị ăn lại Hậu ngay, thiệt khoảng ${bigSwing.drop} điểm quân.`);
     } else {
-      lines.push(`Nước <span class="rv-move">${bigSwing.san}</span> (nước ${Math.ceil(bigSwing.ply / 2)}) của ${who} có vẻ đổi quân bất lợi.`);
+      lines.push(`Nước <span class="rv-move">${bigSwing.san}</span> (nước ${Math.ceil(bigSwing.ply / 2)}) của ${who} đổi quân bất lợi: quân ăn bị ăn lại ngay, thiệt khoảng ${bigSwing.drop} điểm quân.`);
     }
     if (human && bigSwing.side === human) tags.push({ t: 'Nước đáng tiếc', c: 'bad' });
   }
@@ -1657,7 +1680,7 @@ function buildGameReview(o) {
   if (human && earlyQueenOut && earlyQueenOut.side === human && earlyQueenOut.ply <= 6) tips.push('Triển khai Mã và Tượng trước, Hậu ra sau.');
   if (captures < 2 && moves > 15) tips.push('Chủ động tìm cách mở đường và trao đổi quân khi bị động.');
   if (status === 'checkmate' && o && o.score === 0) tips.push('Khi bị tấn công, kiểm tra tất cả nước chiếu và ô thoát của vua.');
-  if (status === 'checkmate' && o && o.score === 1) tips.push('Phát huy thế thắng: khi hơn quân, hãy đơn giản hóa (đổi quân) để vào tàn cuộc.');
+  if (status === 'checkmate' && o && o.score === 1) tips.push('Ván thắng cũng nên xem lại: tìm 1–2 chỗ đối thủ có thể phòng thủ tốt hơn để lần sau tấn công chắc hơn.');
   if (!tips.length) tips.push('Mỗi ván hãy xem lại 1–2 nước then chốt — tiến bộ sẽ rất nhanh.');
   lines.push('Gợi ý: ' + tips[0]);
 
@@ -1678,9 +1701,15 @@ function renderGameReview(o) {
   const rev = buildGameReview(o);
   if (!rev) { box.hidden = true; body.innerHTML = ''; return; }
   box.hidden = false;
+  // Câu đầu là tóm tắt (in đậm), các ý giữa thành danh sách, câu "Gợi ý: …" thành ô riêng
   const tagsHtml = rev.tags.map(x => `<span class="rv-tag ${x.c}">${x.t}</span>`).join('');
-  const linesHtml = rev.lines.map(t => `<p>${t}</p>`).join('');
-  body.innerHTML = (tagsHtml ? `<div>${tagsHtml}</div>` : '') + linesHtml;
+  const [lead, ...rest] = rev.lines;
+  const tip = rest.find(t => /^Gợi ý: /.test(t));
+  const points = rest.filter(t => t !== tip);
+  body.innerHTML = (tagsHtml ? `<div class="rv-tags">${tagsHtml}</div>` : '')
+    + (lead ? `<p class="rv-lead">${lead}</p>` : '')
+    + (points.length ? `<ul class="rv-points">${points.map(t => `<li>${t}</li>`).join('')}</ul>` : '')
+    + (tip ? `<div class="rv-tip"><svg class="ic"><use href="#i-bulb"/></svg><span><b>Gợi ý</b>${tip.replace(/^Gợi ý: /, '')}</span></div>` : '');
 }
 
 // ---------------- Sổ luyện lỗi: phân tích ván vừa xong (coach.js) ----------------
@@ -1943,7 +1972,7 @@ function showResult(o, change, note) {
   try { renderGameReview(o); } catch (e) { const b = $('resultReview'); if (b) b.hidden = true; }
   renderCoachResult();
   // Trợ lý Royal Gambit nhận xét ván vừa chơi (khi máy chủ trò chuyện đã cài)
-  $('resultCoachAsk').hidden = !(typeof Assistant !== 'undefined' && Assistant.chatReady() && Assistant.canReviewLatest());
+  $('resultAsk').hidden = !(typeof Assistant !== 'undefined' && Assistant.chatReady() && Assistant.canReviewLatest());
   $('resultModal').hidden = false;
   if (o.score === 1) celebrate();
 }

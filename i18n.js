@@ -475,6 +475,8 @@ const I18N = (() => {
     "Khai cuộc bạn hay chơi": "Your most played openings",
     "Hỏi trợ lý": "Ask the coach",
     "Thư viện kiến thức": "Knowledge library",
+    "Chưa có ván nào": "No games yet",
+    "Stockfish 19 chấm xong thì lộ trình sát với lỗi của bạn hơn.": "Once Stockfish 19 analyses them, your plan matches your mistakes more closely.",
     "Nhờ trợ lý nhận xét ván này": "Ask the coach to review this game",
     "Nhờ Trợ lý Royal Gambit nhận xét ván này cùng Stockfish 19": "Ask the Royal Gambit Coach to review this game with Stockfish 19",
     "Ván cờ nổi tiếng": "Famous games",
@@ -909,16 +911,21 @@ const I18N = (() => {
     while ((n = tw.nextNode())) { if (n.nodeType === 3) doText(n); else doAttrs(n); }
   }
 
+  // Trả chữ về tiếng Việt gốc và xoá dấu "mình vừa ghi": nếu giữ dấu đó (bằng chữ gốc), lần chọn English sau
+  // doText / doAttrs tưởng chữ gốc là chữ mình đã dịch nên bỏ qua, trang không đổi sang tiếng Anh được nữa.
+  // Lúc này lang = 'vi' nên MutationObserver bỏ qua các thay đổi do chính hàm này gây ra.
   function restore(root) {
     const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     let n;
     while ((n = tw.nextNode())) {
       if (n.nodeType === 3) {
         const o = orig.get(n);
-        if (o != null && n.data === wrote.get(n)) { wrote.set(n, o); n.data = o; }
+        if (o != null && n.data === wrote.get(n)) n.data = o;
+        wrote.delete(n);
       } else {
         const o = origAttr.get(n), w = wroteAttr.get(n);
-        if (o && w) for (const a in w) if (n.getAttribute(a) === w[a]) { n.setAttribute(a, o[a]); w[a] = o[a]; }
+        if (o && w) for (const a in w) if (n.getAttribute(a) === w[a]) n.setAttribute(a, o[a]);
+        wroteAttr.delete(n);
       }
     }
   }

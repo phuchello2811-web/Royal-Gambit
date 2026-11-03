@@ -952,10 +952,12 @@ const Assistant = (() => {
     const steps = roadmap(d);
     let html = '';
     if (d.unanalysed.length) {
-      html += `<div class="ai-note"><span>${d.analysed < 2 ? '<b>Cần thêm dữ liệu.</b> ' : ''}Còn ${d.unanalysed.length} ván chưa được Stockfish 19 chấm. Chấm xong thì lộ trình sát với lỗi của bạn hơn.</span>
-        <button type="button" id="aiBatch" class="primary"${busy ? ' disabled' : ''}><svg class="ic"><use href="#i-cpu"/></svg>Chấm ${Math.min(5, d.unanalysed.length)} ván</button></div>`;
+      html += `<div class="ai-note"><span class="ai-note-ic"><svg class="ic"><use href="#i-cpu"/></svg></span>
+        <span class="ai-note-text"><b>${d.analysed < 2 ? 'Cần thêm dữ liệu: ' : ''}còn ${d.unanalysed.length} ván chưa được chấm</b><small>Stockfish 19 chấm xong thì lộ trình sát với lỗi của bạn hơn.</small></span>
+        <button type="button" id="aiBatch" class="ai-note-btn"${busy ? ' disabled' : ''}><svg class="ic"><use href="#i-cpu"/></svg>Chấm ${Math.min(5, d.unanalysed.length)} ván</button></div>`;
     } else if (!d.total) {
-      html += '<div class="ai-note"><span><b>Chưa có ván nào.</b> Chơi vài ván với máy hoặc Online: Stockfish 19 chấm từng nước và trợ lý sẽ tìm điểm yếu của bạn. Trong lúc chờ, đây là lộ trình theo tiến độ học.</span></div>';
+      html += `<div class="ai-note"><span class="ai-note-ic"><svg class="ic"><use href="#i-play"/></svg></span>
+        <span class="ai-note-text"><b>Chưa có ván nào</b><small>Chơi vài ván với máy hoặc Online: Stockfish 19 chấm từng nước và trợ lý sẽ tìm điểm yếu của bạn. Trong lúc chờ, đây là lộ trình theo tiến độ học.</small></span></div>`;
     }
     html += `<ol class="ai-road">${steps.map((s, i) => `<li><span class="ai-step-n">${i + 1}</span><span class="ai-step-ic"><svg class="ic"><use href="#${s.icon}"/></svg></span>
       <span class="ai-step-text"><b>${esc(s.title)}</b><small>${esc(s.why)}</small></span>
