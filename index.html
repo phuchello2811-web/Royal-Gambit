@@ -37,7 +37,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700;900&display=swap">
-  <link rel="stylesheet" href="style.css?v=77">
+  <link rel="stylesheet" href="style.css?v=84">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -59,6 +59,8 @@
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
     <symbol id="i-handshake" viewBox="0 0 24 24"><path d="M3 12h4l3-3 4 4M21 12h-4l-5 5-2-2M7 12l3 3"/></symbol>
     <symbol id="i-exit" viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3a9 9 0 1 0 0 18c1.4 0 2.2-1 2.2-2.1 0-.6-.2-1-.5-1.5-.3-.4-.5-.8-.5-1.3 0-1.1.9-1.9 2-1.9h2.2A4.6 4.6 0 0 0 21 9.9C20.6 5.9 16.7 3 12 3Z"/><g fill="currentColor"><circle cx="7.5" cy="11.5" r="1.3"/><circle cx="10.5" cy="7.5" r="1.3"/><circle cx="15" cy="7.8" r="1.3"/></g></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.7 7.4-4.300M8.3 13.300l7.4 4.3"/></g></symbol>
     <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3 6.5 7 .9-5.1 4.8 1.3 7-6.2-3.4-6.2 3.4 1.3-7L2 9.4l7-.9L12 2Z"/></symbol>
     <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3v13H4V7Z"/><circle cx="12" cy="13" r="4"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></symbol>
@@ -133,6 +135,7 @@
     </nav>
     <div class="topbar-right">
       <button class="icon-btn install-btn" type="button" data-install hidden title="Cài Royal Gambit như một ứng dụng"><svg class="ic"><use href="#i-download"/></svg><span>Cài ứng dụng</span></button>
+      <button id="skinBtn" class="icon-btn" type="button" title="Đổi bàn cờ và quân cờ"><svg class="ic"><use href="#i-palette"/></svg><span>Giao diện</span></button>
       <button id="langBtn" class="icon-btn lang-btn" type="button" title="Ngôn ngữ / Language"><svg class="ic"><use href="#i-globe"/></svg><span id="langLabel">Tiếng Việt</span></button>
       <button id="rankBtn" class="icon-btn header-rank-btn" title="Rank và Elo của bạn">
         <span id="meRankIcon" class="header-rank-icon" aria-hidden="true"><svg class="ic rank-star-ic" viewBox="0 0 24 24"><path fill="currentColor" d="m12 2 3 6.5 7 .9-5.1 4.8 1.3 7-6.2-3.4-6.2 3.4 1.3-7L2 9.4l7-.9L12 2Z"/></svg></span>
@@ -277,19 +280,19 @@
             <div class="tc-grid" id="tcGrid"></div>
           </div>
           <div class="setup-hidden" aria-hidden="true">
-            <select id="mode" tabindex="-1">
+            <select id="mode" aria-label="Chế độ chơi" tabindex="-1">
               <option value="b">Đấu với máy – cầm Trắng</option>
               <option value="w">Đấu với máy – cầm Đen</option>
               <option value="none">2 người cùng máy</option>
             </select>
-            <select id="level" tabindex="-1">
+            <select id="level" aria-label="Mức độ của máy" tabindex="-1">
               <option value="1">Dễ · 800</option>
               <option value="2" selected>Trung bình · 1200</option>
               <option value="3">Khó · 1600</option>
               <option value="4">Stockfish 19 · 3200</option>
               <option value="5">Elo tuỳ chỉnh</option>
             </select>
-            <select id="clockSel" tabindex="-1">
+            <select id="clockSel" aria-label="Thời gian" tabindex="-1">
               <option value="none">Không giới hạn</option>
               <option value="60+0">1 phút</option>
               <option value="180+2">3 + 2</option>
@@ -315,7 +318,7 @@
           <button id="playResign" title="Xin thua"><svg class="ic"><use href="#i-flag"/></svg><span>Xin thua</span></button>
           <button id="toolSound" title="Bật/tắt âm thanh"><svg class="ic"><use href="#i-volume"/></svg><span>Âm</span></button>
           <button id="toolEval" title="Bật/tắt thanh đánh giá" class="on"><svg class="ic"><use href="#i-gauge"/></svg><span>Đánh giá</span></button>
-          <button id="toolPgn" title="Sao chép PGN"><svg class="ic"><use href="#i-book"/></svg><span>PGN</span></button>
+          <button id="toolSkin" title="Đổi bàn cờ và quân cờ"><svg class="ic"><use href="#i-palette"/></svg><span>Giao diện</span></button>
         </div>
         <p id="ratedNote" class="rated-note"></p>
       </div>
@@ -346,7 +349,7 @@
                 <button type="button" data-c="b"><span class="pz-side b"></span>Đen</button>
               </div>
             </div>
-            <select id="hostColor" hidden>
+            <select id="hostColor" aria-label="Màu quân của chủ phòng" hidden>
               <option value="w">Trắng</option>
               <option value="b">Đen</option>
               <option value="r">Ngẫu nhiên</option>
@@ -361,8 +364,9 @@
         </div>
 
         <div id="onlineSearching" class="controls" hidden>
-          <div class="radar" aria-hidden="true"><span></span><span></span><span></span><img src="pieces/wN.svg" alt=""></div>
           <div class="searching"><b id="searchLabel">Đang tìm đối thủ…</b><span id="searchTime" class="search-time">0:00</span></div>
+          <p id="searchElo" class="search-elo center" role="status"></p>
+          <div class="radar" aria-hidden="true"><span></span><span></span><span></span><img src="pieces/wN.svg" alt=""></div>
           <p class="muted center">Bạn sẽ vào ván ngay khi có người khác bấm Tìm trận. Rủ bạn bè cùng bấm để gặp nhau nhanh hơn.</p>
           <button id="cancelSearch" class="big">Hủy tìm trận</button>
         </div>
@@ -455,6 +459,7 @@
           <div class="record-actions">
             <button type="button" id="copyPgn" class="ghost tiny" title="Sao chép PGN để phân tích ở web khác">PGN</button>
             <button type="button" id="copyFen" class="ghost tiny" title="Sao chép FEN thế cờ hiện tại">FEN</button>
+            <button type="button" id="shareGame" class="ghost tiny" title="Tạo link để người khác xem lại ván này">Link</button>
             <button type="button" id="copyPgnAn" class="ghost tiny pgn-an" title="Tải PGN kèm điểm Stockfish và ký hiệu !! ?! ?? từng nước" hidden>PGN+</button>
           </div>
         </div>
@@ -678,6 +683,8 @@
             <label class="switch"><input type="checkbox" data-pref="dots"><span>Chấm các nước đi hợp lệ</span></label>
             <label class="switch"><input type="checkbox" data-pref="anim"><span>Hiệu ứng trượt quân</span></label>
             <label class="switch"><input type="checkbox" data-pref="autoQueen"><span>Tự phong Hậu (không hỏi)</span></label>
+            <label class="switch"><input type="checkbox" data-pref="premove"><span>Đi trước nước (premove): chọn sẵn nước khi chưa tới lượt</span></label>
+            <label class="switch"><input type="checkbox" data-pref="haptic"><span>Rung khi đi quân (điện thoại)</span></label>
             <label class="switch" id="mailNotifyRow"><input type="checkbox" id="mailNotifyToggle"><span>Gửi thông báo về Gmail (thông báo toàn web, contest mới, contest đã đăng ký sắp bắt đầu)</span></label>
             <p id="mailNotifyNote" class="muted small-note" hidden></p>
             <label class="switch"><input type="checkbox" id="notifyToggle"><span>Thông báo khi contest đã đăng ký sắp bắt đầu</span></label>
@@ -749,6 +756,7 @@
         <button id="resultAgain" class="primary">Ván mới</button>
         <button data-close>Xem bàn cờ</button>
       </div>
+      <button id="resultShare" type="button" class="ghost result-share"><svg class="ic"><use href="#i-share"/></svg>Chia sẻ ván này</button>
     </div>
   </div>
 
@@ -1291,6 +1299,19 @@
     </div>
   </div>
 
+  <!-- Studio giao diện: ai cũng đổi được, kể cả chế độ Khách -->
+  <div id="skinModal" class="modal" hidden>
+    <div class="modal-box skin-box">
+      <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
+      <div class="rank-head">
+        <svg class="ic big-ic"><use href="#i-palette"/></svg>
+        <div><h2>Giao diện</h2><p class="muted">Chọn bàn cờ và quân cờ, xem trước ngay bên dưới</p></div>
+      </div>
+      <div id="skinPreview" class="board skin-preview" aria-hidden="true"></div>
+      <div id="skinBody"></div>
+    </div>
+  </div>
+
   <div id="keysModal" class="modal" hidden>
     <div class="modal-box keys-box">
       <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
@@ -1336,27 +1357,27 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=47"></script>
+  <script src="i18n.js?v=50"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=9"></script>
   <script src="config.js?v=17"></script>
-  <script src="profile.js?v=28"></script>
+  <script src="profile.js?v=29"></script>
   <script src="contest.js?v=15"></script>
-  <script src="sound.js?v=13"></script>
+  <script src="sound.js?v=14"></script>
   <script src="lessons.js?v=14"></script>
   <script src="lessons-en.js?v=2"></script>
   <script src="learn.js?v=19"></script>
-  <script src="online.js?v=25"></script>
+  <script src="online.js?v=29"></script>
   <script src="library.js?v=9"></script>
   <script src="coach.js?v=6"></script>
   <script src="puzzles.js?v=11"></script>
-  <script src="history.js?v=12"></script>
+  <script src="history.js?v=13"></script>
   <script src="openings.js?v=5"></script>
   <script src="knowledge.js?v=4"></script>
   <script src="cloudai.js?v=5"></script>
   <script src="assistant.js?v=10"></script>
-  <script src="pwa.js?v=2"></script>
-  <script src="app.js?v=68"></script>
+  <script src="pwa.js?v=3"></script>
+  <script src="app.js?v=71"></script>
 </body>
 </html>

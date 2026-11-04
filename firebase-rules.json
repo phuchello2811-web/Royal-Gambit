@@ -213,6 +213,30 @@
       ".write": "auth != null && (auth.token.email === 'admin@rg-user.app' || root.child('admins').child(auth.uid).val() === true)",
       ".validate": "newData.hasChildren(['text', 'by', 'at']) && newData.child('text').isString() && newData.child('text').val().length <= 300 && newData.child('by').isString() && newData.child('at').isNumber()"
     },
+    "matchq": {
+      "$tc": {
+        ".read": "auth != null && $tc.matches(/^(none|60-0|180-2|300-0|600-0|900-10)$/)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && $tc.matches(/^(none|60-0|180-2|300-0|600-0|900-10)$/)",
+          ".validate": "newData.hasChildren(['elo', 'pid', 'at', 'since'])",
+          "elo": {
+            ".validate": "newData.isNumber() && newData.val() >= 100 && newData.val() <= 3500"
+          },
+          "pid": {
+            ".validate": "newData.isString() && newData.val().length <= 64"
+          },
+          "at": {
+            ".validate": "newData.val() === now"
+          },
+          "since": {
+            ".validate": "newData.isNumber() && newData.val() <= now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
     "relay": {
       "$ch": {
         ".read": "$ch.length <= 160",

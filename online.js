@@ -46,6 +46,7 @@ const Online = (() => {
   let goneAt = 0;          // lúc đối thủ bị coi là đã thoát (0 = vẫn đang kết nối)
   let oppHb = false;       // đối thủ dùng bản web có nhịp tim (bản cũ thì chỉ dựa vào sự kiện đóng kết nối)
   let hbTimer = null, hbTick = 0;
+  let lostAt = 0;          // lúc đường truyền bắt đầu đứt giữa ván (để chỉnh đồng hồ khi nối lại)
   let oppKnown = false;    // đã nhận được lời chào của đối thủ
   let tcValue = 'none';    // thời gian của ván đang đánh (chủ phòng quyết định, gửi kèm lệnh 'start')
   let clk = null;          // { base, inc, w, b, turn, at }: giờ còn lại (ms); at = lúc bắt đầu đếm lượt hiện tại (0 = đang dừng)
@@ -99,7 +100,7 @@ const Online = (() => {
     try { await loadLib(); } catch { return fail('Không tải được thư viện kết nối. Kiểm tra mạng Internet.'); }
     code = randomCode();
     peer = newPeer(PREFIX + code);
-    peer.on('open', () => setState('waiting'));
+    peer.on('open', () => { rejoined(); if (state !== 'playing') setState('waiting'); });
     peer.on('connection', c => {
       if (conn) { // phòng đã đủ 2 người
         c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 500); });
@@ -117,8 +118,12 @@ const Online = (() => {
     info('');
     setState('connecting');
     try { await loadLib(); } catch { return fail('Không tải được thư viện kết nối. Kiểm tra mạng Internet.'); }
-    peer = newPeer();
-    peer.on('open', () => attach(peer.connect(PREFIX + code, { reliable: true })));
+    const p = peer = newPeer();
+    peer.on('open', () => {
+      attach(peer.connect(PREFIX + code, { reliable: true }));
+      // Đã nối nhưng chủ phòng không bắt đầu ván (họ dùng bản web lỗi, tab bị treo…): báo thay vì đứng chờ mãi
+      setTimeout(() => { if (peer === p && state === 'connecting') fail('Phòng không phản hồi. Hãy thử lại.'); }, DIRECT_WAIT + RELAY_WAIT + 8000);
+    });
     peer.on('error', onPeerError);
   }
 
@@ -140,33 +145,46 @@ const Online = (() => {
 
   function attach(c) {
     conn = c;
+    c.link = linkOf(c);
     wire(c);
     if (c.relay) return;
-    setTimeout(() => {
-      if (conn !== c || c.open) return;
-      const r = relayFor(c);
-      if (!r) return noLink(c);
-      conn = r;
-      wire(r);
-      try { c.close(); } catch {}
-      setTimeout(() => { if (conn === r && !r.open) noLink(r); }, RELAY_WAIT);
-    }, DIRECT_WAIT);
+    setTimeout(() => { if (conn === c && !c.open) fallBack(c); }, DIRECT_WAIT);
+  }
+
+  // Trước khi vào ván: chuyển sang đường dự phòng, quá RELAY_WAIT vẫn không thông thì coi như không nối được
+  function fallBack(c) {
+    const r = toRelay(c);
+    if (!r) return noLink(c);
+    setTimeout(() => { if (conn === r && !r.open) noLink(r); }, RELAY_WAIT);
+  }
+
+  // Đổi kết nối đang dùng sang kênh Firebase. Kết nối thẳng cũ bị bỏ, mọi sự kiện của nó từ đây bị bỏ qua (xem wire).
+  function toRelay(c) {
+    if (conn !== c || c.relay || !c.link) return null;
+    const l = c.link;
+    const r = relayConn(l.url, l.mine, l.theirs, l.peer);
+    r.link = l;
+    conn = r;
+    wire(r);
+    try { c.close(); } catch {}
+    return r;
   }
 
   // Không nối được cả trực tiếp lẫn qua đường dự phòng
   function noLink(c) {
-    if (conn !== c) return;
+    if (conn !== c || state === 'playing') return;
     conn = null;
     try { c.close(); } catch {}
     if (state === 'searching') { if (!isHost) retrySearch(search); return; } // người giữ phòng chờ: chờ người khác
+    if (state === 'waiting' && isHost) { waitHello = false; return; } // khách không nối được: phòng vẫn mở cho người khác
     fail('Không nối được với đối thủ: mạng của một trong hai bên chặn kết nối trực tiếp (hay gặp ở 4G, Wi-Fi trường / công ty). Hãy thử lại hoặc đổi sang mạng khác.');
   }
 
-  function relayFor(c) {
+  function linkOf(c) {
     const cfg = window.LEADERBOARD || {};
     if (!cfg.databaseURL || !peer || !peer.id || !c.peer || typeof EventSource === 'undefined') return null;
     const ch = (isHost ? [peer.id, c.peer] : [c.peer, peer.id]).join('~').replace(/[.#$[\]/]/g, '_');
-    return relayConn(cfg.databaseURL.replace(/\/+$/, '') + '/relay/' + ch, isHost ? 'h' : 'g', isHost ? 'g' : 'h', c.peer);
+    return { url: cfg.databaseURL.replace(/\/+$/, '') + '/relay/' + ch, mine: isHost ? 'h' : 'g', theirs: isHost ? 'g' : 'h', peer: c.peer };
   }
 
   // Kết nối qua Firebase Realtime Database, cùng kiểu với DataConnection của PeerJS (on / send / close / open).
@@ -246,13 +264,16 @@ const Online = (() => {
 
   function wire(c) {
     c.on('open', () => {
-      sendHello(c);
-      // Trạng thái kết nối mạng thật (ICE): 'failed' / 'closed' nghĩa là đối thủ đã mất hẳn
+      if (conn !== c) return;
+      const mid = state === 'playing'; // kết nối lại giữa ván qua đường dự phòng
+      sendHello(c, !mid);
+      if (mid) sendSync();
+      // Trạng thái kết nối mạng thật (ICE): 'failed' / 'closed' = nối thẳng đã chết (đổi Wi-Fi sang 4G…)
       const pc = c.peerConnection;
       if (pc) pc.addEventListener('iceconnectionstatechange', () => {
-        if (conn === c && /failed|closed/.test(pc.iceConnectionState)) markGone('Mất kết nối với đối thủ.');
+        if (conn === c && /failed|closed/.test(pc.iceConnectionState)) linkLost('Mất kết nối với đối thủ.');
       });
-      if (isHost) waitHello = true; // bắt đầu ván khi nhận được lời chào (xem onData 'hello')
+      if (isHost && !mid) waitHello = true; // bắt đầu ván khi nhận được lời chào (xem onData 'hello')
     });
     // Bỏ qua sự kiện của kết nối cũ (vòng tìm trận trước, phòng đã rời)
     c.on('data', d => { if (conn === c) { seen(); onData(d); } });
@@ -297,6 +318,32 @@ const Online = (() => {
     }, 2000);
   }
 
+  // Rớt khỏi máy chủ trung gian khi đang chờ (khoá màn hình, đổi mạng, máy chủ khởi động lại): nối lại với đúng mã cũ
+  // để mã phòng / link mời đã gửi bạn bè vẫn dùng được. Tối đa REJOIN_MAX lần, giãn dần.
+  const REJOIN_MAX = 8;
+  let rejoinN = 0, rejoinTimer = null;
+  const canRejoin = () => !!peer && !peer.destroyed && (state === 'waiting' || (state === 'searching' && search && search.queue));
+  function rejoin() {
+    if (!canRejoin()) return;
+    if (rejoinN >= REJOIN_MAX) return fail('Không kết nối được máy chủ trung gian (mạng yếu hoặc máy chủ đang quá tải). Hãy thử lại sau ít phút.');
+    info('Đang kết nối lại máy chủ…');
+    clearTimeout(rejoinTimer);
+    const p = peer;
+    rejoinTimer = setTimeout(() => {
+      if (peer !== p || p.destroyed) return;
+      if (p.disconnected) { rejoinN++; try { p.reconnect(); } catch {} }
+      rejoinTimer = setTimeout(() => { if (peer === p && p.disconnected) rejoin(); }, 4000);
+    }, Math.min(500 * 2 ** rejoinN, 8000));
+  }
+  function rejoined() {
+    rejoinN = 0;
+    clearTimeout(rejoinTimer);
+    if ($('onlineInfo').textContent === 'Đang kết nối lại máy chủ…') info('');
+  }
+  const rejoinNow = () => { if (canRejoin() && peer.disconnected) { rejoinN = 0; rejoin(); } };
+  window.addEventListener('online', rejoinNow);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') rejoinNow(); });
+
   function onPeerError(err) {
     if (err.type === 'unavailable-id' && isHost) { // trùng mã phòng, tạo mã khác
       peer.destroy(); peer = null;
@@ -310,9 +357,10 @@ const Online = (() => {
     };
     // Đang đánh: lỗi của máy chủ trung gian không làm đứt kết nối trực tiếp giữa hai bên, ván vẫn tiếp tục
     // (nếu đối thủ thật sự mất kết nối, nhịp tim sẽ phát hiện và xử thua sau 15 giây)
-    if (state === 'playing') return info(messages[err.type] || messages.network);
+    if (state === 'playing') return conn && conn.open ? undefined : info(messages[err.type] || messages.network);
     // Chưa vào ván mà không nối được máy chủ trung gian (mạng yếu, hoặc máy chủ PeerJS miễn phí đang quá tải / tạm chặn)
     if (err.type === 'network' || err.type === 'socket-error' || err.type === 'socket-closed' || err.type === 'server-error') {
+      if (canRejoin()) return rejoin();
       return fail('Không kết nối được máy chủ trung gian (mạng yếu hoặc máy chủ đang quá tải). Hãy thử lại sau ít phút.');
     }
     fail(messages[err.type] || 'Lỗi kết nối: ' + err.type);
@@ -348,9 +396,11 @@ const Online = (() => {
   function begin(myColor, tcv = tcValue) {
     if (search) { // vừa ghép trận tự động
       contestId = search.contest ? search.contest.id : null;
+      const queued = search.queue;
       stopSearch();
-      // Người giữ phòng chờ nhả ID cho cặp sau; kết nối trận đấu đã mở thì không bị ảnh hưởng
-      if (isHost && peer && !peer.disconnected) peer.disconnect();
+      // Người giữ phòng chờ nhả ID cho cặp sau; kết nối trận đấu đã mở thì không bị ảnh hưởng.
+      // Hàng đợi Elo: cả hai bên đều không cần máy chủ trung gian nữa.
+      if ((isHost || queued) && peer && !peer.disconnected) peer.disconnect();
     }
     const again = startedAt > 0; // chơi lại với cùng đối thủ (đã có ván trước trên kết nối này)
     color = myColor;
@@ -510,8 +560,34 @@ const Online = (() => {
       case 'who': // đối thủ chưa nhận được lời chào của mình: gửi lại
         sendHello();
         break;
-      case 'bye': // đối thủ đóng tab / rời trang
+      case 'bye': // đối thủ đóng tab / rời trang: chủ động rời nên không cần thử đường dự phòng
+        if (conn) conn.bye = true;
         markGone('Đối thủ đã thoát khỏi trang.');
+        break;
+      case 'sync': { // vừa nối lại giữa ván: nhận các nước mình chưa kịp nhận (gói tin mất lúc mạng đứt)
+        if (state !== 'playing' || !Array.isArray(d.moves) || d.moves.length > 1000) return;
+        let n = 0;
+        for (let i = game.history.length; i < d.moves.length && !game.isGameOver(); i++) {
+          if (game.turn === color) break; // chỉ nhận nước của đối thủ, không để họ đi hộ quân của mình
+          const [from, to, promotion] = d.moves[i] || [];
+          const m = game.move({ from, to, promotion: promotion || undefined });
+          if (!m) break;
+          clockAfterMove(opposite(color));
+          n++;
+        }
+        // Lúc đứt mạng mỗi máy đếm giờ một kiểu: tin giờ đối thủ tự báo, trong giới hạn bù trễ cộng thời gian đứt mạng
+        if (clk && Number.isFinite(Number(d.mine)) && d.mine !== null) {
+          const o = opposite(color), gap = lostAt ? Math.min(Date.now() - lostAt, 30000) : 0;
+          clk[o] = Math.max(0, Math.min(Number(d.mine), rawLeft(o) + LAG_MS + gap));
+          if (clk.at && clk.turn === o) clk.at = Date.now();
+        }
+        lostAt = 0;
+        if (n) { offer = offer === 'draw' ? null : offer; renderOffer(); }
+        render();
+        break;
+      }
+      case 'relay': // bên kia báo đang chuyển sang đường dự phòng
+        linkLost('Đối thủ mất kết nối.');
         break;
       case 'forfeit': // đối thủ báo mình đã vắng quá 15 giây
         if (state !== 'playing' || result || game.isGameOver()) return;
@@ -592,6 +668,12 @@ const Online = (() => {
   }
 
   function onClose() {
+    const c = conn;
+    // Nối thẳng đứt mà đối thủ không báo rời đi: thử đường dự phòng trước khi kết luận
+    if (c && !c.relay && c.link && !c.bye) {
+      if (state === 'playing' && !left && !result && !game.isGameOver()) return linkLost('Đối thủ mất kết nối.');
+      if (state === 'waiting' || state === 'searching' || state === 'connecting') return fallBack(c);
+    }
     if (state === 'playing') {
       left = true;
       offer = null;
@@ -600,9 +682,29 @@ const Online = (() => {
     } else if (state === 'searching') {
       if (isHost) conn = null; // người vừa nối vào bỏ đi trước khi ván bắt đầu: tiếp tục chờ
       else retrySearch(search);
+    } else if (state === 'waiting' && isHost) { // khách bỏ đi trước khi ván bắt đầu: phòng vẫn mở
+      conn = null;
+      waitHello = false;
     } else if (state !== 'idle') {
       fail('Kết nối bị đóng.');
     }
+  }
+
+  // Giữa ván mà đường truyền chết: đếm 15 giây như cũ, đồng thời chuyển ngay sang kênh Firebase. Bên kia cũng tự chuyển
+  // khi thấy mất tin (nhịp tim) nên hai bên gặp nhau trên cùng một kênh. Thông suốt thì ván đi tiếp, không ai bị xử thua.
+  function linkLost(msg) {
+    if (state !== 'playing') return;
+    if (!lostAt) lostAt = lastSeen || Date.now();
+    markGone(msg);
+    if (!conn || conn.relay || left || result || game.isGameOver()) return;
+    try { conn.send({ t: 'relay' }); } catch {} // nếu chiều này còn thông thì bên kia chuyển ngay, khỏi đợi nhịp tim
+    if (toRelay(conn)) chat(null, 'Mạng chập chờn: đang chuyển ván sang đường dự phòng…');
+  }
+
+  // Gửi toàn bộ nước đã đi và giờ còn lại của mình: bên kia bù các nước bị mất lúc mạng đứt và chỉnh lại đồng hồ
+  function sendSync() {
+    const moves = game.history.map(h => [h.move.from, h.move.to, h.move.promotion || null]);
+    send({ t: 'sync', moves, mine: clk && color ? Math.round(Math.max(0, rawLeft(color))) : undefined });
   }
 
   // ---- Nhịp tim & xử thua khi vắng mặt ----
@@ -652,7 +754,7 @@ const Online = (() => {
     }
     if (!left) send({ t: 'ping' });
     if (!live) return;
-    if (!goneAt && oppHb && now - lastSeen > HB_SILENT) markGone('Đối thủ mất kết nối.');
+    if (!goneAt && oppHb && now - lastSeen > HB_SILENT) linkLost('Đối thủ mất kết nối.');
     if (!goneAt) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) { // mình mất mạng: không xử ai thắng
       goneAt = now; lastSeen = now;
@@ -678,6 +780,7 @@ const Online = (() => {
 
   // Đóng tab / rời trang giữa ván: báo đối thủ và ghi nhớ để trừ điểm ở lần mở web sau
   function onPageHide() {
+    if (search && search.queue) queueLeave(search);
     if (!inGame()) return;
     send({ t: 'bye' });
     if (game.history.length < 2) return;
@@ -706,6 +809,9 @@ const Online = (() => {
   function killPeer() {
     const c = conn, p = peer;
     conn = peer = null; // gỡ trước để sự kiện đóng của kết nối cũ bị bỏ qua
+    clearTimeout(rejoinTimer);
+    rejoinN = 0;
+    if (c && c.open) try { c.send({ t: 'bye' }); } catch {} // báo chủ động rời, bên kia khỏi mất công thử đường dự phòng
     if (c) try { c.close(); } catch {}
     if (p) try { p.destroy(); } catch {}
   }
@@ -715,6 +821,7 @@ const Online = (() => {
     stopHeartbeat();
     clearTimeout(whoTimer);
     oppHb = oppKnown = false;
+    lostAt = 0;
     stopClockTimer();
     clk = null;
     tcValue = 'none';
@@ -735,8 +842,141 @@ const Online = (() => {
     clearTimeout(search.timer);
     clearTimeout(search.guard);
     clearTimeout(search.expire);
+    clearTimeout(search.poll);
     clearInterval(search.tick);
+    if (search.queue) queueLeave(search);
     search = null;
+  }
+
+  // ---- Hàng đợi tìm trận theo Elo (Firebase: matchq/<thời gian>/<uid>) ----
+  // Ai đang tìm trận thì ghi Elo và địa chỉ kết nối vào hàng đợi rồi đọc lại danh sách vài giây một lần. Mọi người tự tính
+  // cùng một cách ghép: cặp lệch Elo ít nhất được ghép trước. Khoảng Elo chấp nhận mở rộng dần theo thời gian chờ để người
+  // ít đối thủ vẫn có ván. Bên có uid nhỏ hơn chủ động nối tới bên kia. Danh sách hai bên đọc được có thể lệch nhau một nhịp:
+  // khi đó người bị nối hai lần trả lời 'full' và người kia tìm tiếp, nên không bao giờ kẹt.
+  const QUEUE_POLL = 1500, QUEUE_BEAT = 6000, QUEUE_STALE = 14000, QUEUE_SKIP = 15000, QUEUE_PASSIVE = 8000;
+  const eloWindow = ms => ms < 5000 ? 100 : ms < 10000 ? 200 : ms < 15000 ? 400 : ms < 20000 ? 800 : Infinity;
+
+  // Người `me` nên đấu với ai trong danh sách [{ uid, elo, since }] lúc `now`; null nếu chưa có cặp phù hợp.
+  function pairFor(list, me, now) {
+    const pairs = [];
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], b = list[j], gap = Math.abs(a.elo - b.elo);
+      if (gap <= eloWindow(now - Math.min(a.since, b.since))) { // người chờ lâu hơn quyết định khoảng Elo
+        pairs.push({ a, b, gap, key: [a.uid, b.uid].sort().join('|') });
+      }
+    }
+    pairs.sort((x, y) => x.gap - y.gap || (x.key < y.key ? -1 : 1));
+    const used = new Set();
+    for (const { a, b } of pairs) {
+      if (used.has(a.uid) || used.has(b.uid)) continue;
+      if (a.uid === me) return b;
+      if (b.uid === me) return a;
+      used.add(a.uid); used.add(b.uid);
+    }
+    return null;
+  }
+
+  const queuePath = s => `matchq/${s.key}/${Profile.uid()}`;
+
+  function queueLeave(s) {
+    const path = s.path;
+    s.queue = false;
+    clearTimeout(s.beat);
+    if (path) Profile.dbCall(path, 'DELETE').catch(() => {});
+  }
+
+  // Ghi / làm mới chỗ trong hàng đợi. Trả về false nếu chưa dùng được (luật Firebase chưa có mục matchq, mất mạng…)
+  async function queueBeat(s) {
+    clearTimeout(s.beat);
+    const body = { elo: Profile.me().elo, pid: s.pid, at: { '.sv': 'timestamp' }, since: s.since || { '.sv': 'timestamp' } };
+    let row;
+    try { row = await Profile.dbCall(s.path, 'PUT', body); } catch { return false; }
+    if (search !== s) { Profile.dbCall(s.path, 'DELETE').catch(() => {}); return true; }
+    if (!row || !Number.isFinite(row.at)) return false;
+    s.skew = row.at - Date.now();
+    s.since = row.since;
+    s.beat = setTimeout(() => { if (search === s) queueBeat(s); }, QUEUE_BEAT);
+    return true;
+  }
+
+  function queueSearch(s) {
+    if (search !== s) return;
+    killPeer();
+    isHost = false;
+    s.skip = {};
+    s.key = s.tc.replace('+', '-');
+    s.path = queuePath(s);
+    const p = peer = newPeer();
+    p.on('connection', c => {
+      if (peer !== p || search !== s) return;
+      if (conn) { // đang nối với người khác: báo bận, họ tìm người tiếp theo
+        c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 500); });
+        return;
+      }
+      s.expect = null;
+      isHost = true;
+      attach(c);
+    });
+    p.on('error', err => {
+      if (peer !== p || search !== s) return;
+      if (err.type === 'peer-unavailable') return retrySearch(s); // người kia vừa rời
+      onPeerError(err);
+    });
+    p.on('open', async id => {
+      if (peer !== p || search !== s) return;
+      rejoined();
+      if (s.pid) return; // nối lại máy chủ trung gian sau khi rớt: giữ nguyên hàng đợi
+      s.pid = id;
+      s.queue = true;
+      if (await queueBeat(s)) { if (search === s) queuePoll(s); return; }
+      // Chưa dùng được hàng đợi: tìm trận kiểu cũ (phòng chờ chung, ai đến trước ghép trước)
+      if (search !== s) return;
+      s.queue = false;
+      searchRound(s);
+    });
+  }
+
+  async function queuePoll(s) {
+    if (search !== s || !s.queue) return;
+    let rows = null;
+    try { rows = await Profile.dbCall('matchq/' + s.key); } catch {}
+    if (search !== s || !s.queue) return;
+    if (rows && s.since) queueTry(s, rows);
+    s.poll = setTimeout(() => queuePoll(s), QUEUE_POLL);
+  }
+
+  function queueTry(s, rows) {
+    const me = Profile.uid(), now = Date.now() + (s.skew || 0);
+    const list = [];
+    for (const [uid, r] of Object.entries(rows)) {
+      if (!r || !Number.isFinite(r.elo) || !Number.isFinite(r.since) || typeof r.pid !== 'string') continue;
+      if (uid !== me && (now - r.at > QUEUE_STALE || s.skip[r.pid] > now)) continue; // bỏ qua theo phiên kết nối: họ tìm lại thì được xét lại ngay
+      list.push({ uid, elo: r.elo, since: r.since, pid: r.pid });
+    }
+    if (!list.some(x => x.uid === me)) list.push({ uid: me, elo: Profile.me().elo, since: s.since, pid: s.pid });
+    renderElo(s, now, list.length - 1);
+    if (conn) return; // đang nối với một người
+    const other = pairFor(list, me, now);
+    if (!other) { s.expect = null; return; }
+    if (me < other.uid) {
+      s.target = other.pid;
+      isHost = false;
+      attach(peer.connect(other.pid, { reliable: true }));
+      clearTimeout(s.guard);
+      s.guard = setTimeout(() => { if (search === s) retrySearch(s); }, DIRECT_WAIT + RELAY_WAIT + 2000);
+      return;
+    }
+    // Bên kia sẽ nối tới mình. Mãi không thấy (họ vừa thoát, máy treo) thì tạm bỏ qua để tìm người khác
+    if (!s.expect || s.expect.pid !== other.pid) s.expect = { pid: other.pid, at: now };
+    else if (now - s.expect.at > QUEUE_PASSIVE) { s.skip[other.pid] = now + QUEUE_SKIP; s.expect = null; }
+  }
+
+  function renderElo(s, now, others) {
+    const el = $('searchElo');
+    if (!el) return;
+    const w = eloWindow(now - s.since), elo = Profile.me().elo;
+    const range = w === Infinity ? 'mọi mức Elo' : `Elo ${Math.max(100, elo - w)}–${elo + w}`;
+    el.textContent = others > 0 ? `Đang tìm trong ${range} · ${others} người khác đang tìm` : `Đang tìm trong ${range}`;
   }
 
   // contest: null (tìm trận thường) hoặc { id, end } (tìm trận trong contest: tìm liên tục tới hết giờ contest)
@@ -754,6 +994,7 @@ const Online = (() => {
     setState('searching');
     $('searchLabel').textContent = contest ? 'Đang tự ghép cặp contest…' : `Đang tìm đối thủ · ${TC_TEXT[tc]}…`;
     $('searchTime').textContent = '0:00';
+    if ($('searchElo')) $('searchElo').textContent = contest ? '' : `Elo của bạn: ${Profile.me().elo}`;
     s.tick = setInterval(() => {
       const t = Math.floor((Date.now() - s.started) / 1000);
       $('searchTime').textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
@@ -764,7 +1005,9 @@ const Online = (() => {
       else fail('Chưa tìm được đối thủ. Hãy thử lại sau ít phút hoặc rủ bạn bè cùng bấm Tìm trận.', 'timeout');
     }, Math.max(0, s.until - now));
     try { await loadLib(); } catch { if (search === s) fail('Không tải được thư viện kết nối. Kiểm tra mạng Internet.'); return true; }
-    searchRound(s);
+    // Contest giữ cách ghép cũ. Tìm trận thường: ưu tiên người gần Elo nhất (cần đăng nhập Firebase)
+    if (!contest && Profile.remote && Profile.uid()) queueSearch(s);
+    else searchRound(s);
     return true;
   }
 
@@ -809,6 +1052,14 @@ const Online = (() => {
   function retrySearch(s) {
     if (!s || search !== s) return;
     clearTimeout(s.guard);
+    if (s.queue) { // hàng đợi: bỏ người vừa nối không được, vòng đọc danh sách kế tiếp sẽ chọn người khác
+      if (s.target) s.skip[s.target] = Date.now() + (s.skew || 0) + QUEUE_SKIP;
+      s.target = null;
+      const c = conn;
+      conn = null;
+      if (c) try { c.close(); } catch {}
+      return;
+    }
     killPeer();
     s.timer = setTimeout(() => searchRound(s), 600 + Math.random() * 1400);
   }
@@ -1036,7 +1287,7 @@ const Online = (() => {
   });
 
   return {
-    join, leave, canMove, sendMove, status, player, outcome, inGame, findMatch,
+    join, leave, canMove, sendMove, status, player, outcome, inGame, findMatch, myColor: () => color, pairFor,
     clock: clockView, TCS: ONLINE_TCS, pickedTc,
     idle: () => state === 'idle',
     searching: () => state === 'searching',

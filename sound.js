@@ -40,7 +40,16 @@ const Sound = (() => {
     src.start(start);
   }
 
+  // Rung nhẹ trên điện thoại (trình duyệt chặn rung khi người dùng chưa chạm vào trang)
+  const BUZZ = { move: 12, capture: 28, check: [20, 40, 20], end: [30, 60, 30], low: [40, 60, 40], bad: 40 };
+  function buzz(kind) {
+    if (!BUZZ[kind] || Profile.prefs().haptic === false || !navigator.vibrate) return;
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+    try { navigator.vibrate(BUZZ[kind]); } catch {}
+  }
+
   function play(kind) {
+    buzz(kind);
     if (!Profile.prefs().sound) return;
     const a = audio();
     if (!a) return;
@@ -49,6 +58,7 @@ const Sound = (() => {
     if (kind === 'capture') { knock(a, t, 900, 2.2); knock(a, t + 0.035, 1400, 1.2); tone(a, 140, t, 0.1, 'triangle', 0.12); }
     if (kind === 'check') { knock(a, t, 1600, 1.4); tone(a, 740, t, 0.12, 'sine', 0.08); tone(a, 988, t + 0.1, 0.16, 'sine', 0.08); }
     if (kind === 'end') [523, 659, 784].forEach((f, i) => tone(a, f, t + i * 0.09, 0.5, 'sine', 0.07));
+    if (kind === 'low') { tone(a, 880, t, 0.09, 'sine', 0.09); tone(a, 880, t + 0.16, 0.09, 'sine', 0.09); tone(a, 880, t + 0.32, 0.12, 'sine', 0.09); }
     if (kind === 'ok') { tone(a, 784, t, 0.14, 'sine', 0.09); tone(a, 1175, t + 0.08, 0.26, 'sine', 0.09); }
     if (kind === 'bad') { tone(a, 196, t, 0.22, 'square', 0.04); tone(a, 147, t + 0.1, 0.28, 'square', 0.04); }
   }

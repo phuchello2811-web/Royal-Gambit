@@ -328,7 +328,7 @@ const I18N = (() => {
     'Trình duyệt đang chặn thông báo của web này. Hãy cho phép trong cài đặt trang (biểu tượng ổ khoá cạnh địa chỉ web).': 'Your browser is blocking notifications from this site. Allow them in the site settings (padlock icon next to the address).',
     'Đã bật thông báo: web sẽ nhắc khi contest bạn đăng ký sắp bắt đầu (cần mở web trong trình duyệt).': 'Notifications on: you will be reminded when a registered contest is about to start (keep the site open in a tab).',
     'Xanh lá': 'Green', 'Gỗ': 'Wood', 'Xanh dương': 'Blue', 'Tím': 'Purple', 'Đêm': 'Night', 'Cẩm thạch': 'Marble', 'Đỏ': 'Red', 'Ngọc lục': 'Emerald',
-    'Gỗ tối': 'Dark wood', 'Hoàng hôn': 'Sunset', 'Đại dương': 'Ocean', 'Mặc định': 'Default', 'Đen trắng': 'Mono', 'Băng': 'Ice', 'Lửa': 'Fire', 'Mềm': 'Soft', 'Hoàng gia': 'Royal', 'Băng giá': 'Frost', 'Hỏa ngục': 'Inferno', 'Hoàng kim': 'Gilded', 'Rừng thiêng': 'Sacred forest', 'Rừng rêu': 'Moss', 'Thiên hà': 'Galaxy', 'Dung nham': 'Lava', 'Pha lê': 'Crystal', 'Gỗ khắc': 'Carved wood', 'Ngọc': 'Jewel',
+    'Gỗ tối': 'Dark wood', 'Hoàng hôn': 'Sunset', 'Đại dương': 'Ocean', 'Mặc định': 'Default', 'Đen trắng': 'Mono', 'Băng': 'Ice', 'Lửa': 'Fire', 'Mềm': 'Soft', 'Hoàng gia': 'Royal', 'Đang tìm trong mọi mức Elo': 'Searching all Elo levels', 'Đang kết nối lại máy chủ…': 'Reconnecting to the server…', 'Phòng không phản hồi. Hãy thử lại.': 'The room is not responding. Please try again.', 'Mạng chập chờn: đang chuyển ván sang đường dự phòng…': 'Unstable connection: switching this game to the backup route…', 'Không có mạng nên chưa tải được contest. Kiểm tra kết nối rồi thử lại.': 'No connection, so contests could not be loaded. Check your network and try again.', 'Thử lại': 'Try again', 'Giao diện': 'Appearance', 'Đổi bàn cờ và quân cờ': 'Change board and pieces', 'Chọn bàn cờ và quân cờ, xem trước ngay bên dưới': 'Pick a board and pieces, with a live preview below', 'Bộ đôi đẹp nhất': 'Best pairings', 'Chia sẻ ván này': 'Share this game', 'Tạo link để người khác xem lại ván này': 'Create a link so others can replay this game', 'Đã sao chép link ván cờ': 'Game link copied', 'Link ván cờ bị hỏng hoặc không đọc được.': 'This game link is broken or unreadable.', 'Đi trước nước (premove): chọn sẵn nước khi chưa tới lượt': 'Premove: queue a move before your turn', 'Rung khi đi quân (điện thoại)': 'Vibrate on moves (phones)', 'Băng giá': 'Frost', 'Hỏa ngục': 'Inferno', 'Hoàng kim': 'Gilded', 'Rừng thiêng': 'Sacred forest', 'Rừng rêu': 'Moss', 'Thiên hà': 'Galaxy', 'Dung nham': 'Lava', 'Pha lê': 'Crystal', 'Gỗ khắc': 'Carved wood', 'Ngọc': 'Jewel',
     'Khách': 'Guest',
 
     // ----- Phím tắt -----
@@ -711,7 +711,12 @@ const I18N = (() => {
     ['{0} thế cờ đến hạn', '{0} positions due'], ['Cúp Phần {0}', 'Unit {0} trophy'], ['Đã hoàn thành Phần {0}!', 'Unit {0} complete!'],
     ['Học xong {0} bài để nhận cúp Phần {1}', 'Finish {0} lessons to earn the Unit {1} trophy'], ['{0} ván hôm nay', '{0} games today'],
     ['{0} ngày', '{0} days'], ['{0} giờ', '{0} h'], ['{0} phút', '{0} min'], ['{0} ngày {1} giờ', '{0} d {1} h'],
-    ['Không tải được danh sách contest (mã lỗi: {=0}). Kiểm tra mạng và luật Firebase (xem README).', 'Could not load contests (error: {0}). Check your connection and the Firebase rules (see README).'],
+    ['Ván được chia sẻ: {=0}', 'Shared game: {0}'],
+    ['Elo của bạn: {=0}', 'Your Elo: {0}'],
+    ['Đang tìm trong Elo {=0}–{=1} · {=2} người khác đang tìm', 'Searching Elo {0}–{1} · {2} other players searching'],
+    ['Đang tìm trong Elo {=0}–{=1}', 'Searching Elo {0}–{1}'],
+    ['Đang tìm trong mọi mức Elo · {=0} người khác đang tìm', 'Searching all Elo levels · {0} other players searching'],
+    ['Không tải được danh sách contest (mã lỗi: {=0}). Hãy thử lại sau.', 'Could not load contests (error: {0}). Please try again later.'],
     ['tạo bởi {=0}', 'by {0}'], ['Chúc mừng! Bạn giành huy chương {0} (hạng {1}) – huy chương đã được thêm vào trang Hồ sơ.', 'Congratulations! You won {0} (place {1}) – it has been added to your profile.'],
     ['Bạn xếp hạng {0}/{1}.', 'You placed {0}/{1}.'], ['{0} thắng', '{0} wins'], ['Còn {0}', '{0} left'], ['còn {0}', '{0} left'], ['Bắt đầu sau {0}', 'Starts in {0}'],
     ['Không đọc được nước "{=0}" (nước thứ {=1}). Hãy kiểm tra lại PGN.', 'Could not read the move "{0}" (move {1}). Please check the PGN.'],

@@ -143,7 +143,7 @@ const PWA = (() => {
       list.appendChild(b);
     }
     // Nút ở thanh trên (ngôn ngữ, rank, hồ sơ) cũng gom vào đây cho dễ bấm bằng một tay
-    for (const id of ['profileBtn', 'rankBtn', 'langBtn']) {
+    for (const id of ['skinBtn', 'profileBtn', 'rankBtn', 'langBtn']) {
       const src = $(id);
       if (!src) continue;
       const b = document.createElement('button');
@@ -151,6 +151,7 @@ const PWA = (() => {
       b.className = 'more-item';
       b.innerHTML = id === 'profileBtn' ? '<svg class="ic"><use href="#i-user"/></svg><span>Hồ sơ</span>'
         : id === 'rankBtn' ? '<svg class="ic"><use href="#i-star"/></svg><span>Rank & Elo</span>'
+        : id === 'skinBtn' ? '<svg class="ic"><use href="#i-palette"/></svg><span>Giao diện</span>'
         : `<svg class="ic"><use href="#i-globe"/></svg><span>${src.textContent.trim() || 'Ngôn ngữ'}</span>`;
       b.addEventListener('click', () => { closeMore(); src.click(); });
       list.appendChild(b);

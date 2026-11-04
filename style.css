@@ -98,12 +98,12 @@ body[data-board="neon"] {
   --light: #3b2f86; --dark: #120b30; --last-light: #19f6ff; --last-dark: #ff2bd6;
   --glow-1: #19f6ff; --glow-2: #ff2bd6;
 }
-body[data-board="neon"] .board { background: #0a0620; isolation: isolate; }
+body[data-board="neon"] .board { background: #0a0620; }
 body[data-board="neon"] .board::before {
   content: "";
   position: absolute;
   left: 0; right: 0; top: -100%; height: 200%;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   background: linear-gradient(180deg, #ff2bd6 0%, #7b2bff 12.5%, #19c8ff 25%, #7b2bff 37.5%, #ff2bd6 50%, #7b2bff 62.5%, #19c8ff 75%, #7b2bff 87.5%, #ff2bd6 100%);
   animation: neon-flow 14s linear infinite;
@@ -445,6 +445,13 @@ body {
 .sq.dark { background: var(--dark); }
 .sq.light.last, .sq.light.selected { background: var(--last-light); }
 .sq.dark.last, .sq.dark.selected { background: var(--last-dark); }
+.sq.check::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, #ff2a2a 0%, #e81010b3 38%, #e8101000 72%);
+  box-shadow: inset 0 0 0 max(1.5px, calc(var(--board-size) / 320)) #ff3b3bcc;
+}
 .sq.hint::before, .sq.marked::before {
   content: "";
   position: absolute;
@@ -452,9 +459,6 @@ body {
   background: var(--hint);
 }
 .sq.marked::before { background: rgba(235, 97, 80, 0.8); }
-.sq.check {
-  background-image: radial-gradient(circle, #ff2a2a 0%, #e8101099 35%, #e8101000 70%);
-}
 .sq.drag-over::before {
   content: "";
   position: absolute;
@@ -471,7 +475,7 @@ body {
   height: 32%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: #0000002a;
+  background: var(--dot, #0000002a);
   z-index: 2;
   pointer-events: none;
 }
@@ -480,11 +484,19 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: calc(var(--board-size) / 110) solid #0000002a;
+  border: calc(var(--board-size) / 110) solid var(--dot, #0000002a);
   z-index: 2;
   pointer-events: none;
 }
-.sq.target:hover::after { background: #00000045; }
+.sq.target:hover::after { background: var(--dot-hover, #00000045); }
+/* Bàn tối / nhiều màu: chấm đen gần như không thấy, đổi sang chấm sáng ở những ô tối */
+body:is([data-board="gradient"], [data-board="sunset"], [data-board="ocean"], [data-board="neon"]) .sq,
+body:is([data-board="cosmos"], [data-board="lava"], [data-board="gilded"], [data-board="night"]) .sq.dark {
+  --dot: #ffffff73;
+  --dot-hover: #ffffffb0;
+}
+/* Quân đi trước (premove): tô tím cả ô đi và ô đến cho tới khi tới lượt */
+.board .sq.pre { box-shadow: inset 0 0 0 999px #7b61ff73 !important; }
 
 .piece {
   position: absolute;
@@ -5662,3 +5674,41 @@ a.ai-ref-chip:hover { color: var(--text); border-color: #ffffff30; }
   .ai-note .ai-note-text { flex: 1 1 calc(100% - 60px); }
   .ai-note .ai-note-btn { flex: 1 1 100%; justify-content: center; }
 }
+
+/* Studio giao diện: chọn bàn + quân, xem trước bằng chính CSS của bàn thật */
+.skin-box { max-width: 640px; width: 100%; }
+.skin-preview {
+  --board-size: min(56vw, 264px);
+  --frame: 0px;
+  position: sticky; /* cuộn xuống chọn quân vẫn thấy xem trước */
+  top: 0;
+  z-index: 5;
+  width: var(--board-size);
+  height: calc(var(--board-size) * 0.75);
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  margin: 4px auto 18px;
+  touch-action: auto;
+  flex: none;
+}
+.skin-preview .piece { cursor: default; }
+.skin-combos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.theme.combo { width: 100%; }
+.theme.combo span {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: auto; aspect-ratio: 16 / 10;
+  border-radius: 10px; overflow: hidden;
+}
+.theme.combo span img { width: 46%; height: auto; display: block; }
+#skinBody .themes { margin-bottom: 8px; }
+.result-share { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 10px; }
+
+/* Bàn rất tối: quân đen thường (không tự phát sáng) có viền sáng mảnh để không chìm vào ô tối */
+body:is([data-board="neon"], [data-board="cosmos"], [data-board="lava"], [data-board="gilded"]):not([data-pieces="neon"], [data-pieces="ice"], [data-pieces="fire"], [data-pieces="gold"], [data-pieces="galaxy"], [data-pieces="cyber"]) .board .piece[src*="/b"] {
+  filter: drop-shadow(0 0 max(0.6px, calc(var(--board-size) / 500)) #ffffffd9) drop-shadow(0 0 max(0.6px, calc(var(--board-size) / 500)) #ffffff80);
+}
+.contest-retry { display: block; margin: 10px auto 0; }
+/* Bàn nổi 3D đặt position: relative cho .board: phần xem trước vẫn phải dính ở đầu hộp */
+#skinModal .board.skin-preview { position: sticky; top: 0; z-index: 5; }
+.search-elo { margin: 0; color: var(--gold); font-size: 13px; font-weight: 600; min-height: 1.3em; }
+@media (max-width: 700px) { #onlineSearching .radar, #onlineSearching > p.muted { display: none; } } /* điện thoại: để khoảng Elo và nút Hủy không bị đẩy khỏi màn hình */

@@ -485,8 +485,8 @@ const GameHistory = (() => {
     importMsg('');
     const prevMode = $('mode').value;
     $('mode').value = 'none';
-    if (mode !== 'play') { setMode('play'); if (mode !== 'play') { $('mode').value = prevMode; return; } }
-    else if (!newGame()) { $('mode').value = prevMode; return; }
+    if (mode !== 'play') { setMode('play'); if (mode !== 'play') { $('mode').value = prevMode; return false; } }
+    else if (!newGame()) { $('mode').value = prevMode; return false; }
     game.load(fen);
     aiColor = 'none';
     practice = true;
@@ -505,8 +505,8 @@ const GameHistory = (() => {
     const prevMode = $('mode').value;
     $('mode').value = 'none';
     // Người chơi không muốn bỏ ván đang dở: trả ô chọn chế độ về như cũ
-    if (mode !== 'play') { setMode('play'); if (mode !== 'play') { $('mode').value = prevMode; return; } }
-    else if (!newGame()) { $('mode').value = prevMode; return; }
+    if (mode !== 'play') { setMode('play'); if (mode !== 'play') { $('mode').value = prevMode; return false; } }
+    else if (!newGame()) { $('mode').value = prevMode; return false; }
     viewPly = null;
     clearSelection();
     hint = null;
@@ -528,6 +528,7 @@ const GameHistory = (() => {
     render();
     if (game.history.length) setViewPly(review && g.rev ? 1 : 0);
     toast(g.rev ? 'Đã tải ván kèm phân tích · dùng nút Nước trước / Nước sau hoặc phím ← → để xem từng nước' : 'Đã tải ván · dùng nút Nước trước / Nước sau hoặc phím ← → để xem từng nước');
+    return true;
   }
 
   // Tải toàn bộ nhật ký (đang lọc) thành một file .pgn

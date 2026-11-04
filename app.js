@@ -66,6 +66,20 @@ const PIECE_SKINS = [
 const OLD_SKINS = { mono: 'default', soft: 'default' };
 const pieceSkin = () => { const k = Profile.prefs().pieces || 'default'; return OLD_SKINS[k] || (PIECE_SKINS.some(s => s[0] === k) ? k : 'default'); };
 const SVG_SKINS = new Set(PIECE_SKINS.filter(s => s[2]).map(s => s[0]));
+// Bộ đôi hợp nhau: bấm một lần đổi cả bàn và quân
+const SKIN_COMBOS = [
+  ['Neon', 'neon', 'neon'],
+  ['Băng giá', 'frost', 'ice'],
+  ['Hỏa ngục', 'lava', 'fire'],
+  ['Hoàng kim', 'gilded', 'gold'],
+  ['Rừng thiêng', 'moss', 'forest'],
+  ['Thiên hà', 'cosmos', 'galaxy'],
+];
+// Tải sẵn 12 quân của bộ vừa chọn: không bị nháy khi vẽ bàn, và có sẵn cho lúc mất mạng
+const preloadSkin = key => {
+  if (!SVG_SKINS.has(key)) return;
+  for (const c of 'wb') for (const t of 'KQRBNP') new Image().src = skinSrc(key, c + t);
+};
 const GLOW_BOARDS = new Set(['gradient', 'sunset', 'ocean', 'neon']); // bàn gradient có viền toả sáng (style.css)
 
 const game = new Chess();
@@ -108,6 +122,8 @@ const Auto = {
   retryAt: 0,        // tìm lỗi (mạng...) thì chờ tới lúc này mới thử lại
 };
 
+const ART_SKINS = new Set(['ice', 'fire', 'gold', 'forest', 'galaxy']);
+const lowWarned = { w: false, b: false };
 const skinSrc = (skin, p) => SVG_SKINS.has(skin) ? `pieces/${skin}/${p}.svg` : `pieces/${p}.svg`;
 const pieceSrc = p => skinSrc(pieceSkin(), p);
 const disp = i => flipped ? 63 - i : i; // vị trí hiển thị của ô i
@@ -189,6 +205,7 @@ function render() {
     if (live && i === selected) cls += ' selected';
     if (last && (i === last.from || i === last.to)) cls += ' last';
     if (i === checkSq) cls += ' check';
+    if (live && (i === preFrom || (premove && (i === premove.from || i === premove.to)))) cls += ' pre';
     if (live && marks.has(i)) cls += ' marked';
     if (targets.has(i)) cls += targets.get(i).captured ? ' capture' : ' target';
     if (live && hint && (i === hint.from || i === hint.to)) cls += ' hint';
@@ -230,6 +247,7 @@ function render() {
     Sound.play(over ? 'end' : game.inCheck() ? 'check' : last.captured ? 'capture' : 'move');
   }
   skipAnim = false;
+  premoveFlush();
 
   renderStatus();
   renderMoves();
@@ -329,6 +347,10 @@ function renderClocks() {
     if (el.textContent !== txt) el.textContent = txt; // đồng hồ vẽ 10 lần/giây nhưng chữ thường chỉ đổi mỗi giây
     el.classList.toggle('running', oc ? oc.running(c) : !!clock.at && clock.turn === c);
     el.classList.toggle('low', left < CLOCK_LOW);
+    // Báo một lần khi đồng hồ của mình xuống dưới mức thấp (cộng giờ lên lại thì báo lại được)
+    const mine = oc ? typeof Online !== 'undefined' && c === Online.myColor() : c !== aiColor;
+    if (left >= CLOCK_LOW) lowWarned[c] = false;
+    else if (left > 0 && mine && !lowWarned[c] && (oc ? oc.running(c) : !!clock.at && clock.turn === c)) { lowWarned[c] = true; Sound.play('low'); }
     el.classList.toggle('flag', left <= 0);
   }
 }
@@ -885,7 +907,8 @@ function renderPlayers() {
       let prev = '';
       for (const p of capturedBy[c]) {
         const img = document.createElement('img');
-        img.src = pieceSrc(p);
+        // Bộ quân vẽ có lửa, lá, tinh thể sau lưng: ở cỡ 20px thành một cụm không đọc được, nên dùng hình gọn
+        img.src = ART_SKINS.has(skin) ? `pieces/${p}.svg` : pieceSrc(p);
         img.alt = '';
         if (p[1] !== prev) img.className = 'group';
         prev = p[1];
@@ -918,6 +941,7 @@ function renderHeader() {
   setAvatar($('meAvatar'), { name: me.name, photo: me.photo, me: true }, 'w');
   document.body.dataset.board = Profile.prefs().board;
   document.body.dataset.pieces = pieceSkin();
+  preloadSkin(pieceSkin());
   document.body.dataset.coords = Profile.prefs().coords === false ? 'off' : 'on';
   document.body.dataset.dots = Profile.prefs().dots === false ? 'off' : 'on';
   const view = boardView();
@@ -1085,6 +1109,66 @@ function clearSelection() {
   selectedMoves = [];
 }
 
+// ----- Đi trước nước (premove): chưa tới lượt vẫn chọn sẵn được một nước, tới lượt thì tự đi nếu còn hợp lệ -----
+let premove = null;   // { from, to, ply }: ply = số nước lúc đặt, dùng để bỏ qua nếu ván đã đổi (đi lại, ván mới)
+let preFrom = -1;     // ô đã chọn, chưa chọn ô đến
+let preDownAt = -1;   // đang nhấn ở ô này (để kéo thả cũng đặt được)
+const premoveSide = () => mode === 'online' ? Online.myColor() : opposite(aiColor);
+function premoveAllowed() {
+  if (Profile.prefs().premove === false || !isLiveView() || game.isGameOver()) return false;
+  if (typeof Puzzles !== 'undefined' && Puzzles.isActive()) return false;
+  if (mode === 'online') return Online.inGame() && game.turn !== Online.myColor();
+  return mode === 'play' && !playResult && !waitingStart() && (aiColor === 'w' || aiColor === 'b') && game.turn === aiColor;
+}
+// Quân có thể tới ô đó theo hình dạng nước đi (chưa biết thế cờ khi tới lượt nên không xét quân cản)
+function premoveReach(p, from, to) {
+  const dr = (to >> 3) - (from >> 3), dc = (to & 7) - (from & 7), ar = Math.abs(dr), ac = Math.abs(dc);
+  switch (p[1]) {
+    case 'N': return (ar === 1 && ac === 2) || (ar === 2 && ac === 1);
+    case 'B': return ar === ac;
+    case 'R': return ar === 0 || ac === 0;
+    case 'Q': return ar === ac || ar === 0 || ac === 0;
+    case 'K': return Math.max(ar, ac) === 1 || (ar === 0 && ac === 2 && (from >> 3) === (p[0] === 'w' ? 7 : 0));
+    default: {
+      const f = p[0] === 'w' ? -1 : 1;
+      if (dr !== f && !(dr === 2 * f && ac === 0 && (from >> 3) === (p[0] === 'w' ? 6 : 1))) return false;
+      return ac <= 1;
+    }
+  }
+}
+function premoveCancel() {
+  if (!premove && preFrom < 0) return false;
+  premove = null; preFrom = -1;
+  return true;
+}
+function premoveTap(i) {
+  const side = premoveSide(), own = !!game.board[i] && game.board[i][0] === side;
+  if (premove) { premove = null; preFrom = -1; if (!own) { render(); return; } }
+  if (preFrom < 0) { if (own) preFrom = i; render(); return; }
+  if (i === preFrom) { preFrom = -1; render(); return; }
+  if (premoveReach(game.board[preFrom], preFrom, i)) {
+    premove = { from: preFrom, to: i, ply: game.history.length };
+    preFrom = -1;
+  } else preFrom = own ? i : -1;
+  render();
+}
+// Gọi sau mỗi lần vẽ bàn: tới lượt thì thực hiện nước đã đặt
+function premoveFlush() {
+  if (!premove && preFrom < 0) return;
+  if (game.isGameOver() || playResult) { premoveCancel(); return; }
+  if (!canHumanMove()) return;
+  const pm = premove, pf = preFrom;
+  premove = null; preFrom = -1;
+  setTimeout(() => {
+    if (!canHumanMove()) return;
+    if (!pm) { if (pf >= 0 && game.board[pf] && game.board[pf][0] === game.turn) select(pf); render(); return; }
+    const ms = pm.ply + 1 === game.history.length ? game.legalMoves().filter(m => m.from === pm.from && m.to === pm.to) : [];
+    if (!ms.length) { render(); return; } // quân đã bị ăn / nước không còn hợp lệ: bỏ qua
+    clearSelection();
+    play(ms.find(m => m.promotion === 'Q') || ms[0]);
+  }, 0);
+}
+
 // Bàn nghiêng 3D (Hồ sơ › Cài đặt): toạ độ màn hình không còn tỉ lệ thẳng với ô, nên tìm ô ngay dưới con trỏ
 // Góc nhìn bàn cờ (Hồ sơ › Cài đặt): 'flat' phẳng | 'relief' nổi 3D | 'tilt' nghiêng 3D (kèm khung nổi)
 const boardView = () => Profile.prefs().tilt ? 'tilt' : Profile.prefs().relief === false ? 'flat' : 'relief';
@@ -1132,7 +1216,10 @@ boardEl.addEventListener('pointerdown', e => {
   if (mode === 'learn' && Learn.tapMode()) return Learn.tap(i); // bài "bấm vào ô"
   if (marks.size) { marks.clear(); render(); }
   if (waitingStart()) { toast('Bấm "Bắt đầu ván" để bắt đầu'); return; }
-  if (!canHumanMove()) return;
+  if (!canHumanMove()) {
+    if (premoveAllowed()) { premoveTap(i); preDownAt = i; }
+    return;
+  }
   const p = game.board[i];
   if (!p || p[0] !== game.turn) return onSquare(i);
   const wasSelected = selected === i;
@@ -1162,6 +1249,12 @@ boardEl.addEventListener('pointermove', e => {
   setDragOver(squareAt(e));
 });
 
+boardEl.addEventListener('pointerup', e => { // kéo thả để đặt premove
+  if (preDownAt < 0) return;
+  const d = preDownAt, t = squareAt(e);
+  preDownAt = -1;
+  if (t >= 0 && t !== d && preFrom === d && premoveAllowed()) premoveTap(t);
+});
 boardEl.addEventListener('pointerup', e => {
   if (!drag) return;
   const d = drag;
@@ -1183,7 +1276,11 @@ boardEl.addEventListener('pointercancel', () => { endDrag(); render(); });
 // Mũi tên lưu chung trong `marks` dưới dạng chuỗi "từ>tới", nên bấm chuột trái / đi nước là xoá hết như các ô đánh dấu.
 let rightFrom = -1;
 boardEl.addEventListener('contextmenu', e => e.preventDefault());
-boardEl.addEventListener('pointerdown', e => { if (e.button === 2) rightFrom = squareAt(e); });
+boardEl.addEventListener('pointerdown', e => {
+  if (e.button !== 2) return;
+  rightFrom = squareAt(e);
+  if (premoveCancel()) render(); // chuột phải: huỷ nước đi trước
+});
 boardEl.addEventListener('pointerup', e => {
   if (e.button !== 2) return;
   const from = rightFrom, to = squareAt(e);
@@ -1321,6 +1418,7 @@ function renderRatedNote() {
 // start = false: chỉ dọn bàn theo lựa chọn mới, chờ người chơi bấm "Bắt đầu ván" (máy cầm Trắng chưa tự đi)
 function newGame(start = true) {
   if (!abandonBotGame()) return false;
+  premoveCancel();
   if (typeof Puzzles !== 'undefined') { try { Puzzles.showBanner(false); } catch {} }
   gameId++;
   thinking = false;
@@ -2005,6 +2103,7 @@ function setMode(m) {
   if (mode === 'play' && typeof Puzzles !== 'undefined') { try { Puzzles.showBanner(false); } catch {} }
   quietResult = false;
   mode = m;
+  premoveCancel();
   gameId++;
   thinking = false;
   aiColor = 'none';
@@ -3169,10 +3268,92 @@ async function openContestById(id) {
   else toast('Contest này không còn tồn tại (có thể admin đã xóa).');
 }
 
+// ----- Link chia sẻ ván: cả PGN nằm trong #game/<base64url>, không cần máy chủ -----
+function shareUrl() {
+  const bytes = new TextEncoder().encode(gameToPGN());
+  let bin = '';
+  for (const x of bytes) bin += String.fromCharCode(x);
+  return location.href.split(/[?#]/)[0] + '#game/' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function shareGame() {
+  if (!game.history.length) { toast('Chưa có nước đi'); return; }
+  const url = shareUrl();
+  if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+    try { await navigator.share({ title: 'Ván cờ trên Royal Gambit', url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  copyText(url, 'Đã sao chép link ván cờ');
+}
+function routeSharedGame() {
+  const m = /^#game\/([A-Za-z0-9_-]{4,60000})$/.exec(location.hash);
+  if (!m || !entered) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  let pgn = '';
+  try {
+    const bin = atob(m[1].replace(/-/g, '+').replace(/_/g, '/'));
+    pgn = new TextDecoder().decode(Uint8Array.from(bin, ch => ch.charCodeAt(0)));
+  } catch { toast('Link ván cờ bị hỏng hoặc không đọc được.'); return; }
+  if (GameHistory.loadOnBoard({ pgn, color: 'w' }) === false) return; // người chơi không muốn bỏ ván đang dở
+  if (!game.history.length) { toast('Link ván cờ bị hỏng hoặc không đọc được.'); return; }
+  showBoard();
+  const tag = k => (new RegExp(`\\[${k} "([^"]*)"\\]`).exec(pgn) || [])[1] || '?';
+  toast(`Ván được chia sẻ: ${tag('White')} – ${tag('Black')}`);
+}
+window.addEventListener('hashchange', routeSharedGame);
+
+function setBoardSkin(key) {
+  Profile.setPref('board', key);
+  document.body.dataset.board = key;
+}
+function setPieceSkin(key) {
+  Profile.setPref('pieces', key);
+  document.body.dataset.pieces = key;
+  preloadSkin(key);
+  render(); // vẽ lại quân trên bàn bằng bộ quân mới
+}
+function renderSkinPreview() {
+  const box = $('skinPreview');
+  if (!box) return;
+  const P = ['bK', 'bQ', 'bN', 'bB', 'bP', '', 'wN', '', 'wK', 'wQ', 'wR', 'wB'];
+  box.innerHTML = P.map((p, i) => {
+    const r = Math.floor(i / 4), c = i % 4;
+    const cls = 'sq ' + ((r + c) % 2 ? 'dark' : 'light') + (i === 6 || i === 10 ? ' last' : '') + (i === 7 ? ' target' : '');
+    return `<div class="${cls}">${p ? `<img class="piece" src="${pieceSrc(p)}" alt="" draggable="false">` : ''}</div>`;
+  }).join('');
+}
+function openSkinModal() {
+  openModal('skinModal');
+  renderThemes();
+}
+// Vẽ bảng chọn ở mọi nơi đang có (Studio giao diện, Hồ sơ › Cài đặt)
 function renderThemes() {
-  const box = $('themeChoices');
+  fillThemes($('themeChoices'));
+  if (!$('skinModal').hidden) { fillThemes($('skinBody')); renderSkinPreview(); }
+}
+function fillThemes(box) {
   box.innerHTML = '';
   const prefs = Profile.prefs();
+
+  const comboTitle = document.createElement('div');
+  comboTitle.className = 'skin-section';
+  comboTitle.innerHTML = '<h4>Bộ đôi đẹp nhất</h4>';
+  box.appendChild(comboTitle);
+  const comboGrid = document.createElement('div');
+  comboGrid.className = 'skin-combos';
+  for (const [name, board, pieces] of SKIN_COMBOS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'theme combo' + (prefs.board === board && pieceSkin() === pieces ? ' on' : '');
+    b.title = name;
+    b.innerHTML = `<span data-tex="${board}"><img src="${skinSrc(pieces, 'wN')}" alt=""><img src="${skinSrc(pieces, 'bN')}" alt=""></span><small>${name}</small>`;
+    b.addEventListener('click', () => {
+      setBoardSkin(board);
+      setPieceSkin(pieces);
+      renderThemes();
+    });
+    comboGrid.appendChild(b);
+  }
+  box.appendChild(comboGrid);
 
   const boardTitle = document.createElement('div');
   boardTitle.className = 'skin-section';
@@ -3189,8 +3370,7 @@ function renderThemes() {
       : `background:linear-gradient(135deg, ${light} 50%, ${dark} 50%)`;
     b.innerHTML = `<span ${tex ? `data-tex="${key}"` : `style="${bg}"`}></span><small>${name}</small>`;
     b.addEventListener('click', () => {
-      Profile.setPref('board', key);
-      document.body.dataset.board = key;
+      setBoardSkin(key);
       renderThemes();
     });
     boardGrid.appendChild(b);
@@ -3209,10 +3389,8 @@ function renderThemes() {
     b.title = name;
     b.innerHTML = `<div class="piece-preview${SVG_SKINS.has(key) ? ' pair' : ''}" data-pieces="${key}"><img src="${skinSrc(key, 'wN')}" alt="">${SVG_SKINS.has(key) ? `<img src="${skinSrc(key, 'bN')}" alt="">` : ''}</div><small>${name}</small>`;
     b.addEventListener('click', () => {
-      Profile.setPref('pieces', key);
-      document.body.dataset.pieces = key;
+      setPieceSkin(key);
       renderThemes();
-      render(); // vẽ lại quân trên bàn bằng bộ quân mới
     });
     pieceGrid.appendChild(b);
   }
@@ -3360,13 +3538,10 @@ on('toolEval', () => {
   if (!hide) render();
   if (typeof toast === 'function') toast(hide ? 'Ẩn thanh đánh giá' : 'Hiện thanh đánh giá');
 });
-on('toolPgn', () => {
-  if (!game.history.length) {
-    if (typeof toast === 'function') toast('Chưa có nước đi');
-    return;
-  }
-  if (typeof copyText === 'function') copyText(gameToPGN(), 'Đã sao chép PGN');
-});
+on('toolSkin', openSkinModal);
+on('skinBtn', openSkinModal);
+on('shareGame', shareGame);
+on('resultShare', shareGame);
 if ($('mode')) $('mode').addEventListener('change', changeSetup);
 if ($('level')) $('level').addEventListener('change', changeSetup);
 if ($('mode') && colorPick !== 'w') $('mode').value = pickBotSide(); // nhớ màu quân đã chọn lần trước
@@ -3541,6 +3716,7 @@ function enterApp() {
   refreshAuto(); // contest đã đăng ký: hiện thông báo và tự ghép cặp khi tới giờ
   routeProfile(); // mở bằng link #profile
   routeContest(); // mở bằng link #contest/<id>
+  routeSharedGame(); // mở bằng link chia sẻ ván #game/<dữ liệu>
   updateCoachBadge();
   applyPendingForfeit();
   if (typeof GameHistory !== 'undefined' && GameHistory.sync) GameHistory.sync(); // nhật ký chơi trên máy khác
@@ -4531,8 +4707,16 @@ async function loadContests() {
     box.innerHTML = '';
     const p = document.createElement('p');
     p.className = 'empty error';
-    p.textContent = `Không tải được danh sách contest (mã lỗi: ${err.message}). Kiểm tra mạng và luật Firebase (xem README).`;
+    p.textContent = err.message === 'NETWORK'
+      ? 'Không có mạng nên chưa tải được contest. Kiểm tra kết nối rồi thử lại.'
+      : `Không tải được danh sách contest (mã lỗi: ${err.message}). Hãy thử lại sau.`;
     box.appendChild(p);
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'ghost tiny contest-retry';
+    retry.textContent = 'Thử lại';
+    retry.addEventListener('click', loadContests);
+    box.appendChild(retry);
   }
 }
 
