@@ -833,16 +833,16 @@ function avatarColor(name) {
   return `hsl(${h} 45% 42%)`;
 }
 
-// Khung avatar tự vẽ (tools/make-frames.js → img/frames/): [mã, tên, màu quầng sáng]
+// Khung avatar tự vẽ (tools/make-frames.js → img/frames/): [mã, tên, màu quầng sáng, mô tả]
 const FRAMES = [
-  ['crown', 'Vương Miện', '#f5c518'],
-  ['dragon', 'Long Hỏa', '#ff6a1a'],
-  ['frost', 'Băng Tinh', '#7fd4ff'],
-  ['neon', 'Ánh Neon', '#19f6ff'],
-  ['galaxy', 'Thiên Hà', '#b48cff'],
-  ['forest', 'Cổ Thụ', '#7ecb5a'],
-  ['thunder', 'Lôi Thần', '#ffe14d'],
-  ['checker', 'Kỳ Vương', '#e8b923'],
+  ['crown', 'Vương Miện', '#f5c518', 'Vàng ròng, hồng ngọc và vương miện chạm nổi'],
+  ['dragon', 'Long Hỏa', '#ff6a1a', 'Lửa rồng bùng cháy quanh viền đá núi lửa'],
+  ['frost', 'Băng Tinh', '#7fd4ff', 'Tinh thể băng cắt mặt, lấp lánh sương giá'],
+  ['neon', 'Ánh Neon', '#19f6ff', 'Hai ống đèn rực sáng trên nền kính tối'],
+  ['galaxy', 'Thiên Hà', '#b48cff', 'Tinh vân, hành tinh và trăng khuyết'],
+  ['forest', 'Cổ Thụ', '#7ecb5a', 'Gỗ mun khảm vàng, vòng lá ngọc lục bảo'],
+  ['thunder', 'Lôi Thần', '#ffe14d', 'Giáp thép và những tia sét vàng'],
+  ['checker', 'Kỳ Vương', '#e8b923', 'Đá onyx, ô cờ khảm vàng và huy hiệu Vua'],
 ];
 const frameInfo = k => FRAMES.find(f => f[0] === k);
 function applyFrame(el, key) {
@@ -4482,7 +4482,7 @@ function renderAdminList() {
       const fb = document.createElement('button');
       fb.type = 'button';
       fb.className = p.frames && p.frames.length ? 'act-on' : 'act-plain';
-      fb.innerHTML = `<svg class="ic"><use href="#i-frame"/></svg>Khung${p.frames && p.frames.length ? ` (${p.frames.length})` : ''}`;
+      fb.innerHTML = `<svg class="ic"><use href="#i-frame"/></svg>Khung${p.frames && p.frames.length ? `<span>&nbsp;(${p.frames.length})</span>` : ''}`;
       fb.title = 'Cấp hoặc thu hồi khung avatar';
       fb.addEventListener('click', () => openFrameGrant(p));
       acts.appendChild(fb);
@@ -4696,32 +4696,60 @@ $('frameRevokeAll').addEventListener('click', async () => {
   renderFrameGrant();
 });
 
-// Người chơi tự chọn khung đang có (Hồ sơ › Cài đặt)
+// Người chơi tự chọn khung đang có (Hồ sơ › Cài đặt): sân khấu xem khung đang đeo + bộ sưu tập ô nhỏ
+const NO_FRAME_COLOR = '#9d988e';
+function renderFrameStage(key) {
+  const stage = $('frameStage'), f = frameInfo(key), me = Profile.me();
+  stage.style.setProperty('--fc', f ? f[2] : NO_FRAME_COLOR);
+  setAvatar($('frameStageAvatar'), { name: me.name, photo: me.photo, frame: key }, 'w');
+  $('frameStageTag').textContent = f ? 'Đang đeo' : 'Chưa đeo khung';
+  $('frameStageName').textContent = f ? f[1] : 'Avatar nguyên bản';
+  $('frameStageDesc').textContent = f ? f[3] : 'Chọn một khung bên dưới để đeo';
+  // Chạy lại hiệu ứng khi đổi khung
+  stage.classList.remove('pop');
+  void stage.offsetWidth;
+  stage.classList.add('pop');
+}
 function renderFrameChoices() {
   const box = $('frameChoices'), me = Profile.me(), mine = me.frames || [];
   $('frameBox').hidden = !mine.length;
   box.innerHTML = '';
   if (!mine.length) return;
+  $('frameCount').textContent = `Có ${mine.length} khung`;
+  renderFrameStage(me.frame || '');
   for (const key of ['', ...mine]) {
     const f = frameInfo(key);
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'frame-opt' + ((me.frame || '') === key ? ' on' : '');
+    b.className = 'frame-tile' + ((me.frame || '') === key ? ' on' : '');
+    b.style.setProperty('--fc', f ? f[2] : NO_FRAME_COLOR);
+    b.setAttribute('aria-pressed', (me.frame || '') === key ? 'true' : 'false');
     b.innerHTML = '<span class="avatar"></span><b></b>';
     setAvatar(b.querySelector('.avatar'), { name: me.name, photo: me.photo, frame: key }, 'w');
     b.querySelector('b').textContent = f ? f[1] : 'Không dùng';
     b.addEventListener('click', async () => {
-      for (const x of box.children) x.disabled = true;
+      const before = Profile.me().frame || '';
+      if (before === key || box.dataset.saving) return;
+      // Đổi ngay trên màn hình cho mượt, lưu ở nền; lỗi thì trả lại như cũ
+      const mark = k => {
+        for (const x of box.children) { const on = x === b ? k === key : x.dataset.k === k; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+        renderFrameStage(k);
+      };
+      mark(key);
+      box.dataset.saving = '1';
       try {
         await Profile.setMyFrame(key);
         refreshShownFrames();
         renderHeader();
         renderProfileAvatar();
       } catch (err) {
+        for (const x of box.children) x.classList.toggle('on', x.dataset.k === before);
+        renderFrameStage(before);
         toast(frameError(err));
       }
-      renderFrameChoices();
+      delete box.dataset.saving;
     });
+    b.dataset.k = key;
     box.appendChild(b);
   }
 }

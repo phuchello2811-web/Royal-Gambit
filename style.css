@@ -5749,3 +5749,89 @@ body:is([data-board="neon"], [data-board="cosmos"], [data-board="lava"], [data-b
 /* Danh sách: chừa chỗ để khung không sát số thứ hạng và tên */
 .avatar.sm.framed, .rank-name .avatar.framed, .admin-who .avatar.framed, .hm-top-row .avatar.framed, .profile-chip .avatar.framed { margin-inline: 6px; }
 .podium-step .avatar.framed { margin-block: 6px 10px; }
+
+/* Chọn khung avatar: sân khấu xem khung đang đeo, bên dưới là bộ sưu tập */
+.frame-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.frame-count { color: var(--muted); font-size: .78rem; font-weight: 600; }
+.frame-picker { display: grid; gap: 12px; }
+.frame-stage {
+  --fc: #9d988e;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-height: 132px;
+  padding: 22px 16px 22px 32px;
+  border-radius: 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(110% 150% at 14% 50%, color-mix(in srgb, var(--fc) 34%, transparent), transparent 64%),
+    linear-gradient(135deg, #2b2924, #1b1a17);
+  border: 1px solid color-mix(in srgb, var(--fc) 40%, #ffffff10);
+  transition: border-color .25s;
+}
+/* Ô cờ mờ ở góc phải, cùng ngôn ngữ với thẻ hồ sơ */
+.frame-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 45%;
+  background: repeating-conic-gradient(#ffffff0a 0 25%, transparent 0 50%) 0 0 / 28px 28px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000);
+  mask-image: linear-gradient(90deg, transparent, #000);
+  pointer-events: none;
+}
+.frame-stage .avatar { width: 76px; height: 76px; font-size: 2rem; border-radius: 17px; }
+.frame-stage.pop .avatar { animation: frame-pop .32s cubic-bezier(.2, 1.3, .4, 1); }
+@keyframes frame-pop { from { transform: scale(.86); } to { transform: none; } }
+.fs-text { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fs-text small { color: var(--fc); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; transition: color .25s; }
+.fs-text b { font-size: 1.22rem; line-height: 1.2; color: var(--text); }
+.fs-text span { color: #c9c5bb; font-size: .82rem; line-height: 1.35; }
+.frame-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.frame-tiles[data-saving] { cursor: progress; }
+.frame-tile {
+  --fc: #9d988e;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 13px;
+  min-width: 0;
+  padding: 19px 4px 9px;
+  border-radius: 14px;
+  background: #24221e;
+  border: 1.5px solid #ffffff0d;
+  box-shadow: none;
+  color: #c9c5bb;
+  transition: transform .15s, border-color .15s, background .15s, color .15s;
+}
+.frame-tile:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--fc) 60%, transparent); background: #2b2925; color: var(--text); }
+.frame-tile:active { transform: none; box-shadow: none; }
+.frame-tile:focus-visible { outline: 2px solid var(--fc); outline-offset: 2px; }
+.frame-tile .avatar { width: 46px; height: 46px; font-size: 1.15rem; border-radius: 10px; }
+.frame-tile:not(.on) .avatar:not(.framed) { opacity: .75; }
+.frame-tile b { font-size: .76rem; line-height: 1.2; font-weight: 700; text-align: center; }
+.frame-tile.on {
+  border-color: var(--fc);
+  color: var(--text);
+  background: radial-gradient(95% 80% at 50% 38%, color-mix(in srgb, var(--fc) 26%, transparent), transparent 80%), #24221e;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--fc) 22%, transparent);
+}
+/* Dấu tích ô đang đeo */
+.frame-tile.on::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--fc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23141311' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.500 4.500L19 7.500'/%3E%3C/svg%3E") center / 13px no-repeat;
+  box-shadow: 0 1px 3px #0008;
+}
+@media (prefers-reduced-motion: reduce) {
+  .frame-stage.pop .avatar { animation: none; }
+  .frame-tile { transition: none; }
+}
