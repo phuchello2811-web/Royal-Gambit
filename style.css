@@ -5712,3 +5712,40 @@ body:is([data-board="neon"], [data-board="cosmos"], [data-board="lava"], [data-b
 #skinModal .board.skin-preview { position: sticky; top: 0; z-index: 5; }
 .search-elo { margin: 0; color: var(--gold); font-size: 13px; font-weight: 600; min-height: 1.3em; }
 @media (max-width: 700px) { #onlineSearching .radar, #onlineSearching > p.muted { display: none; } } /* điện thoại: để khoảng Elo và nút Hủy không bị đẩy khỏi màn hình */
+
+/* Khung avatar: ảnh SVG đè lên avatar, lớn hơn 50% (không làm xô lệch bố cục), quầng sáng thở nhẹ phía sau */
+.avatar.framed { position: relative; overflow: visible; }
+.avatar.framed img.av-frame {
+  position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; max-width: none;
+  border-radius: 0; object-fit: fill; pointer-events: none; z-index: 2;
+}
+.avatar.framed .av-glow {
+  position: absolute; inset: -8%; border-radius: 26%; pointer-events: none; z-index: 1;
+  box-shadow: 0 0 12px 1px var(--fg);
+  opacity: .3;
+  animation: av-glow 3.2s ease-in-out infinite;
+}
+@keyframes av-glow { 50% { opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .avatar.framed .av-glow { animation: none; } }
+.frame-box { margin: 12px 0; }
+.frame-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.frame-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0;
+  padding: 22px 6px 10px; border-radius: 12px; background: var(--panel-2); border: 1.5px solid transparent;
+  box-shadow: none; color: var(--text); text-align: center;
+}
+.frame-opt:hover { background: var(--panel-3); }
+.frame-opt.on { border-color: var(--accent); background: #81b64c1f; }
+.frame-opt .avatar { width: 60px; height: 60px; font-size: 1.5rem; border-radius: 13px; margin-bottom: 18px; }
+.frame-opt b { font-size: .86rem; line-height: 1.2; }
+.frame-opt small { color: var(--muted); font-size: .72rem; line-height: 1.25; font-weight: 500; }
+.frame-opt.on small { color: var(--accent); }
+.frame-modal-box { max-width: 560px; width: 100%; }
+.frame-revoke { display: block; margin: 12px auto 0; }
+.frame-revoke[hidden] { display: none; }
+.pf-avatar-wrap .pf-avatar-edit { z-index: 3; } /* nút đổi ảnh luôn nằm trên khung avatar */
+.pf-avatar-wrap:has(.avatar.framed) { margin: 12px 18px 12px 14px; } /* ô avatar lớn: chừa chỗ để khung không sát mép thẻ, không chạm tên */
+.avatar.hm-avatar.framed { margin: 12px 18px 12px 14px; }
+/* Danh sách: chừa chỗ để khung không sát số thứ hạng và tên */
+.avatar.sm.framed, .rank-name .avatar.framed, .admin-who .avatar.framed, .hm-top-row .avatar.framed, .profile-chip .avatar.framed { margin-inline: 6px; }
+.podium-step .avatar.framed { margin-block: 6px 10px; }

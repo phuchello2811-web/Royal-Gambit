@@ -213,6 +213,33 @@
       ".write": "auth != null && (auth.token.email === 'admin@rg-user.app' || root.child('admins').child(auth.uid).val() === true)",
       ".validate": "newData.hasChildren(['text', 'by', 'at']) && newData.child('text').isString() && newData.child('text').val().length <= 300 && newData.child('by').isString() && newData.child('at').isNumber()"
     },
+    "frameGrants": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.token.email === 'admin@rg-user.app'",
+        "$frame": {
+          ".validate": "newData.val() === true && $frame.length <= 16"
+        }
+      }
+    },
+    "frameOn": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'admin@rg-user.app')",
+        ".validate": "newData.isString() && newData.val().length <= 16 && (auth.token.email === 'admin@rg-user.app' || root.child('frameGrants').child($uid).child(newData.val()).val() === true)"
+      }
+    },
+    "arbiter": {
+      "$gid": {
+        ".read": "auth != null && $gid.length >= 12 && $gid.length <= 48",
+        "seen": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && $gid.length >= 12 && $gid.length <= 48",
+            ".validate": "newData.val() === now && (!data.exists() || now - data.val() < 14000)"
+          }
+        }
+      }
+    },
     "matchq": {
       "$tc": {
         ".read": "auth != null && $tc.matches(/^(none|60-0|180-2|300-0|600-0|900-10)$/)",

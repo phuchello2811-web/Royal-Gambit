@@ -809,7 +809,7 @@ function playerInfo(c) {
   if (mode === 'play' && aiColor !== 'none') {
     if (c === aiColor) { const b = botOf(gameLevel); return { name: `${b.name} · Máy`, rank: null, elo: BOT_ELO[gameLevel], bot: true, botPiece: b.piece }; }
     const me = Profile.me();
-    return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '' };
+    return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid() };
   }
   return { name: 'Người chơi ' + COLOR_NAME[c], rank: null, pieceAv: true };
 }
@@ -833,10 +833,49 @@ function avatarColor(name) {
   return `hsl(${h} 45% 42%)`;
 }
 
+// Khung avatar tự vẽ (tools/make-frames.js → img/frames/): [mã, tên, màu quầng sáng]
+const FRAMES = [
+  ['crown', 'Vương Miện', '#f5c518'],
+  ['dragon', 'Long Hỏa', '#ff6a1a'],
+  ['frost', 'Băng Tinh', '#7fd4ff'],
+  ['neon', 'Ánh Neon', '#19f6ff'],
+  ['galaxy', 'Thiên Hà', '#b48cff'],
+  ['forest', 'Cổ Thụ', '#7ecb5a'],
+  ['thunder', 'Lôi Thần', '#ffe14d'],
+  ['checker', 'Kỳ Vương', '#e8b923'],
+];
+const frameInfo = k => FRAMES.find(f => f[0] === k);
+function applyFrame(el, key) {
+  const f = frameInfo(key);
+  for (const old of el.querySelectorAll(':scope > .av-frame, :scope > .av-glow')) old.remove();
+  el.classList.toggle('framed', !!f);
+  if (!f) return;
+  const glow = document.createElement('span');
+  glow.className = 'av-glow';
+  glow.style.setProperty('--fg', f[2]);
+  const img = document.createElement('img');
+  img.className = 'av-frame';
+  img.src = `img/frames/${f[0]}.svg?v=2`; // đổi số khi vẽ lại khung, để trình duyệt không dùng ảnh cũ
+  img.alt = '';
+  // Không tải được ảnh khung (chưa đẩy thư mục img/frames lên web, mất mạng lần đầu…): bỏ khung, không để lộ icon ảnh vỡ
+  img.onerror = () => {
+    if (!img.isConnected) return;
+    console.warn('Không tải được khung avatar:', img.src);
+    applyFrame(el, '');
+  };
+  el.append(glow, img);
+}
+// Khung mới tải về (hoặc vừa bị thu hồi): cập nhật mọi avatar đang hiện, khỏi phải vẽ lại cả trang
+function refreshShownFrames() {
+  for (const el of document.querySelectorAll('.avatar[data-uid]')) applyFrame(el, Profile.frameOf(el.dataset.uid));
+}
+
 function setAvatar(el, info, c) {
   el.innerHTML = '';
-  el.className = el.className.replace(/ ?(bot|piece-av|photo)/g, '');
+  el.className = el.className.replace(/ ?(bot|piece-av|photo|framed)\b/g, '');
   el.style.background = '';
+  if (info.uid) el.dataset.uid = info.uid; else delete el.dataset.uid;
+  const frameKey = info.frame != null ? info.frame : Profile.frameOf(info.uid);
   if (info.photo) {
     // Có ảnh đại diện đã tải lên
     el.classList.add('photo');
@@ -864,6 +903,7 @@ function setAvatar(el, info, c) {
     el.textContent = (name[0] || '?').toUpperCase();
     el.style.background = avatarColor(name || '?');
   }
+  applyFrame(el, frameKey);
 }
 
 const playerCache = {}; // top / bottom: chỉ vẽ lại khi thông tin người chơi đổi
@@ -883,7 +923,7 @@ function renderPlayers() {
     const info = playerInfo(c);
     const slot = playerCache[pos] || (playerCache[pos] = {});
     const skin = document.body.dataset.pieces || '';
-    const infoKey = [c, skin, info.name, info.title, info.rank && info.rank.text, info.rank && info.rank.color, info.elo, info.bot, info.botPiece, info.pieceAv, info.me].join('|');
+    const infoKey = [c, skin, info.frame != null ? info.frame : Profile.frameOf(info.uid), info.name, info.title, info.rank && info.rank.text, info.rank && info.rank.color, info.elo, info.bot, info.botPiece, info.pieceAv, info.me].join('|');
     if (slot.info !== infoKey || slot.photo !== info.photo) {
       slot.info = infoKey;
       slot.photo = info.photo;
@@ -938,7 +978,7 @@ function renderHeader() {
     : `<span class="me-rank-line"><span style="color:${rank.color}">${rank.text}</span></span> · ${me.elo} Elo`;
   const rankBtn = $('rankBtn');
   if (rankBtn) rankBtn.title = `${rank.name} · ${me.elo} Elo`;
-  setAvatar($('meAvatar'), { name: me.name, photo: me.photo, me: true }, 'w');
+  setAvatar($('meAvatar'), { name: me.name, photo: me.photo, me: true, uid: Profile.uid() }, 'w');
   document.body.dataset.board = Profile.prefs().board;
   document.body.dataset.pieces = pieceSkin();
   preloadSkin(pieceSkin());
@@ -2497,7 +2537,7 @@ function renderProfileAvatar() {
   if (!pfView || !pfView.p.me) return;
   const me = Profile.me();
   pfView.p.photo = me.photo;
-  setAvatar($('profileAvatar'), { name: me.name, photo: me.photo, me: true }, 'w');
+  setAvatar($('profileAvatar'), { name: me.name, photo: me.photo, me: true, uid: Profile.uid() }, 'w');
   $('avatarRemove').hidden = !me.photo;
 }
 
@@ -2606,7 +2646,7 @@ function renderHome() {
   const me = Profile.me();
   const rank = Profile.rankOf(me.exp);
   const R = Profile.rules;
-  setAvatar($('hmAvatar'), { name: me.name, photo: me.photo, me: true }, 'w');
+  setAvatar($('hmAvatar'), { name: me.name, photo: me.photo, me: true, uid: Profile.uid() }, 'w');
   const h = new Date().getHours();
   $('hmGreet').textContent = h < 5 ? 'Chúc một đêm nhiều nước hay' : h < 11 ? 'Chào buổi sáng' : h < 14 ? 'Chào buổi trưa' : h < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
   $('hmName').innerHTML = (me.title ? titleBadge(me.title) + ' ' : '') + escapeHtml(me.name);
@@ -2827,7 +2867,7 @@ async function loadHomeTop() {
     b.type = 'button';
     b.className = 'hm-top-row' + (r.me ? ' me' : '') + (i < 3 ? ' p' + (i + 1) : '');
     b.innerHTML = `<span class="hm-top-pos">${i + 1}</span><span class="avatar"></span><span class="hm-top-name"></span><span class="hm-top-elo">${r.elo || 0}</span>`;
-    setAvatar(b.querySelector('.avatar'), { name: r.name, photo: r.photo, me: r.me }, 'w');
+    setAvatar(b.querySelector('.avatar'), { name: r.name, photo: r.photo, me: r.me, uid: r.uid }, 'w');
     b.querySelector('.hm-top-name').innerHTML = (r.title ? titleBadge(r.title) + ' ' : '') + escapeHtml(r.name);
     b.addEventListener('click', () => openProfile(r.uid));
     box.appendChild(b);
@@ -2934,7 +2974,7 @@ function renderProfilePage(p, hist) {
   const hero = $('pfHero');
   hero.hidden = false;
   hero.style.setProperty('--rk', rank.color);
-  setAvatar($('profileAvatar'), { name: p.name, photo: p.photo, me: true }, 'w');
+  setAvatar($('profileAvatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid, frame: p.me ? undefined : p.frame }, 'w');
   $('profileAvatar').classList.toggle('editable', !!p.me);
   $('profileAvatar').title = p.me ? 'Đổi ảnh đại diện' : '';
   $('pfAvatarEdit').hidden = !p.me;
@@ -3213,6 +3253,7 @@ function renderProfileSide(p, rank) {
     renderRecovery();
     $('pwBtn').hidden = Profile.isGuest() || (Profile.remote && Profile.provider() === 'google');
     renderThemes();
+    renderFrameChoices();
     for (const b of document.querySelectorAll('#viewSeg button')) b.classList.toggle('on', b.dataset.view === boardView());
   }
 }
@@ -3719,6 +3760,8 @@ function enterApp() {
   routeSharedGame(); // mở bằng link chia sẻ ván #game/<dữ liệu>
   updateCoachBadge();
   applyPendingForfeit();
+  applyPendingJudges();
+  refreshFrames();
   if (typeof GameHistory !== 'undefined' && GameHistory.sync) GameHistory.sync(); // nhật ký chơi trên máy khác
   openShortcut();
 }
@@ -3760,6 +3803,27 @@ function applyPendingForfeit() {
   } catch {}
   toast(`Ván Online với ${p.opp || 'đối thủ'} lần trước bị tính thua vì bạn thoát trang giữa ván.`);
 }
+
+// Ván lần trước đứt mạng mà chưa có phán quyết: hỏi trọng tài rồi ghi kết quả (huỷ ván thì không ghi gì)
+async function applyPendingJudges() {
+  let list = [];
+  try { list = await Online.resolvePending(); } catch { return; }
+  for (const p of list) {
+    if (p.score == null) {
+      toast(`Ván Online với ${p.opp || 'đối thủ'} lần trước không phân định được nên bị huỷ, không ai mất Elo.`);
+      continue;
+    }
+    if (p.plies >= MIN_RANKED_PLIES) {
+      try {
+        Profile.record(p.score, p.oppElo);
+        if (p.contest) Contest.record(p.contest, p.score, p.startedAt);
+        renderHeader();
+      } catch {}
+    }
+    toast(p.score ? `Trọng tài xử bạn thắng ván Online với ${p.opp || 'đối thủ'} lần trước.` : `Trọng tài xử bạn thua ván Online với ${p.opp || 'đối thủ'} lần trước vì mất kết nối.`);
+  }
+}
+window.addEventListener('online', () => { if (entered) applyPendingJudges(); });
 
 // ---------------- Chọn trình độ lần đầu ----------------
 
@@ -4235,7 +4299,7 @@ function renderLeaderboard() {
       b.type = 'button';
       b.className = 'podium-step ' + MEDAL_CLS[i + 1] + (p.me ? ' me' : '');
       b.innerHTML = '<span class="avatar"></span><b class="ps-name"></b><small></small><span class="ps-block"></span>';
-      setAvatar(b.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true }, 'w');
+      setAvatar(b.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid }, 'w');
       b.querySelector('.ps-name').innerHTML = (p.title ? titleBadge(p.title) + ' ' : '') + escapeHtml(p.name);
       b.querySelector('small').textContent = lbValue(p);
       b.querySelector('.ps-block').appendChild(medalEl(i + 1));
@@ -4252,7 +4316,7 @@ function renderLeaderboard() {
   if (mine >= 0) {
     const p = all[mine];
     meBox.innerHTML = `<span class="lb-me-pos">#${mine + 1}</span><span class="avatar sm"></span><span class="lb-me-main"><b>Vị trí của bạn</b><small>${lbValue(p)}${mine > 0 ? ` · cách #${mine} ${lbGap(all[mine - 1], p)}` : ' · dẫn đầu bảng!'}</small></span>`;
-    setAvatar(meBox.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true }, 'w');
+    setAvatar(meBox.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid }, 'w');
     meBox.onclick = () => { const el = $('lbList').querySelector('.rank-row.me'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
   }
 
@@ -4288,7 +4352,7 @@ function renderLeaderboard() {
       }
     }
     row.querySelector('.nm').innerHTML = (p.title ? titleBadge(p.title) + ' ' : '') + escapeHtml(p.name) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
-    setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true }, 'w');
+    setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid }, 'w');
     list.appendChild(row);
   }
   if (!all.length) list.innerHTML = `<p class="empty">${medal ? 'Chưa có ai giành huy chương. Contest đầu tiên đang chờ bạn!' : 'Chưa có ai trên bảng. Chơi một ván Online để có tên ở đây!'}</p>`;
@@ -4403,7 +4467,7 @@ function renderAdminList() {
     const mi = row.querySelector('.admin-mute-info');
     mi.textContent = p.muted ? muteText(p.muteInfo) : '';
     mi.hidden = !p.muted;
-    setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true }, 'w');
+    setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid }, 'w');
     row.querySelector('.admin-who').addEventListener('click', () => openProfile(p.uid));
     const acts = row.querySelector('.admin-actions');
 
@@ -4414,6 +4478,15 @@ function renderAdminList() {
     sel.addEventListener('change', () => setPlayerTitle(p, sel));
     acts.appendChild(sel);
 
+    if (!p.owner) {
+      const fb = document.createElement('button');
+      fb.type = 'button';
+      fb.className = p.frames && p.frames.length ? 'act-on' : 'act-plain';
+      fb.innerHTML = `<svg class="ic"><use href="#i-frame"/></svg>Khung${p.frames && p.frames.length ? ` (${p.frames.length})` : ''}`;
+      fb.title = 'Cấp hoặc thu hồi khung avatar';
+      fb.addEventListener('click', () => openFrameGrant(p));
+      acts.appendChild(fb);
+    }
     if (!p.me && !p.owner) {
       const m = document.createElement('button');
       m.type = 'button';
@@ -4548,6 +4621,126 @@ $('announceClose').addEventListener('click', () => {
 });
 setInterval(() => refreshAnnounce(false), 5 * 60000);
 refreshAnnounce(false);
+
+// ----- Khung avatar: chủ web cấp / thu hồi -----
+let frameTarget = null;
+function openFrameGrant(p) {
+  frameTarget = p;
+  p.frames = p.frames || [];
+  $('frameMsg').textContent = '';
+  $('frameMsg').className = 'admin-msg';
+  $('frameFor').textContent = p.name;
+  renderFrameGrant();
+  openModal('frameModal');
+  // Đọc lại quyền mới nhất: bảng quản trị có thể đã mở lâu, tránh bấm nhầm cấp thành thu hồi vì dữ liệu cũ
+  Profile.grantsOf(p.uid).then(list => {
+    if (frameTarget !== p) return;
+    p.frames = list;
+    renderFrameGrant();
+    renderAdminList();
+  }).catch(() => {});
+}
+function renderFrameGrant() {
+  const p = frameTarget, box = $('frameGrid');
+  if (!p) return;
+  box.innerHTML = '';
+  for (const [key, name] of FRAMES) {
+    const has = p.frames.includes(key);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'frame-opt' + (has ? ' on' : '');
+    b.innerHTML = '<span class="avatar"></span><b></b><small></small>';
+    setAvatar(b.querySelector('.avatar'), { name: p.name, photo: p.photo, frame: key }, 'w');
+    b.querySelector('b').textContent = name;
+    b.querySelector('small').textContent = has ? 'Đã cấp · bấm để thu hồi' : 'Bấm để cấp';
+    b.addEventListener('click', () => toggleFrameGrant(p, key, !has));
+    box.appendChild(b);
+  }
+  $('frameRevokeAll').hidden = !p.frames.length;
+}
+async function toggleFrameGrant(p, key, on) {
+  const msg = $('frameMsg'), name = frameInfo(key)[1];
+  msg.className = 'admin-msg';
+  msg.textContent = '';
+  for (const b of $('frameGrid').children) b.disabled = true;
+  try {
+    await Profile.setFrameGrant(p.uid, key, on);
+    p.frames = on ? [...p.frames, key] : p.frames.filter(k => k !== key);
+    msg.textContent = on ? `Đã cấp khung ${name} cho ${p.name}.` : `Đã thu hồi khung ${name} của ${p.name}.`;
+    renderAdminList();
+    await refreshFrames();
+  } catch (err) {
+    msg.className = 'admin-msg err';
+    msg.textContent = frameError(err);
+  }
+  renderFrameGrant();
+}
+const frameError = err => err.message === 'DENIED' ? 'Chưa ghi được: hãy dán firebase-rules.json mới vào Firebase (mục frameGrants, frameOn) rồi bấm Publish.'
+  : err.message === 'NETWORK' ? AUTH_ERRORS.NETWORK : 'Có lỗi, thử lại.';
+$('frameRevokeAll').addEventListener('click', async () => {
+  const p = frameTarget;
+  if (!p || !p.frames.length || !confirm(`Thu hồi tất cả khung của ${p.name}?`)) return;
+  const msg = $('frameMsg');
+  $('frameRevokeAll').disabled = true;
+  try {
+    for (const k of [...p.frames]) { await Profile.setFrameGrant(p.uid, k, false); p.frames = p.frames.filter(x => x !== k); }
+    msg.className = 'admin-msg';
+    msg.textContent = `Đã thu hồi tất cả khung của ${p.name}.`;
+    renderAdminList();
+    await refreshFrames();
+  } catch (err) {
+    msg.className = 'admin-msg err';
+    msg.textContent = frameError(err);
+  }
+  $('frameRevokeAll').disabled = false;
+  renderFrameGrant();
+});
+
+// Người chơi tự chọn khung đang có (Hồ sơ › Cài đặt)
+function renderFrameChoices() {
+  const box = $('frameChoices'), me = Profile.me(), mine = me.frames || [];
+  $('frameBox').hidden = !mine.length;
+  box.innerHTML = '';
+  if (!mine.length) return;
+  for (const key of ['', ...mine]) {
+    const f = frameInfo(key);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'frame-opt' + ((me.frame || '') === key ? ' on' : '');
+    b.innerHTML = '<span class="avatar"></span><b></b>';
+    setAvatar(b.querySelector('.avatar'), { name: me.name, photo: me.photo, frame: key }, 'w');
+    b.querySelector('b').textContent = f ? f[1] : 'Không dùng';
+    b.addEventListener('click', async () => {
+      for (const x of box.children) x.disabled = true;
+      try {
+        await Profile.setMyFrame(key);
+        refreshShownFrames();
+        renderHeader();
+        renderProfileAvatar();
+      } catch (err) {
+        toast(frameError(err));
+      }
+      renderFrameChoices();
+    });
+    box.appendChild(b);
+  }
+}
+// Tải lại khung của mọi người; báo khi vừa được chủ web cấp khung mới
+async function refreshFrames() {
+  try {
+    if (Profile.uid() && !Profile.isGuest()) await Profile.loadMyFrames(); else await Profile.loadFrames();
+  } catch { return; }
+  refreshShownFrames();
+  const me = Profile.me(), id = Profile.uid();
+  if (!id || Profile.isOwner() || !me.frames) return;
+  const key = 'rg-frames-seen:' + id;
+  let seen = [];
+  try { seen = JSON.parse(localStorage.getItem(key)) || []; } catch {}
+  const fresh = me.frames.filter(k => !seen.includes(k));
+  try { localStorage.setItem(key, JSON.stringify(me.frames)); } catch {}
+  if (fresh.length) toast(`Chủ web vừa cấp cho bạn khung avatar ${frameInfo(fresh[0])[1]}! Vào Hồ sơ › Cài đặt để đeo.`);
+}
+setInterval(() => { if (entered && !document.hidden) refreshFrames(); }, 5 * 60000);
 
 async function setPlayerTitle(p, sel) {
   const title = sel.value || '';
@@ -4902,7 +5095,7 @@ function renderContestBoard() {
     const no = row.querySelector('.rank-no');
     if (p.medal) no.appendChild(medalEl(p.medal)); else no.textContent = p.place;
     row.querySelector('.nm').innerHTML = (p.title ? titleBadge(p.title) + ' ' : '') + escapeHtml(p.name) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
-    setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: !!p.me }, 'w');
+    setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: !!p.me, uid: p.uid }, 'w');
     box.appendChild(row);
   }
   if (final) {
@@ -4932,7 +5125,7 @@ function renderContestPodium(final) {
     b.className = 'podium-step ' + MEDAL_CLS[r.medal] + (r.me ? ' me' : '');
     b.title = `Xem hồ sơ ${r.name}`;
     b.innerHTML = '<span class="avatar"></span><b class="ps-name"></b><small></small><span class="ps-block"></span>';
-    setAvatar(b.querySelector('.avatar'), { name: r.name, photo: r.photo, me: true }, 'w');
+    setAvatar(b.querySelector('.avatar'), { name: r.name, photo: r.photo, me: true, uid: r.uid }, 'w');
     b.querySelector('.ps-name').textContent = r.name;
     b.querySelector('small').textContent = `${r.pts} điểm · ${r.wins} thắng`;
     b.querySelector('.ps-block').appendChild(medalEl(r.medal));

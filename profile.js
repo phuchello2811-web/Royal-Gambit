@@ -28,6 +28,9 @@ const Profile = (() => {
   // Danh hiệu FIDE-style — chỉ chủ web cấp (lưu /titles hoặc localStorage)
   const TITLES = ['GM', 'IM', 'FM', 'CM', 'NM', 'WGM', 'WIM', 'WFM', 'WCM'];
   const TITLES_KEY = 'rg-titles';
+  // Khung avatar: chủ web có sẵn tất cả, người khác phải được chủ web cấp (frameGrants); frameOn là khung đang đeo
+  const FRAME_KEYS = ['crown', 'dragon', 'frost', 'neon', 'galaxy', 'forest', 'thunder', 'checker'];
+  const FRAME_GRANTS_KEY = 'rg-frame-grants', FRAME_ON_KEY = 'rg-frame-on';
 
   const EXP_WIN = 15, EXP_DRAW = 5, EXP_LOSS = -10;
   const EXP_PER_STAR = 30;
@@ -333,6 +336,8 @@ const Profile = (() => {
   async function putProfile(t) {
     const body = { ...dataOf(me), lastGame: { '.sv': 'timestamp' } };
     delete body.photo;
+    delete body.frames; // không thuộc bản ghi người chơi (luật Firebase từ chối trường lạ)
+    delete body.frame;
     await call(playerUrl(t), { method: 'PUT', body: JSON.stringify(body) });
   }
 
@@ -879,21 +884,24 @@ const Profile = (() => {
     id = String(id || '');
     if (!id) return null;
     const self = id === uid();
-    let d, photo = '', title = '';
+    let d, photo = '', title = '', frame = '';
     if (remote) {
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return null;
-      const [p, ph, ti] = await Promise.all([
+      const [p, ph, ti, fr] = await Promise.all([
         call(`${db}/players/${id}.json?ts=${Date.now()}`, { cache: 'no-store' }),
         self ? Promise.resolve(me.photo) : call(`${db}/photos/${id}.json`).catch(() => ''),
         call(`${db}/titles/${id}.json`).catch(() => ''),
+        call(`${db}/frameOn/${id}.json`).catch(() => ''),
       ]);
       d = p;
       photo = ph;
       title = ti;
+      frame = fr;
     } else {
       d = read(USERS_KEY, {})[id];
       photo = d && d.photo;
       title = read(TITLES_KEY, {})[id];
+      frame = read(FRAME_ON_KEY, {})[id];
     }
     if (!d || typeof d.name !== 'string') return null;
     const int = v => Math.max(0, Math.floor(Number(v) || 0));
@@ -904,6 +912,7 @@ const Profile = (() => {
       lastGame: Number(d.lastGame) || 0,
       photo: self ? me.photo : (validPhoto(photo) ? photo : ''),
       title: normalizeTitle(title),
+      frame: validFrame(frame),
       owner: d.name.toLowerCase() === OWNER,
     };
   }
@@ -930,6 +939,7 @@ const Profile = (() => {
     let photosMap = {};
     let mutesData = {};
     let titlesData = {};
+    const grants = await allGrants().catch(() => ({}));
     if (remote) {
       const t = await token();
       const [players, admins, ph, mu, ti] = await Promise.all([
@@ -963,6 +973,7 @@ const Profile = (() => {
           muted: muteActive(mutesData[r.uid]),
           muteInfo: muteActive(mutesData[r.uid]) ? mutesData[r.uid] : null,
           title: normalizeTitle((titlesData && titlesData[r.uid]) || ''),
+          frames: FRAME_KEYS.filter(k => grants[r.uid] && grants[r.uid][k] === true),
         })),
     };
   }
@@ -1125,6 +1136,75 @@ const Profile = (() => {
       const all = await titlesMap();
       me.title = normalizeTitle(all[id] || '');
     } catch { me.title = ''; }
+    await loadMyFrames();
+  }
+
+  // ---------- Khung avatar ----------
+  const validFrame = k => (FRAME_KEYS.includes(k) ? k : '');
+  let frameOnMap = {};
+  const frameOf = id => (id ? validFrame(frameOnMap[id]) : '');
+
+  // Khung đang đeo của mọi người (công khai, dùng cho bảng xếp hạng, danh sách…)
+  async function loadFrames() {
+    try { frameOnMap = (remote ? await call(`${db}/frameOn.json`) : read(FRAME_ON_KEY, {})) || {}; } catch {}
+    return frameOnMap;
+  }
+  async function grantsOf(id) {
+    let g = {};
+    try { g = (remote ? await call(`${db}/frameGrants/${id}.json`) : read(FRAME_GRANTS_KEY, {})[id]) || {}; } catch (e) { throw e; }
+    return FRAME_KEYS.filter(k => g[k] === true);
+  }
+  async function allGrants() {
+    if (!remote) return read(FRAME_GRANTS_KEY, {});
+    return (await call(`${db}/frameGrants.json`)) || {};
+  }
+  // Khung của mình + khung đang đeo. Bị thu hồi khung đang đeo thì tự bỏ.
+  async function loadMyFrames() {
+    me.frames = [];
+    me.frame = '';
+    const id = uid();
+    if (!id) return;
+    await loadFrames();
+    try { me.frames = isOwner() ? [...FRAME_KEYS] : await grantsOf(id); } catch { me.frames = []; }
+    const on = frameOf(id);
+    me.frame = me.frames.includes(on) ? on : '';
+  }
+  async function setMyFrame(key) {
+    const k = validFrame(key), id = uid();
+    if (!id || isGuest()) throw new Error('SESSION');
+    if (k && !me.frames.includes(k)) throw new Error('DENIED');
+    if (remote) {
+      const t = await token();
+      if (k) await call(`${db}/frameOn/${id}.json?auth=${t}`, { method: 'PUT', body: JSON.stringify(k) });
+      else await call(`${db}/frameOn/${id}.json?auth=${t}`, { method: 'DELETE' });
+    } else {
+      const all = read(FRAME_ON_KEY, {});
+      if (k) all[id] = k; else delete all[id];
+      write(FRAME_ON_KEY, all);
+    }
+    me.frame = k;
+    if (k) frameOnMap[id] = k; else delete frameOnMap[id];
+    notify();
+  }
+  // Chủ web cấp (on = true) hoặc thu hồi một khung. Thu hồi đúng khung người đó đang đeo thì tháo luôn, ghi cùng một lần.
+  async function setFrameGrant(targetUid, key, on) {
+    if (!isOwner()) throw new Error('DENIED');
+    const k = validFrame(key);
+    if (!targetUid || !k) throw new Error('SERVER');
+    if (remote) {
+      const t = await token();
+      const cur = on ? '' : await call(`${db}/frameOn/${targetUid}.json`);
+      const patch = { [`frameGrants/${targetUid}/${k}`]: on ? true : null };
+      if (!on && cur === k) patch[`frameOn/${targetUid}`] = null;
+      await call(`${db}/.json?auth=${t}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      if (!on && cur === k) delete frameOnMap[targetUid];
+    } else {
+      const g = read(FRAME_GRANTS_KEY, {}), o = read(FRAME_ON_KEY, {});
+      g[targetUid] = g[targetUid] || {};
+      if (on) g[targetUid][k] = true;
+      else { delete g[targetUid][k]; if (o[targetUid] === k) { delete o[targetUid]; delete frameOnMap[targetUid]; write(FRAME_ON_KEY, o); } }
+      write(FRAME_GRANTS_KEY, g);
+    }
   }
 
   // ---------- Cầu nối cho Contest ----------
@@ -1156,6 +1236,7 @@ const Profile = (() => {
     register, login, restore, logout, changePassword,
     leaderboard, player, eloHistory, getAnnounce, setAnnounce,
     isOwner, isAdmin, refreshAdmin, listPlayers, setAdmin, setMute, setMuteByName, isMuted, mutesMap, setTitle, titlesMap, loadMyTitle, TITLES,
+    FRAME_KEYS, frameOf, loadFrames, grantsOf, allGrants, loadMyFrames, setMyFrame, setFrameGrant,
     rankOf,
     record,
     recordBot,
