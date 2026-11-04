@@ -2474,7 +2474,7 @@ button.tiny {
 .podium-step:hover { background: transparent; }
 .podium-step:hover .ps-block { filter: brightness(1.12); }
 .podium-step:active { transform: none; box-shadow: none; }
-.podium-step .avatar { width: 44px; height: 44px; border-radius: 50%; font-size: 1.1rem; box-shadow: 0 0 0 3px var(--tone); }
+.podium-step .avatar { width: 44px; height: 44px; border-radius: 22%; font-size: 1.1rem; box-shadow: 0 0 0 3px var(--tone); } /* bo góc trùng lỗ trong của khung avatar */
 .podium-step.gold .avatar { width: 52px; height: 52px; }
 .ps-name { max-width: 100%; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
 .podium-step small { color: var(--muted); font-size: 0.72rem; }
@@ -5747,8 +5747,9 @@ body:is([data-board="neon"], [data-board="cosmos"], [data-board="lava"], [data-b
 .pf-avatar-wrap:has(.avatar.framed) { margin: 12px 18px 12px 14px; } /* ô avatar lớn: chừa chỗ để khung không sát mép thẻ, không chạm tên */
 .avatar.hm-avatar.framed { margin: 12px 18px 12px 14px; }
 /* Danh sách: chừa chỗ để khung không sát số thứ hạng và tên */
-.avatar.sm.framed, .rank-name .avatar.framed, .admin-who .avatar.framed, .hm-top-row .avatar.framed, .profile-chip .avatar.framed { margin-inline: 6px; }
-.podium-step .avatar.framed { margin-block: 6px 10px; }
+/* Áp dụng cho mọi avatar trong danh sách, có khung hay không, để tên luôn thẳng hàng */
+.rank-name .avatar, .admin-who .avatar, .hm-top-row .avatar, .avatar.sm.framed, .profile-chip .avatar.framed { margin-inline: 6px; }
+.podium-step .avatar.framed { margin-block: 6px 10px; box-shadow: none; } /* có khung thì không cần viền màu huy chương */
 
 /* Chọn khung avatar: sân khấu xem khung đang đeo, bên dưới là bộ sưu tập */
 .frame-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
