@@ -37,7 +37,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700;900&display=swap">
-  <link rel="stylesheet" href="style.css?v=89">
+  <link rel="stylesheet" href="style.css?v=91">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -666,8 +666,14 @@
           </div>
           <p id="profileMsg" class="pf-msg" role="status"></p>
           <div id="frameBox" class="frame-box" hidden>
-            <div class="skin-section"><h4>Khung avatar</h4></div>
-            <div id="frameChoices" class="frame-grid"></div>
+            <div class="skin-section frame-head"><h4>Khung avatar</h4><span id="frameCount" class="frame-count"></span></div>
+            <div class="frame-picker">
+              <div id="frameStage" class="frame-stage">
+                <span class="avatar" id="frameStageAvatar"></span>
+                <div class="fs-text"><small id="frameStageTag"></small><b id="frameStageName"></b><span id="frameStageDesc"></span></div>
+              </div>
+              <div id="frameChoices" class="frame-tiles"></div>
+            </div>
           </div>
           <div id="themeChoices"></div>
           <label class="lang-row"><span>Ngôn ngữ / Language</span>
@@ -1376,7 +1382,7 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=52"></script>
+  <script src="i18n.js?v=54"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=9"></script>
@@ -1397,6 +1403,6 @@
   <script src="cloudai.js?v=5"></script>
   <script src="assistant.js?v=10"></script>
   <script src="pwa.js?v=3"></script>
-  <script src="app.js?v=76"></script>
+  <script src="app.js?v=78"></script>
 </body>
 </html>
