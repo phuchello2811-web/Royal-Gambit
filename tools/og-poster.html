@@ -1,0 +1,68 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<!-- Bản nguồn của img/og-image.png (ảnh xem trước khi gửi link). Sửa chữ / thế cờ ở đây, mở bằng Chrome cỡ 1200×630 rồi chụp lại. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600;700;800&family=Cinzel:wght@700&family=Cinzel+Decorative:wght@900&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; background: #141311; }
+  body { font-family: "Be Vietnam Pro", system-ui, sans-serif; color: #f3f1ea; position: relative; }
+  .bg { position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 85% at 8% 10%, #f5b83d2e, transparent 65%),
+      radial-gradient(ellipse 55% 80% at 92% 95%, #81b64c26, transparent 65%),
+      linear-gradient(135deg, #22201c 0%, #161513 55%, #1d1b18 100%); }
+  .checks { position: absolute; inset: 0 0 0 auto; width: 640px; opacity: 0.05;
+    background: repeating-conic-gradient(#fff 0 25%, transparent 0 50%) 0 0 / 64px 64px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 45%); }
+  .frame { position: absolute; inset: 18px; border-radius: 26px; border: 1.5px solid #f5b83d33; box-shadow: inset 0 0 0 1px #ffffff08; }
+  .left { position: absolute; left: 70px; top: 64px; width: 560px; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .brand img { width: 104px; height: 104px; border-radius: 26px; box-shadow: 0 0 0 2px #f5b83d55, 0 14px 34px #000c; }
+  .wm { display: flex; flex-direction: column; line-height: 1; }
+  .wm .a { font-family: "Cinzel Decorative", serif; font-weight: 900; font-size: 66px; letter-spacing: 0.04em;
+    background: linear-gradient(180deg, #fbe7a1 0%, #e2b54f 42%, #b07e24 74%, #eccb73 100%); -webkit-background-clip: text; color: transparent;
+    filter: drop-shadow(0 2px 0 #000a); }
+  .wm .b { font-family: "Cinzel", serif; font-weight: 700; font-size: 25px; letter-spacing: 0.62em; margin-top: 8px; padding-left: 4px;
+    background: linear-gradient(180deg, #fff 10%, #cfc9bb 60%, #9f988a); -webkit-background-clip: text; color: transparent; }
+  h1 { margin-top: 44px; font-size: 46px; font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; }
+  h1 em { font-style: normal; color: #9fd16a; }
+  .sub { margin-top: 14px; font-size: 21px; line-height: 1.5; color: #c9c4b8; font-weight: 500; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+  .chip { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px; border-radius: 99px; font-size: 18px; font-weight: 700;
+    background: #ffffff0d; box-shadow: inset 0 0 0 1px #ffffff1a; color: #ece8de; }
+  .chip svg { width: 20px; height: 20px; fill: none; stroke: #f5b83d; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .url { position: absolute; left: 70px; bottom: 52px; display: flex; align-items: center; gap: 14px; font-size: 19px; font-weight: 600; color: #a9a49a; }
+  .url b { padding: 6px 14px; border-radius: 10px; background: linear-gradient(180deg, #8cc256, #6fa13c); color: #fff; font-weight: 800; box-shadow: 0 3px 0 #4e7a27; }
+  .right { position: absolute; right: 74px; top: 50%; transform: translateY(-50%) rotate(-3deg); }
+  .board { width: 430px; height: 430px; display: grid; grid-template-columns: repeat(8, 1fr); border-radius: 14px; overflow: hidden;
+    box-shadow: 0 0 0 8px #2b2925, 0 0 0 10px #f5b83d55, 0 30px 70px #000d, 0 10px 24px #0009; }
+  .sq { position: relative; }
+  .l { background: #ebecd0; } .d { background: #739552; }
+  .sq.hl.l { background: #f5f682; } .sq.hl.d { background: #b9ca43; }
+  .sq.mate::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle, #e2533fcc 0%, #e2533f66 45%, transparent 72%); }
+  .sq img { position: relative; z-index: 1; width: 100%; height: 100%; display: block; }
+  .tag { position: absolute; right: -18px; bottom: -26px; padding: 10px 16px; border-radius: 14px; background: #262421f2; box-shadow: 0 0 0 1px #f5b83d55, 0 12px 28px #000b;
+    font-size: 16px; font-weight: 700; color: #ece8de; transform: rotate(3deg); }
+  .tag span { color: #f5b83d; font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
+</style></head><body>
+<div class="bg"></div><div class="checks"></div><div class="frame"></div>
+<div class="left">
+  <div class="brand"><img src="../img/logo.svg" alt=""><div class="wm"><span class="a">ROYAL</span><span class="b">GAMBIT</span></div></div>
+  <h1>Chơi cờ vua, học cờ<br>và <em>leo rank</em> miễn phí</h1>
+  <p class="sub">Ngay trên trình duyệt, điện thoại và máy tính.</p>
+  <div class="chips">
+    <span class="chip"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>Đấu máy Stockfish 19</span>
+    <span class="chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>Đấu online</span>
+    <span class="chip"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18 9.5l-4.2 1.8L12 16l-1.8-4.7L6 9.5l4.2-1.8z M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>Trợ lý huấn luyện viên</span>
+    <span class="chip"><svg viewBox="0 0 24 24"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2V4ZM22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8V4Z"/></svg>Học cờ · 100 khai cuộc</span>
+  </div>
+</div>
+<div class="url"><b>Chơi ngay</b>phuchello2811-web.github.io/Royal-Gambit</div>
+<div class="right"><div class="board" id="board"></div><div class="tag">Morphy, 1858 · <span>17.Rd8#</span></div></div>
+<script>
+const FEN = '1n1Rkb1r/p4ppp/4q3/4p1B1/4P3/8/PPP2PPP/2K5', P = '../pieces/';
+const hl = new Set(['d1', 'd8']), mate = 'e8';
+const rows = FEN.split('/'); let html = '';
+rows.forEach((row, r) => { let c = 0; for (const ch of row) { if (/\d/.test(ch)) { for (let k = 0; k < +ch; k++) html += cell(r, c++, null); } else html += cell(r, c++, (ch === ch.toUpperCase() ? 'w' : 'b') + ch.toUpperCase()); } });
+function cell(r, c, p) { const name = 'abcdefgh'[c] + (8 - r); return `<div class="sq ${(r + c) % 2 ? 'd' : 'l'}${hl.has(name) ? ' hl' : ''}${name === mate ? ' mate' : ''}">${p ? `<img src="${P}${p}.svg">` : ''}</div>`; }
+document.getElementById('board').innerHTML = html;
+</script></body></html>
