@@ -47,6 +47,13 @@ const Online = (() => {
   let oppHb = false;       // đối thủ dùng bản web có nhịp tim (bản cũ thì chỉ dựa vào sự kiện đóng kết nối)
   let hbTimer = null, hbTick = 0;
   let lostAt = 0;          // lúc đường truyền bắt đầu đứt giữa ván (để chỉnh đồng hồ khi nối lại)
+  let oppArb = false;      // đối thủ dùng bản web có trọng tài
+  let arbBase = '';        // mã trận (chủ phòng tạo, gửi kèm lệnh 'start'); mỗi ván chơi lại thêm số thứ tự
+  let gameNo = 0;
+  let arb = null;          // { gid, off, beats, t, rearm }: nhịp "tôi còn đây" gửi lên trọng tài
+  let judging = null;      // đang chờ trọng tài phân xử: { at, offline }
+  let voided = false;      // ván bị huỷ vì không phân định được
+  let arbWon = false;      // trọng tài đã xử mình thắng: kênh thông lại thì báo cho đối thủ
   let oppKnown = false;    // đã nhận được lời chào của đối thủ
   let tcValue = 'none';    // thời gian của ván đang đánh (chủ phòng quyết định, gửi kèm lệnh 'start')
   let clk = null;          // { base, inc, w, b, turn, at }: giờ còn lại (ms); at = lúc bắt đầu đếm lượt hiện tại (0 = đang dừng)
@@ -225,7 +232,9 @@ const Online = (() => {
       } catch {
         queue = { ...batch, ...queue };
         flying = false;
-        if (++fails <= 20 && !(closed && fails > 2)) setTimeout(flush, 1000); // mạng chập chờn: gửi lại
+        fails++;
+        if (!closed) setTimeout(flush, Math.min(1000 + fails * 500, 5000)); // mạng đứt bao lâu cũng gửi lại khi có mạng
+        else if (fails <= 2) setTimeout(flush, 1000); // đang đóng kênh: thử nhanh vài lần rồi thôi
         return;
       }
       flying = false;
@@ -267,7 +276,12 @@ const Online = (() => {
       if (conn !== c) return;
       const mid = state === 'playing'; // kết nối lại giữa ván qua đường dự phòng
       sendHello(c, !mid);
-      if (mid) sendSync();
+      if (mid) {
+        if (arbWon) send({ t: 'forfeit' });
+        sendSync();
+        // Chủ phòng đã vào ván ngay lúc khách chuyển đường: lệnh 'start' có thể đã mất, gửi lại (khách đang đánh thì bỏ qua)
+        if (isHost && !game.history.length) send({ t: 'start', color: opposite(color), tc: tcValue, gid: arbBase });
+      }
       // Trạng thái kết nối mạng thật (ICE): 'failed' / 'closed' = nối thẳng đã chết (đổi Wi-Fi sang 4G…)
       const pc = c.peerConnection;
       if (pc) pc.addEventListener('iceconnectionstatechange', () => {
@@ -285,23 +299,24 @@ const Online = (() => {
   function sendHello(c = conn, photo = true) {
     if (!c || !c.open) return;
     const me = Profile.me();
-    c.send({ t: 'hello', hb: 1, uid: Profile.uid() || '', name: me.name, exp: me.exp, elo: me.elo, title: me.title || '', contest: search && search.contest ? search.contest.id : null });
+    c.send({ t: 'hello', hb: 1, arb: 1, uid: Profile.uid() || '', name: me.name, exp: me.exp, elo: me.elo, title: me.title || '', contest: search && search.contest ? search.contest.id : null });
     if (photo && me.photo) c.send({ t: 'photo', photo: me.photo });
   }
 
   // Lời chào do trình duyệt đối thủ tự khai. Bản Firebase: lấy Elo, exp và danh hiệu thật từ máy chủ
   // (Elo đối thủ quyết định mình được / mất bao nhiêu Elo). uid giả hoặc không khớp tên thì giữ số liệu trong lời chào.
   // Mỗi đối thủ chỉ kiểm tra một lần; ván chơi lại sau đó dùng Elo mới trong lời chào (máy chủ có thể chưa kịp cập nhật).
-  let verified = { uid: '', title: '' };
+  let verified = { uid: '', title: '', frame: '' };
   async function verifyOpp() {
     const id = opp.uid, name = opp.name;
     if (!Profile.remote || !id || typeof Profile.player !== 'function') return;
-    if (verified.uid === id) { opp.title = verified.title; return; }
-    verified = { uid: id, title: opp.title };
+    if (verified.uid === id) { opp.title = verified.title; opp.frame = verified.frame; return; }
+    verified = { uid: id, title: opp.title, frame: '' };
     let p = null;
     try { p = await Profile.player(id); } catch { return; }
     if (!p || opp.uid !== id || opp.name !== name || p.name.toLowerCase() !== name.toLowerCase()) return;
     verified.title = opp.title = p.title || '';
+    verified.frame = opp.frame = p.frame || ''; // khung lấy từ máy chủ sau khi đã khớp tài khoản, không tin lời chào
     opp.exp = p.exp;
     opp.elo = p.elo;
     render();
@@ -380,7 +395,8 @@ const Online = (() => {
     const pref = search ? 'r' : $('hostColor').value; // tìm trận tự động: màu ngẫu nhiên
     const mine = pref === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : pref;
     const tcv = search ? search.tc : pickedTc();
-    send({ t: 'start', color: opposite(mine), tc: tcv });
+    arbBase = randomId();
+    send({ t: 'start', color: opposite(mine), tc: tcv, gid: arbBase });
     begin(mine, tcv);
   }
 
@@ -403,6 +419,9 @@ const Online = (() => {
       if ((isHost || queued) && peer && !peer.disconnected) peer.disconnect();
     }
     const again = startedAt > 0; // chơi lại với cùng đối thủ (đã có ván trước trên kết nối này)
+    gameNo = again ? gameNo + 1 : 0;
+    judging = null;
+    voided = arbWon = false;
     color = myColor;
     result = null;
     offer = null;
@@ -418,6 +437,7 @@ const Online = (() => {
     info('');
     setState('playing');
     startHeartbeat();
+    arbStart();
     startClock(tcv);
     if (!oppKnown) askWho();
     else if (again) sendHello(conn, false); // chơi lại: gửi Elo / exp vừa đổi sau ván trước để đối thủ tính đúng
@@ -537,6 +557,7 @@ const Online = (() => {
         };
         const ct = search && search.contest ? search.contest.id : null;
         oppHb = d.hb === 1;
+        oppArb = d.arb === 1;
         oppKnown = true;
         verifyOpp();
         const self = name.toLowerCase() === Profile.me().name.toLowerCase();
@@ -586,11 +607,14 @@ const Online = (() => {
         render();
         break;
       }
+      case 'arb': // bên kia đã rớt khỏi trọng tài một lúc rồi trở lại trong khi ván vẫn thông: cả hai ghi vào mục mới
+        if (arb && !arb.off && typeof d.gid === 'string' && d.gid.startsWith(arbBase + '-') && d.gid.length <= 48) { arb.gid = d.gid; arb.beats = 0; arbBeat(arb); }
+        break;
       case 'relay': // bên kia báo đang chuyển sang đường dự phòng
         linkLost('Đối thủ mất kết nối.');
         break;
       case 'forfeit': // đối thủ báo mình đã vắng quá 15 giây
-        if (state !== 'playing' || result || game.isGameOver()) return;
+        if (state !== 'playing' || result || voided || game.isGameOver()) return;
         result = { text: 'Bạn mất kết nối quá 15 giây – xử thua', reason: 'Mất kết nối quá 15 giây', score: 0 };
         chat(null, 'Bạn đã vắng mặt quá 15 giây nên bị xử thua.');
         render();
@@ -601,7 +625,10 @@ const Online = (() => {
         retrySearch(search);
         break;
       case 'start': // giữa ván không nhận lệnh bắt đầu lại (gói tin lạc / đối thủ sửa code)
-        if (!isHost && state !== 'playing' && (d.color === 'w' || d.color === 'b')) begin(d.color, ONLINE_TCS.includes(d.tc) ? d.tc : 'none');
+        if (!isHost && state !== 'playing' && (d.color === 'w' || d.color === 'b')) {
+          arbBase = /^[a-z0-9]{12,32}$/.test(d.gid || '') ? d.gid : ''; // chủ phòng bản cũ: không có trọng tài
+          begin(d.color, ONLINE_TCS.includes(d.tc) ? d.tc : 'none');
+        }
         break;
       case 'move': {
         if (state !== 'playing' || game.turn === color || result || game.isGameOver()) return;
@@ -713,6 +740,8 @@ const Online = (() => {
     lastSeen = Date.now();
     if (goneAt && !left && state === 'playing') { // đối thủ kết nối lại kịp trước 15 giây
       goneAt = 0;
+      judging = null;
+      unmarkJudge();
       if (!result) chat(null, 'Đối thủ đã kết nối lại.');
       renderStatus();
     }
@@ -722,6 +751,7 @@ const Online = (() => {
   function markGone(msg) {
     if (state !== 'playing' || goneAt) return;
     goneAt = lastSeen || Date.now();
+    markJudge();
     if (!result && !game.isGameOver()) chat(null, `${msg} Nếu không quay lại trong ${Math.ceil((FORFEIT_MS - (Date.now() - goneAt)) / 1000)} giây, đối thủ sẽ bị xử thua.`);
     else chat(null, msg);
     render();
@@ -753,8 +783,9 @@ const Online = (() => {
       if (!left) goneAt = 0;
     }
     if (!left) send({ t: 'ping' });
-    if (!live) return;
-    if (!goneAt && oppHb && now - lastSeen > HB_SILENT) linkLost('Đối thủ mất kết nối.');
+    if (!live) return arbFinish();
+    if (voided) return;
+    if (!goneAt && !left && oppHb && now - lastSeen > HB_SILENT) linkLost('Đối thủ mất kết nối.');
     if (!goneAt) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) { // mình mất mạng: không xử ai thắng
       goneAt = now; lastSeen = now;
@@ -769,13 +800,161 @@ const Online = (() => {
       goneAt = 0;
       chat(null, 'Ván bị huỷ vì đối thủ thoát trước khi ván bắt đầu.');
       return render();
-    } else {
-      result = { text: 'Đối thủ thoát quá 15 giây – Bạn thắng', reason: 'Đối thủ thoát quá 15 giây', score: 1 };
-      send({ t: 'forfeit' }); // nếu họ còn kết nối được thì họ cũng thấy mình bị xử thua
-      chat(null, 'Đối thủ vắng mặt quá 15 giây nên bị xử thua.');
     }
+    if (arbOn()) return judge(); // có trọng tài: không tự xử, hỏi trọng tài xem ai thật sự vắng mặt
+    result = { text: 'Đối thủ thoát quá 15 giây – Bạn thắng', reason: 'Đối thủ thoát quá 15 giây', score: 1 };
+    send({ t: 'forfeit' }); // nếu họ còn kết nối được thì họ cũng thấy mình bị xử thua
+    chat(null, 'Đối thủ vắng mặt quá 15 giây nên bị xử thua.');
     left = true;
     render();
+  }
+
+  // ---- Trọng tài (Firebase: arbiter/<mã trận>/seen/<uid>) ----
+  // Trong ván, mỗi bên ghi "tôi còn đây" lên Firebase vài giây một lần, thời gian do máy chủ đóng dấu. Luật Firebase từ chối
+  // ghi tiếp nếu đã ngắt quãng từ ARB_FREEZE trở lên, nên người mất mạng rồi quay lại không sửa được dấu vết của mình.
+  // Hai máy cùng đọc một bảng thời gian nên luôn ra cùng một phán quyết:
+  //   còn lại lâu hơn đối thủ ít nhất 15 giây → thắng · đối thủ còn lại lâu hơn → thua · không phân định được → huỷ ván, không ai mất Elo.
+  // Chưa đọc được Firebase (mình mất mạng): không tự xử, báo "chưa xác định". Rời đi lúc đó thì lần mở web sau xử tiếp (resolvePending).
+  const ARB_BEAT = 4000, ARB_MARGIN = 15000, ARB_WAIT = 30000, ARB_RETRY = 2500;
+  const JUDGE_KEY = 'rg-online-judge';
+
+  function randomId() {
+    let id = '';
+    for (const b of crypto.getRandomValues(new Uint8Array(12))) id += (b % 36).toString(36);
+    return id + Date.now().toString(36);
+  }
+  const arbOn = () => !!arb && !arb.off && oppArb && !!opp.uid;
+
+  function arbStart() {
+    arbStop();
+    if (!arbBase || !Profile.remote || !Profile.uid()) return;
+    arb = { gid: `${arbBase}-${gameNo}`, off: false, beats: 0, t: null, rearm: 0 };
+    arbBeat(arb);
+  }
+  function arbStop() {
+    if (arb) clearTimeout(arb.t);
+    arb = null;
+  }
+  async function arbBeat(a) {
+    if (arb !== a) return;
+    clearTimeout(a.t);
+    const gid = a.gid;
+    try {
+      await Profile.dbCall(`arbiter/${gid}/seen/${Profile.uid()}`, 'PUT', { '.sv': 'timestamp' });
+      if (a.gid === gid) a.beats++;
+    } catch (e) {
+      if (arb !== a) return;
+      if (e.message === 'DENIED') {
+        if (!a.beats) { a.off = true; return; } // luật Firebase chưa có mục arbiter: xử như cũ
+        // Dấu vết đã đóng băng vì ngắt quãng. Ván vẫn thông thì hai bên mở mục mới, nếu không phán quyết sau này sẽ sai
+        if (!goneAt && conn && conn.open && a.gid === gid) {
+          a.gid = `${arbBase}-${gameNo}r${++a.rearm}`;
+          a.beats = 0;
+          send({ t: 'arb', gid: a.gid });
+          return arbBeat(a);
+        }
+      }
+    }
+    if (arb === a) a.t = setTimeout(() => arbBeat(a), ARB_BEAT);
+  }
+  // Ván xong trong lúc đường truyền còn tốt: dọn dấu vết của mình. Đường truyền đứt thì để lại làm bằng chứng cho đối thủ.
+  function arbFinish() {
+    if (!arb) return;
+    const a = arb;
+    arbStop();
+    unmarkJudge();
+    if (!a.off && !goneAt && conn && conn.open) Profile.dbCall(`arbiter/${a.gid}/seen/${Profile.uid()}`, 'DELETE').catch(() => {});
+  }
+
+  // Bảng thời gian → phán quyết của `me`: 1 thắng, 0 thua, null chưa phân định
+  function arbVerdict(rows, me, him) {
+    const m = rows && rows[me], h = rows && rows[him];
+    if (!Number.isFinite(m) || !Number.isFinite(h)) return null;
+    if (m >= h + ARB_MARGIN) return 1;
+    if (h >= m + ARB_MARGIN) return 0;
+    return null;
+  }
+
+  function judge() {
+    if (judging) return;
+    const j = judging = { at: 0, offline: false };
+    judgeStep(j);
+  }
+  async function judgeStep(j) {
+    const ok = () => judging === j && state === 'playing' && !result && !!goneAt && !game.isGameOver() && !!arb;
+    if (!ok()) { if (judging === j) judging = null; return; }
+    let rows = null, net = false;
+    try { rows = await Profile.dbCall(`arbiter/${arb.gid}/seen`); }
+    catch { net = true; }
+    if (!ok()) { if (judging === j) judging = null; return; }
+    if (net) { // không tới được trọng tài: không ai được tự xử
+      if (!j.offline) chat(null, 'Không liên lạc được với máy chủ: kết quả ván chưa xác định, sẽ xử khi có mạng lại.');
+      j.offline = true;
+      j.at = 0;
+      renderStatus();
+      setTimeout(() => judgeStep(j), ARB_RETRY);
+      return;
+    }
+    j.offline = false;
+    if (!j.at) j.at = Date.now();
+    const v = arbVerdict(rows, Profile.uid(), opp.uid);
+    if (v === 1) {
+      arbWon = true;
+      result = { text: 'Đối thủ thoát quá 15 giây – Bạn thắng', reason: 'Đối thủ thoát quá 15 giây', score: 1 };
+      send({ t: 'forfeit' });
+      chat(null, 'Trọng tài xác nhận đối thủ vắng mặt quá 15 giây nên bị xử thua.');
+    } else if (v === 0) {
+      result = { text: 'Bạn mất kết nối quá 15 giây – xử thua', reason: 'Mất kết nối quá 15 giây', score: 0 };
+      chat(null, 'Trọng tài xác nhận bạn vắng mặt quá 15 giây nên bị xử thua.');
+    } else if (Date.now() - j.at >= ARB_WAIT) { // cả hai cùng mất liên lạc, hoặc thiếu dữ liệu: không ai có lỗi rõ ràng
+      voided = true;
+      chat(null, 'Không phân định được bên nào mất kết nối nên ván bị huỷ, không ai mất Elo.');
+    } else {
+      renderStatus();
+      setTimeout(() => judgeStep(j), ARB_RETRY);
+      return;
+    }
+    judging = null;
+    left = true;
+    goneAt = 0;
+    unmarkJudge();
+    arbStop();
+    render();
+  }
+
+  // Sổ chờ trên máy: rời trang / mất điện lúc chưa có phán quyết thì lần mở web sau xử tiếp
+  function readJudge() {
+    try { const l = JSON.parse(localStorage.getItem(JUDGE_KEY)); return Array.isArray(l) ? l : []; } catch { return []; }
+  }
+  function writeJudge(l) {
+    try { if (l.length) localStorage.setItem(JUDGE_KEY, JSON.stringify(l.slice(-5))); else localStorage.removeItem(JUDGE_KEY); } catch {}
+  }
+  function markJudge() {
+    if (!arbOn() || result || game.history.length < 2) return;
+    const ct = contestId && typeof contestById !== 'undefined' ? contestById.get(contestId) : null;
+    const l = readJudge().filter(x => x.gid !== arb.gid);
+    l.push({ gid: arb.gid, uid: Profile.uid(), oppUid: opp.uid, opp: opp.name, oppElo: opp.elo, plies: game.history.length, at: Date.now(), startedAt,
+      contest: ct ? { id: ct.id, name: ct.name, start: ct.start, end: ct.end } : null });
+    writeJudge(l);
+  }
+  function unmarkJudge() {
+    if (arb) writeJudge(readJudge().filter(x => x.gid !== arb.gid));
+  }
+  // Trả về các ván đã có phán quyết: [{ score, opp, oppElo, plies, startedAt, contest }] (score null = huỷ). Mất mạng thì giữ lại lần sau.
+  async function resolvePending() {
+    const me = Profile.uid(), out = [];
+    if (!me || !Profile.remote) return out;
+    const keep = [];
+    for (const p of readJudge()) {
+      if (p.uid !== me || (arb && arb.gid === p.gid)) { keep.push(p); continue; }
+      if (Date.now() - p.at > 7 * 86400000) continue;
+      let rows;
+      try { rows = await Profile.dbCall(`arbiter/${p.gid}/seen`); }
+      catch (e) { if (e.message === 'DENIED') continue; keep.push(p); continue; }
+      out.push({ ...p, score: arbVerdict(rows, me, p.oppUid) });
+    }
+    writeJudge(keep);
+    return out;
   }
 
   // Đóng tab / rời trang giữa ván: báo đối thủ và ghi nhớ để trừ điểm ở lần mở web sau
@@ -820,8 +999,13 @@ const Online = (() => {
     stopSearch();
     stopHeartbeat();
     clearTimeout(whoTimer);
-    oppHb = oppKnown = false;
+    oppHb = oppKnown = oppArb = false;
     lostAt = 0;
+    arbStop();
+    judging = null;
+    voided = arbWon = false;
+    arbBase = '';
+    gameNo = 0;
     stopClockTimer();
     clk = null;
     tcValue = 'none';
@@ -832,7 +1016,7 @@ const Online = (() => {
     startedAt = 0;
     $('rematch').hidden = false;
     opp = { name: 'Đối thủ', exp: 0, elo: 800, photo: '', uid: '', title: '' };
-    verified = { uid: '', title: '' };
+    verified = { uid: '', title: '', frame: '' };
   }
 
   // ---- Tìm trận tự động ----
@@ -1143,6 +1327,10 @@ const Online = (() => {
     const s = game.status();
     if (s === 'checkmate') return { text: game.turn === color ? 'Chiếu hết – Bạn thua' : 'Chiếu hết – Bạn thắng', cls: 'over' };
     if (s !== 'playing') return null; // các kiểu hòa: dùng thông báo chung
+    if (voided) return { text: 'Ván bị huỷ – không tính Elo', cls: 'over' };
+    if (judging) return judging.offline
+      ? { text: 'Mất liên lạc với máy chủ · kết quả chưa xác định', cls: 'in-check' }
+      : { text: 'Đang chờ trọng tài xác nhận…', cls: 'thinking' };
     if (goneAt && !result) {
       const sec = Math.max(0, Math.ceil((FORFEIT_MS - (Date.now() - goneAt)) / 1000));
       return { text: game.history.length < 2 ? `Đối thủ mất kết nối · huỷ ván sau ${sec} giây` : `Đối thủ mất kết nối · xử thắng sau ${sec} giây`, cls: 'in-check' };
@@ -1156,8 +1344,8 @@ const Online = (() => {
 
   function player(c) {
     if (!color) return { name: 'Người chơi ' + COLOR_NAME[c], rank: null, pieceAv: true };
-    if (c === color) { const me = Profile.me(); return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '' }; }
-    return { name: opp.name, rank: Profile.rankOf(opp.exp), elo: opp.elo, photo: opp.photo, title: opp.title || '' };
+    if (c === color) { const me = Profile.me(); return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid() }; }
+    return { name: opp.name, rank: Profile.rankOf(opp.exp), elo: opp.elo, photo: opp.photo, title: opp.title || '', frame: opp.frame || '' };
   }
 
   // Kết quả ván để tính Elo: { score, reason } hoặc null nếu ván chưa xong
@@ -1300,6 +1488,7 @@ const Online = (() => {
     // Còn "kết nối" cả trong 15 giây chờ đối thủ quay lại (để contest không vội ghép ván mới)
     connected: () => state === 'playing' && (!left || (!!goneAt && !result && !game.isGameOver())),
     takePendingForfeit,
+    resolvePending,
     refreshMuteBtn,
   };
 })();
