@@ -30,7 +30,7 @@ const Profile = (() => {
   const TITLES = ['GM', 'IM', 'FM', 'CM', 'NM', 'WGM', 'WIM', 'WFM', 'WCM'];
   const TITLES_KEY = 'rg-titles';
   // Khung avatar: chủ web có sẵn tất cả, người khác phải được chủ web cấp (frameGrants); frameOn là khung đang đeo
-  const FRAME_KEYS = ['crown', 'dragon', 'frost', 'neon', 'galaxy', 'forest', 'thunder', 'checker'];
+  const FRAME_KEYS = ['crown', 'dragon', 'frost', 'neon', 'galaxy', 'forest', 'thunder', 'checker', 'gambit'];
   const FRAME_GRANTS_KEY = 'rg-frame-grants', FRAME_ON_KEY = 'rg-frame-on';
 
   const EXP_WIN = 15, EXP_DRAW = 5, EXP_LOSS = -10;

@@ -340,7 +340,10 @@ const FRAMES = {
 
 fs.mkdirSync(DIR, { recursive: true });
 let total = 0;
+// Cả 8 khung đã thay bằng ảnh .webp trong img/frames nên công cụ này không ghi đè nữa; bỏ tên khỏi danh sách nếu muốn vẽ lại bản cũ.
+const REPLACED = new Set(['crown', 'dragon', 'frost', 'neon', 'galaxy', 'forest', 'thunder', 'checker']);
 for (const [name, draw] of Object.entries(FRAMES)) {
+  if (REPLACED.has(name)) continue;
   gemN = 0;
   const [defs, body] = draw();
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" width="${S}" height="${S}"><defs>${defs}</defs>${body}</svg>`;
