@@ -837,29 +837,34 @@ function avatarColor(name) {
   return `hsl(${h} 45% 42%)`;
 }
 
-// Khung avatar tự vẽ (tools/make-frames.js → img/frames/): [mã, tên, màu quầng sáng, mô tả]
+// Khung avatar (ảnh trong img/frames/): [mã, tên, màu quầng sáng, mô tả, đuôi file nếu không phải svg]
 const FRAMES = [
-  ['crown', 'Vương Miện', '#f5c518', 'Vàng ròng, hồng ngọc và vương miện chạm nổi'],
-  ['dragon', 'Long Hỏa', '#ff6a1a', 'Lửa rồng bùng cháy quanh viền đá núi lửa'],
-  ['frost', 'Băng Tinh', '#7fd4ff', 'Tinh thể băng cắt mặt, lấp lánh sương giá'],
-  ['neon', 'Ánh Neon', '#19f6ff', 'Hai ống đèn rực sáng trên nền kính tối'],
-  ['galaxy', 'Thiên Hà', '#b48cff', 'Tinh vân, hành tinh và trăng khuyết'],
-  ['forest', 'Cổ Thụ', '#7ecb5a', 'Gỗ mun khảm vàng, vòng lá ngọc lục bảo'],
-  ['thunder', 'Lôi Thần', '#ffe14d', 'Giáp thép và những tia sét vàng'],
-  ['checker', 'Kỳ Vương', '#e8b923', 'Đá onyx, ô cờ khảm vàng và huy hiệu Vua'],
+  ['crown', 'Vương Miện', '#c9a24f', 'Vương miện vàng, khăn nhung đỏ và ruy băng ngà', 'webp'],
+  ['dragon', 'Long Hỏa', '#c8452f', 'Rồng đỏ uốn quanh khung giữa mây và ruy băng vàng', 'webp'],
+  ['frost', 'Băng Tinh', '#7fbfff', 'Bông tuyết, cụm tinh thể băng và ruy băng sương giá', 'webp'],
+  ['neon', 'Ánh Neon', '#c77dff', 'Viền kim loại, ống đèn hồng xanh và pha lê', 'webp'],
+  ['galaxy', 'Thiên Hà', '#9d8cff', 'Hành tinh có vành, trăng khuyết vàng và thiên hà xoắn', 'webp'],
+  ['forest', 'Cổ Thụ', '#9dbb73', 'Dây leo, lá xanh, hoa trắng và đèn lồng ấm', 'webp'],
+  ['thunder', 'Lôi Thần', '#7fb2ff', 'Gai vàng, tia sét xanh và mây giông', 'webp'],
+  ['checker', 'Kỳ Vương', '#d9a95a', 'Ô cờ đen vàng, ruy băng vàng cùng Vua và Mã', 'webp'],
+  ['gambit', 'Royal Gambit', '#e6c9a0', 'Ô cờ đen trắng, ruy băng, vương miện cùng Vua và Mã', 'webp'],
 ];
 const frameInfo = k => FRAMES.find(f => f[0] === k);
+const OWN_GLOW = new Set(['frost', 'galaxy', 'neon', 'thunder']); // ảnh đã có quầng sáng; quầng vuông của CSS sẽ lộ thành hộp tối sau viền mảnh
 function applyFrame(el, key) {
   const f = frameInfo(key);
   for (const old of el.querySelectorAll(':scope > .av-frame, :scope > .av-glow')) old.remove();
   el.classList.toggle('framed', !!f);
   if (!f) return;
-  const glow = document.createElement('span');
-  glow.className = 'av-glow';
-  glow.style.setProperty('--fg', f[2]);
+  if (!OWN_GLOW.has(f[0])) {
+    const glow = document.createElement('span');
+    glow.className = 'av-glow';
+    glow.style.setProperty('--fg', f[2]);
+    el.append(glow);
+  }
   const img = document.createElement('img');
   img.className = 'av-frame';
-  img.src = `img/frames/${f[0]}.svg?v=2`; // đổi số khi vẽ lại khung, để trình duyệt không dùng ảnh cũ
+  img.src = `img/frames/${f[0]}.${f[4] || 'svg'}?v=7`; // đổi số khi vẽ lại khung, để trình duyệt không dùng ảnh cũ
   img.alt = '';
   // Không tải được ảnh khung (chưa đẩy thư mục img/frames lên web, mất mạng lần đầu…): bỏ khung, không để lộ icon ảnh vỡ
   img.onerror = () => {
@@ -867,7 +872,7 @@ function applyFrame(el, key) {
     console.warn('Không tải được khung avatar:', img.src);
     applyFrame(el, '');
   };
-  el.append(glow, img);
+  el.append(img);
 }
 // Khung mới tải về (hoặc vừa bị thu hồi): cập nhật mọi avatar đang hiện, khỏi phải vẽ lại cả trang
 function refreshShownFrames() {

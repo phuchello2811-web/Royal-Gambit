@@ -5715,7 +5715,8 @@ body:is([data-board="neon"], [data-board="cosmos"], [data-board="lava"], [data-b
 @media (max-width: 700px) { #onlineSearching .radar, #onlineSearching > p.muted { display: none; } } /* điện thoại: để khoảng Elo và nút Hủy không bị đẩy khỏi màn hình */
 
 /* Khung avatar: ảnh SVG đè lên avatar, lớn hơn 50% (không làm xô lệch bố cục), quầng sáng thở nhẹ phía sau */
-.avatar.framed { position: relative; overflow: visible; }
+/* Đeo khung thì tắt viền màu quanh avatar: khung thay cho viền đó, nếu không viền sẽ ló ra ngoài các khung mảnh */
+.avatar.framed { position: relative; overflow: visible; box-shadow: none !important; }
 .avatar.framed img.av-frame {
   position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; max-width: none;
   border-radius: 0; object-fit: fill; pointer-events: none; z-index: 2;

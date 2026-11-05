@@ -52,10 +52,9 @@
       }
     },
     "admins": {
-      ".read": "auth != null && auth.token.email === 'admin@rg-user.app'",
+      ".read": true,
       ".write": "auth != null && auth.token.email === 'admin@rg-user.app'",
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
         ".validate": "newData.val() === true"
       }
     },
@@ -124,7 +123,7 @@
     "mutes": {
       ".read": true,
       "$uid": {
-        ".write": "auth != null && (auth.token.email === 'admin@rg-user.app' || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && (auth.token.email === 'admin@rg-user.app' || (root.child('admins').child(auth.uid).val() === true && root.child('admins').child($uid).val() !== true && root.child('players').child($uid).child('name').val().toLowerCase() !== 'admin'))",
         ".validate": "newData.hasChildren(['by', 'at']) && newData.child('by').isString() && newData.child('at').isNumber()",
         "by": {
           ".validate": "newData.isString() && newData.val().length <= 20"
@@ -146,7 +145,7 @@
     "titles": {
       ".read": true,
       "$uid": {
-        ".write": "auth != null && auth.token.email === 'admin@rg-user.app'",
+        ".write": "auth != null && (auth.token.email === 'admin@rg-user.app' || (root.child('admins').child(auth.uid).val() === true && root.child('players').child($uid).child('name').val().toLowerCase() !== 'admin'))",
         ".validate": "newData.isString() && newData.val().length <= 8"
       }
     },
