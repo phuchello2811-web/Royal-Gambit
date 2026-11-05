@@ -317,7 +317,7 @@ const Online = (() => {
     if (!p || opp.uid !== id || opp.name !== name || p.name.toLowerCase() !== name.toLowerCase()) return;
     verified.title = opp.title = p.title || '';
     verified.frame = opp.frame = p.frame || ''; // khung lấy từ máy chủ sau khi đã khớp tài khoản, không tin lời chào
-    verified.admin = opp.admin = !!p.admin;     // huy hiệu ADMIN cũng chỉ lấy từ máy chủ
+    verified.admin = opp.admin = !!p.admin;     // lấy từ máy chủ, dùng để ẩn nút mute với admin / chủ web
     verified.owner = opp.owner = !!p.owner;
     opp.exp = p.exp;
     opp.elo = p.elo;
@@ -1346,8 +1346,8 @@ const Online = (() => {
 
   function player(c) {
     if (!color) return { name: 'Người chơi ' + COLOR_NAME[c], rank: null, pieceAv: true };
-    if (c === color) { const me = Profile.me(); return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid(), admin: Profile.isGrantedAdmin() }; }
-    return { name: opp.name, rank: Profile.rankOf(opp.exp), elo: opp.elo, photo: opp.photo, title: opp.title || '', frame: opp.frame || '', admin: !!opp.admin };
+    if (c === color) { const me = Profile.me(); return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid() }; }
+    return { name: opp.name, rank: Profile.rankOf(opp.exp), elo: opp.elo, photo: opp.photo, title: opp.title || '', frame: opp.frame || '' };
   }
 
   // Kết quả ván để tính Elo: { score, reason } hoặc null nếu ván chưa xong

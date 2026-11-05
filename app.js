@@ -809,7 +809,7 @@ function playerInfo(c) {
   if (mode === 'play' && aiColor !== 'none') {
     if (c === aiColor) { const b = botOf(gameLevel); return { name: `${b.name} · Máy`, rank: null, elo: BOT_ELO[gameLevel], bot: true, botPiece: b.piece }; }
     const me = Profile.me();
-    return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid(), admin: Profile.isGrantedAdmin() };
+    return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid() };
   }
   return { name: 'Người chơi ' + COLOR_NAME[c], rank: null, pieceAv: true };
 }
@@ -822,12 +822,9 @@ function titleBadge(title) {
   if (!t) return '';
   return `<span class="title-badge" title="Danh hiệu ${t}">${t}</span>`;
 }
-// Tên kèm danh hiệu phía trước và huy hiệu ADMIN phía sau (ai cũng thấy)
-function nameHtml(name, title, admin) {
-  const badge = title ? titleBadge(title) : '';
-  if (!admin) return (badge ? badge + ' ' : '') + escapeHtml(name);
-  // Tên dài thì rút gọn phần tên, huy hiệu luôn hiện đủ
-  return `<span class="name-line">${badge}<span class="name-text">${escapeHtml(name)}</span><span class="role-badge admin-tag" title="Người chơi này là admin">Admin</span></span>`;
+// Tên kèm danh hiệu phía trước. Nhãn Admin / Chủ web chỉ hiện trong trang hồ sơ (và bảng quản trị).
+function nameHtml(name, title) {
+  return (title ? titleBadge(title) + ' ' : '') + escapeHtml(name);
 }
 function displayName(name, title) {
   const t = String(title || '').trim().toUpperCase();
@@ -930,11 +927,11 @@ function renderPlayers() {
     const info = playerInfo(c);
     const slot = playerCache[pos] || (playerCache[pos] = {});
     const skin = document.body.dataset.pieces || '';
-    const infoKey = [c, skin, info.frame != null ? info.frame : Profile.frameOf(info.uid), info.name, info.title, info.admin, info.rank && info.rank.text, info.rank && info.rank.color, info.elo, info.bot, info.botPiece, info.pieceAv, info.me].join('|');
+    const infoKey = [c, skin, info.frame != null ? info.frame : Profile.frameOf(info.uid), info.name, info.title, info.rank && info.rank.text, info.rank && info.rank.color, info.elo, info.bot, info.botPiece, info.pieceAv, info.me].join('|');
     if (slot.info !== infoKey || slot.photo !== info.photo) {
       slot.info = infoKey;
       slot.photo = info.photo;
-      $(pos + 'Name').innerHTML = nameHtml(info.name, info.title, info.admin);
+      $(pos + 'Name').innerHTML = nameHtml(info.name, info.title);
       const ratingEl = $(pos + 'Rating');
       if (info.rank) {
         ratingEl.innerHTML = `<span class="player-rank">${rankMedalOnly(info.rank)}<span style="color:${info.rank.color}">${info.rank.text}</span></span>`
@@ -972,7 +969,7 @@ function renderPlayers() {
 
 function renderHeader() {
   const me = Profile.me();
-  $('meName').innerHTML = nameHtml(me.name, me.title, Profile.isGrantedAdmin());
+  $('meName').innerHTML = nameHtml(me.name, me.title);
   const rank = Profile.rankOf(me.exp);
   const medal = rankMedalOnly(rank);
   // Nút Rank: ngôi sao như bản gốc (không dùng huy hiệu tròn)
@@ -2656,7 +2653,7 @@ function renderHome() {
   setAvatar($('hmAvatar'), { name: me.name, photo: me.photo, me: true, uid: Profile.uid() }, 'w');
   const h = new Date().getHours();
   $('hmGreet').textContent = h < 5 ? 'Chúc một đêm nhiều nước hay' : h < 11 ? 'Chào buổi sáng' : h < 14 ? 'Chào buổi trưa' : h < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
-  $('hmName').innerHTML = nameHtml(me.name, me.title, Profile.isGrantedAdmin());
+  $('hmName').innerHTML = nameHtml(me.name, me.title);
   const pct = rank.top ? 100 : Math.round(100 * rank.inStar / R.perStar);
   $('hmRank').innerHTML = `<button type="button" class="hm-rank-btn" title="Xem luật rank">${rankMedalOnly(rank)}
       <span class="hm-rank-text"><b style="color:${rank.color}">${rank.name}</b><span class="rk-stars">${starsHTML(rank)}</span></span></button>
@@ -2875,7 +2872,7 @@ async function loadHomeTop() {
     b.className = 'hm-top-row' + (r.me ? ' me' : '') + (i < 3 ? ' p' + (i + 1) : '');
     b.innerHTML = `<span class="hm-top-pos">${i + 1}</span><span class="avatar"></span><span class="hm-top-name"></span><span class="hm-top-elo">${r.elo || 0}</span>`;
     setAvatar(b.querySelector('.avatar'), { name: r.name, photo: r.photo, me: r.me, uid: r.uid }, 'w');
-    b.querySelector('.hm-top-name').innerHTML = nameHtml(r.name, r.title, r.admin);
+    b.querySelector('.hm-top-name').innerHTML = nameHtml(r.name, r.title);
     b.addEventListener('click', () => openProfile(r.uid));
     box.appendChild(b);
   };
@@ -2985,9 +2982,10 @@ function renderProfilePage(p, hist) {
   $('profileAvatar').classList.toggle('editable', !!p.me);
   $('profileAvatar').title = p.me ? 'Đổi ảnh đại diện' : '';
   $('pfAvatarEdit').hidden = !p.me;
-  $('pfName').innerHTML = nameHtml(p.name, p.title, p.admin);
+  $('pfName').innerHTML = nameHtml(p.name, p.title);
   const chips = [];
   if (p.owner) chips.push('<span class="role-badge">Chủ web</span>');
+  else if (p.admin) chips.push('<span class="role-badge">Admin</span>');
   if (p.me) chips.push('<span class="pf-chip">Bạn</span>');
   $('pfChips').innerHTML = chips.join('');
   $('pfRankLine').innerHTML = `${rankMedalOnly(rank)}<b style="color:${rank.color}">${rank.name}</b>
@@ -4306,7 +4304,7 @@ function renderLeaderboard() {
       b.className = 'podium-step ' + MEDAL_CLS[i + 1] + (p.me ? ' me' : '');
       b.innerHTML = '<span class="avatar"></span><b class="ps-name"></b><small></small><span class="ps-block"></span>';
       setAvatar(b.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid }, 'w');
-      b.querySelector('.ps-name').innerHTML = nameHtml(p.name, p.title, p.admin);
+      b.querySelector('.ps-name').innerHTML = nameHtml(p.name, p.title);
       b.querySelector('small').textContent = lbValue(p);
       b.querySelector('.ps-block').appendChild(medalEl(i + 1));
       b.title = `Xem hồ sơ ${p.name}`;
@@ -4357,7 +4355,7 @@ function renderLeaderboard() {
         row.querySelector('.rank-name').appendChild(ms);
       }
     }
-    row.querySelector('.nm').innerHTML = nameHtml(p.name, p.title, p.admin) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
+    row.querySelector('.nm').innerHTML = nameHtml(p.name, p.title) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
     setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid }, 'w');
     list.appendChild(row);
   }
@@ -4472,8 +4470,8 @@ function renderAdminList() {
     row.innerHTML = `<button type="button" class="admin-who" title="Xem hồ sơ"><span class="avatar"></span>
         <span class="admin-name"><b></b><small></small><small class="admin-mute-info"></small></span></button>
       <div class="admin-actions"></div>`;
-    row.querySelector('b').innerHTML = nameHtml(p.name, p.title, p.admin && !p.owner) + (p.me ? ' <span class="muted">(bạn)</span>' : '')
-      + (p.owner ? ' <span class="role-badge">Chủ web</span>' : '');
+    row.querySelector('b').innerHTML = nameHtml(p.name, p.title) + (p.me ? ' <span class="muted">(bạn)</span>' : '')
+      + (p.owner ? ' <span class="role-badge">Chủ web</span>' : p.admin ? ' <span class="role-badge">Admin</span>' : '');
     row.querySelector('small').innerHTML = `<span style="color:${r.color}">${r.name}</span> · ${p.elo} Elo · ${p.games} ván${p.lastGame ? ` · ${timeAgo(p.lastGame)}` : ''}`;
     const mi = row.querySelector('.admin-mute-info');
     mi.textContent = p.muted ? muteText(p.muteInfo) : '';
@@ -4766,7 +4764,7 @@ function renderFrameChoices() {
 }
 // Tải lại khung của mọi người; báo khi vừa được chủ web cấp khung mới
 async function refreshFrames() {
-  Profile.refreshAdmin(); // cập nhật huy hiệu ADMIN; người vừa được cấp / thu hồi quyền thấy tab Admin đổi theo
+  Profile.refreshAdmin(); // người vừa được cấp / thu hồi quyền thấy tab Admin đổi theo
   try {
     if (Profile.uid() && !Profile.isGuest()) await Profile.loadMyFrames(); else await Profile.loadFrames();
   } catch { return; }
@@ -5134,7 +5132,7 @@ function renderContestBoard() {
       <span class="wdl"><i class="w">${p.wins}</i> / ${p.draws} / <i class="l">${p.losses}</i></span>`;
     const no = row.querySelector('.rank-no');
     if (p.medal) no.appendChild(medalEl(p.medal)); else no.textContent = p.place;
-    row.querySelector('.nm').innerHTML = nameHtml(p.name, p.title, Profile.adminOf(p.uid)) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
+    row.querySelector('.nm').innerHTML = nameHtml(p.name, p.title) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
     setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: !!p.me, uid: p.uid }, 'w');
     box.appendChild(row);
   }

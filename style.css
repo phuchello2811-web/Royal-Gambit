@@ -2413,21 +2413,6 @@ button.tiny {
 #meName .title-badge, .player-name .title-badge, .pf-name .title-badge {
   margin-right: 4px;
 }
-/* Huy hiệu ADMIN cạnh tên (ai cũng thấy) */
-.role-badge.admin-tag {
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 0.6rem;
-  line-height: 1.4;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-.name-line { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; vertical-align: bottom; }
-.name-line > .name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name-line > .title-badge, .name-line > .admin-tag { flex: none; margin: 0; }
-/* Cột hẹp (bảng xếp hạng, bục trao giải): xuống dòng để tên không bị huy hiệu chiếm hết chỗ */
-.rank-name .name-line, .ps-name .name-line { flex-wrap: wrap; row-gap: 2px; }
-.ps-name .name-line { justify-content: center; }
 #adminCsv[hidden], .admin-hint[hidden] { display: none; }
 
 /* =========================================================

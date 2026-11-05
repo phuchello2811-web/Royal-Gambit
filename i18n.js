@@ -417,7 +417,7 @@ const I18N = (() => {
     'Mới chỉ có tài khoản ADMIN. Người khác cần đăng ký và vào web ít nhất một lần thì mới hiện ở đây.': 'Only the ADMIN account exists. Others appear here after signing up and opening the site once.',
     'Máy chủ từ chối: chỉ chủ web và admin mới cấp được danh hiệu. Hãy dán luật Firebase mới (mục "titles") rồi Publish.': 'Denied by the server: only the owner and admins can grant titles. Paste the new Firebase rules (titles section) and Publish.',
     'Với quyền admin, bạn có thể mute chat người chơi, cấp / gỡ danh hiệu và đăng thông báo toàn web. Bạn không mute được admin khác và chủ web.': 'As an admin, you can mute players, grant or remove titles and post site-wide announcements. You cannot mute other admins or the owner.',
-    'Người chơi này là admin': 'This player is an admin', 'Có lỗi, thử lại. Hãy Publish luật Firebase mới (mục titles).': 'Error, try again. Publish the new Firebase rules (titles section).',
+ 'Có lỗi, thử lại. Hãy Publish luật Firebase mới (mục titles).': 'Error, try again. Publish the new Firebase rules (titles section).',
     'Chỉ admin / chủ web mới mute được. Hãy dán luật Firebase mới (có mục "mutes") rồi Publish.': 'Only admins / the owner can mute. Paste the new Firebase rules (with "mutes") and Publish.',
     'Máy chủ từ chối: hãy dán luật Firebase mới (có mục "admins") và bấm Publish.': 'Denied by the server: paste the new Firebase rules (with "admins") and press Publish.',
     'Chế độ cục bộ: chỉ thấy tài khoản tạo trên trình duyệt này, người chơi ở máy khác sẽ không hiện ở đây (bật Firebase: xem README).': 'Local mode: only accounts created in this browser are listed (enable Firebase: see README).',
