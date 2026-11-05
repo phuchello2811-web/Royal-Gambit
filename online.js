@@ -306,17 +306,19 @@ const Online = (() => {
   // Lời chào do trình duyệt đối thủ tự khai. Bản Firebase: lấy Elo, exp và danh hiệu thật từ máy chủ
   // (Elo đối thủ quyết định mình được / mất bao nhiêu Elo). uid giả hoặc không khớp tên thì giữ số liệu trong lời chào.
   // Mỗi đối thủ chỉ kiểm tra một lần; ván chơi lại sau đó dùng Elo mới trong lời chào (máy chủ có thể chưa kịp cập nhật).
-  let verified = { uid: '', title: '', frame: '' };
+  let verified = { uid: '', title: '', frame: '', admin: false, owner: false };
   async function verifyOpp() {
     const id = opp.uid, name = opp.name;
     if (!Profile.remote || !id || typeof Profile.player !== 'function') return;
-    if (verified.uid === id) { opp.title = verified.title; opp.frame = verified.frame; return; }
-    verified = { uid: id, title: opp.title, frame: '' };
+    if (verified.uid === id) { opp.title = verified.title; opp.frame = verified.frame; opp.admin = verified.admin; opp.owner = verified.owner; return; }
+    verified = { uid: id, title: opp.title, frame: '', admin: false, owner: false };
     let p = null;
     try { p = await Profile.player(id); } catch { return; }
     if (!p || opp.uid !== id || opp.name !== name || p.name.toLowerCase() !== name.toLowerCase()) return;
     verified.title = opp.title = p.title || '';
     verified.frame = opp.frame = p.frame || ''; // khung lấy từ máy chủ sau khi đã khớp tài khoản, không tin lời chào
+    verified.admin = opp.admin = !!p.admin;     // huy hiệu ADMIN cũng chỉ lấy từ máy chủ
+    verified.owner = opp.owner = !!p.owner;
     opp.exp = p.exp;
     opp.elo = p.elo;
     render();
@@ -1016,7 +1018,7 @@ const Online = (() => {
     startedAt = 0;
     $('rematch').hidden = false;
     opp = { name: 'Đối thủ', exp: 0, elo: 800, photo: '', uid: '', title: '' };
-    verified = { uid: '', title: '', frame: '' };
+    verified = { uid: '', title: '', frame: '', admin: false, owner: false };
   }
 
   // ---- Tìm trận tự động ----
@@ -1344,8 +1346,8 @@ const Online = (() => {
 
   function player(c) {
     if (!color) return { name: 'Người chơi ' + COLOR_NAME[c], rank: null, pieceAv: true };
-    if (c === color) { const me = Profile.me(); return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid() }; }
-    return { name: opp.name, rank: Profile.rankOf(opp.exp), elo: opp.elo, photo: opp.photo, title: opp.title || '', frame: opp.frame || '' };
+    if (c === color) { const me = Profile.me(); return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid(), admin: Profile.isGrantedAdmin() }; }
+    return { name: opp.name, rank: Profile.rankOf(opp.exp), elo: opp.elo, photo: opp.photo, title: opp.title || '', frame: opp.frame || '', admin: !!opp.admin };
   }
 
   // Kết quả ván để tính Elo: { score, reason } hoặc null nếu ván chưa xong
@@ -1422,7 +1424,9 @@ const Online = (() => {
   async function refreshMuteBtn() {
     const btn = $('muteOpp');
     if (btn) {
-      const show = state === 'playing' && !left && Profile.isAdmin() && opp.name && opp.name !== 'Đối thủ';
+      // Admin không mute được chủ web và admin khác; chủ web không tự mute mình (luật Firebase cũng chặn ở máy chủ)
+      const allowed = Profile.isOwner() ? !opp.owner : Profile.isAdmin() && !opp.owner && !opp.admin;
+      const show = state === 'playing' && !left && allowed && opp.name && opp.name !== 'Đối thủ';
       btn.hidden = !show;
       if (!show) {
         delete btn.dataset.done;

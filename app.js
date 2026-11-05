@@ -809,7 +809,7 @@ function playerInfo(c) {
   if (mode === 'play' && aiColor !== 'none') {
     if (c === aiColor) { const b = botOf(gameLevel); return { name: `${b.name} · Máy`, rank: null, elo: BOT_ELO[gameLevel], bot: true, botPiece: b.piece }; }
     const me = Profile.me();
-    return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid() };
+    return { name: me.name, rank: Profile.rankOf(me.exp), elo: me.elo, photo: me.photo, me: true, title: me.title || '', uid: Profile.uid(), admin: Profile.isGrantedAdmin() };
   }
   return { name: 'Người chơi ' + COLOR_NAME[c], rank: null, pieceAv: true };
 }
@@ -821,6 +821,13 @@ function titleBadge(title) {
   const t = escapeHtml(String(title || '').trim().toUpperCase()); // danh hiệu có thể do đối thủ Online tự gửi tới
   if (!t) return '';
   return `<span class="title-badge" title="Danh hiệu ${t}">${t}</span>`;
+}
+// Tên kèm danh hiệu phía trước và huy hiệu ADMIN phía sau (ai cũng thấy)
+function nameHtml(name, title, admin) {
+  const badge = title ? titleBadge(title) : '';
+  if (!admin) return (badge ? badge + ' ' : '') + escapeHtml(name);
+  // Tên dài thì rút gọn phần tên, huy hiệu luôn hiện đủ
+  return `<span class="name-line">${badge}<span class="name-text">${escapeHtml(name)}</span><span class="role-badge admin-tag" title="Người chơi này là admin">Admin</span></span>`;
 }
 function displayName(name, title) {
   const t = String(title || '').trim().toUpperCase();
@@ -923,11 +930,11 @@ function renderPlayers() {
     const info = playerInfo(c);
     const slot = playerCache[pos] || (playerCache[pos] = {});
     const skin = document.body.dataset.pieces || '';
-    const infoKey = [c, skin, info.frame != null ? info.frame : Profile.frameOf(info.uid), info.name, info.title, info.rank && info.rank.text, info.rank && info.rank.color, info.elo, info.bot, info.botPiece, info.pieceAv, info.me].join('|');
+    const infoKey = [c, skin, info.frame != null ? info.frame : Profile.frameOf(info.uid), info.name, info.title, info.admin, info.rank && info.rank.text, info.rank && info.rank.color, info.elo, info.bot, info.botPiece, info.pieceAv, info.me].join('|');
     if (slot.info !== infoKey || slot.photo !== info.photo) {
       slot.info = infoKey;
       slot.photo = info.photo;
-      $(pos + 'Name').innerHTML = (info.title ? titleBadge(info.title) + ' ' : '') + escapeHtml(info.name);
+      $(pos + 'Name').innerHTML = nameHtml(info.name, info.title, info.admin);
       const ratingEl = $(pos + 'Rating');
       if (info.rank) {
         ratingEl.innerHTML = `<span class="player-rank">${rankMedalOnly(info.rank)}<span style="color:${info.rank.color}">${info.rank.text}</span></span>`
@@ -965,7 +972,7 @@ function renderPlayers() {
 
 function renderHeader() {
   const me = Profile.me();
-  $('meName').innerHTML = (me.title ? titleBadge(me.title) + ' ' : '') + escapeHtml(me.name);
+  $('meName').innerHTML = nameHtml(me.name, me.title, Profile.isGrantedAdmin());
   const rank = Profile.rankOf(me.exp);
   const medal = rankMedalOnly(rank);
   // Nút Rank: ngôi sao như bản gốc (không dùng huy hiệu tròn)
@@ -988,9 +995,9 @@ function renderHeader() {
   document.body.dataset.relief = view === 'flat' ? 'off' : 'on'; // bàn cờ nổi 3D (mặc định bật)
   document.body.dataset.tilt = view === 'tilt' ? 'on' : 'off';    // góc nhìn nghiêng 3D (mặc định tắt), luôn kèm khung nổi
   applyTilt();
-  // Chỉ tài khoản ADMIN thấy tab Admin; admin có nút Gợi ý Stockfish 19 khi đấu với máy
+  // Chủ web và admin thấy tab Admin (admin có mute chat, cấp danh hiệu và thông báo toàn web); admin có nút Gợi ý Stockfish 19 khi đấu với máy
   const staff = Profile.isAdmin();
-  $('adminTab').hidden = !Profile.isOwner();
+  $('adminTab').hidden = !staff;
   if ($('keyEngine')) $('keyEngine').hidden = !Profile.isAdmin(); // phím A (bảng phân tích): chỉ admin
 }
 
@@ -2649,7 +2656,7 @@ function renderHome() {
   setAvatar($('hmAvatar'), { name: me.name, photo: me.photo, me: true, uid: Profile.uid() }, 'w');
   const h = new Date().getHours();
   $('hmGreet').textContent = h < 5 ? 'Chúc một đêm nhiều nước hay' : h < 11 ? 'Chào buổi sáng' : h < 14 ? 'Chào buổi trưa' : h < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
-  $('hmName').innerHTML = (me.title ? titleBadge(me.title) + ' ' : '') + escapeHtml(me.name);
+  $('hmName').innerHTML = nameHtml(me.name, me.title, Profile.isGrantedAdmin());
   const pct = rank.top ? 100 : Math.round(100 * rank.inStar / R.perStar);
   $('hmRank').innerHTML = `<button type="button" class="hm-rank-btn" title="Xem luật rank">${rankMedalOnly(rank)}
       <span class="hm-rank-text"><b style="color:${rank.color}">${rank.name}</b><span class="rk-stars">${starsHTML(rank)}</span></span></button>
@@ -2868,7 +2875,7 @@ async function loadHomeTop() {
     b.className = 'hm-top-row' + (r.me ? ' me' : '') + (i < 3 ? ' p' + (i + 1) : '');
     b.innerHTML = `<span class="hm-top-pos">${i + 1}</span><span class="avatar"></span><span class="hm-top-name"></span><span class="hm-top-elo">${r.elo || 0}</span>`;
     setAvatar(b.querySelector('.avatar'), { name: r.name, photo: r.photo, me: r.me, uid: r.uid }, 'w');
-    b.querySelector('.hm-top-name').innerHTML = (r.title ? titleBadge(r.title) + ' ' : '') + escapeHtml(r.name);
+    b.querySelector('.hm-top-name').innerHTML = nameHtml(r.name, r.title, r.admin);
     b.addEventListener('click', () => openProfile(r.uid));
     box.appendChild(b);
   };
@@ -2913,7 +2920,7 @@ document.querySelector('.topbar .brand').addEventListener('click', e => {
   openHome();
 });
 
-const selfPlayer = () => ({ ...Profile.me(), uid: Profile.uid(), me: true, owner: Profile.isOwner(), lastGame: 0 });
+const selfPlayer = () => ({ ...Profile.me(), uid: Profile.uid(), me: true, owner: Profile.isOwner(), admin: Profile.isGrantedAdmin(), lastGame: 0 });
 
 async function loadProfilePage(id, fresh = false) {
   const token = ++pfToken;
@@ -2978,10 +2985,9 @@ function renderProfilePage(p, hist) {
   $('profileAvatar').classList.toggle('editable', !!p.me);
   $('profileAvatar').title = p.me ? 'Đổi ảnh đại diện' : '';
   $('pfAvatarEdit').hidden = !p.me;
-  $('pfName').innerHTML = (p.title ? titleBadge(p.title) + ' ' : '') + escapeHtml(p.name);
+  $('pfName').innerHTML = nameHtml(p.name, p.title, p.admin);
   const chips = [];
   if (p.owner) chips.push('<span class="role-badge">Chủ web</span>');
-  else if (p.me && Profile.isAdmin()) chips.push('<span class="role-badge">Admin</span>');
   if (p.me) chips.push('<span class="pf-chip">Bạn</span>');
   $('pfChips').innerHTML = chips.join('');
   $('pfRankLine').innerHTML = `${rankMedalOnly(rank)}<b style="color:${rank.color}">${rank.name}</b>
@@ -4300,7 +4306,7 @@ function renderLeaderboard() {
       b.className = 'podium-step ' + MEDAL_CLS[i + 1] + (p.me ? ' me' : '');
       b.innerHTML = '<span class="avatar"></span><b class="ps-name"></b><small></small><span class="ps-block"></span>';
       setAvatar(b.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid }, 'w');
-      b.querySelector('.ps-name').innerHTML = (p.title ? titleBadge(p.title) + ' ' : '') + escapeHtml(p.name);
+      b.querySelector('.ps-name').innerHTML = nameHtml(p.name, p.title, p.admin);
       b.querySelector('small').textContent = lbValue(p);
       b.querySelector('.ps-block').appendChild(medalEl(i + 1));
       b.title = `Xem hồ sơ ${p.name}`;
@@ -4351,7 +4357,7 @@ function renderLeaderboard() {
         row.querySelector('.rank-name').appendChild(ms);
       }
     }
-    row.querySelector('.nm').innerHTML = (p.title ? titleBadge(p.title) + ' ' : '') + escapeHtml(p.name) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
+    row.querySelector('.nm').innerHTML = nameHtml(p.name, p.title, p.admin) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
     setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: true, uid: p.uid }, 'w');
     list.appendChild(row);
   }
@@ -4367,12 +4373,16 @@ function lbGap(above, me) {
 for (const b of document.querySelectorAll('#lbTabs button')) b.addEventListener('click', () => { lbBy = b.dataset.by; loadLeaderboard(); });
 $('lbSearch').addEventListener('input', renderLeaderboard);
 
-// ---------------- Bảng quản trị (chỉ tài khoản ADMIN) ----------------
+// ---------------- Bảng quản trị (chủ web: đầy đủ; admin: mute chat, cấp danh hiệu, thông báo toàn web) ----------------
 
 let adminRows = [];
 
 async function openAdmin() {
-  if (!Profile.isOwner()) return;
+  if (!Profile.isAdmin()) return;
+  const owner = Profile.isOwner();
+  $('adminCsv').hidden = !owner;
+  $('adminHintOwner').hidden = !owner;
+  $('adminHintStaff').hidden = owner;
   openModal('adminModal');
   muteFormFor = null;
   $('adminSearch').value = '';
@@ -4387,7 +4397,7 @@ async function openAdmin() {
     const { rows, adminsDenied } = await Profile.listPlayers();
     adminRows = rows;
     renderAdminList();
-    if (adminsDenied) {
+    if (adminsDenied && owner) {
       $('adminMsg').className = 'admin-msg err';
       $('adminMsg').textContent = 'Chưa đọc được danh sách admin: hãy dán luật Firebase mới (có mục "admins") rồi bấm Publish. Tới lúc đó nút cấp / thu hồi chưa hoạt động.';
     }
@@ -4453,6 +4463,7 @@ function renderAdminList() {
   }[sort] || (() => 0);
   const rows = adminRows.filter(p => (!q || p.name.toLowerCase().includes(q)) && filters[adminFilter](p)).sort(cmp);
   const list = $('adminList');
+  const isOwnerView = Profile.isOwner(); // danh sách của admin chỉ có danh hiệu và mute; không đụng tới chủ web và admin khác
   list.innerHTML = '';
   for (const p of rows) {
     const row = document.createElement('div');
@@ -4461,8 +4472,8 @@ function renderAdminList() {
     row.innerHTML = `<button type="button" class="admin-who" title="Xem hồ sơ"><span class="avatar"></span>
         <span class="admin-name"><b></b><small></small><small class="admin-mute-info"></small></span></button>
       <div class="admin-actions"></div>`;
-    row.querySelector('b').innerHTML = (p.title ? titleBadge(p.title) + ' ' : '') + escapeHtml(p.name) + (p.me ? ' <span class="muted">(bạn)</span>' : '')
-      + (p.owner ? ' <span class="role-badge">Chủ web</span>' : p.admin ? ' <span class="role-badge">Admin</span>' : '');
+    row.querySelector('b').innerHTML = nameHtml(p.name, p.title, p.admin && !p.owner) + (p.me ? ' <span class="muted">(bạn)</span>' : '')
+      + (p.owner ? ' <span class="role-badge">Chủ web</span>' : '');
     row.querySelector('small').innerHTML = `<span style="color:${r.color}">${r.name}</span> · ${p.elo} Elo · ${p.games} ván${p.lastGame ? ` · ${timeAgo(p.lastGame)}` : ''}`;
     const mi = row.querySelector('.admin-mute-info');
     mi.textContent = p.muted ? muteText(p.muteInfo) : '';
@@ -4476,9 +4487,9 @@ function renderAdminList() {
     sel.title = 'Cấp danh hiệu (GM, IM, …)';
     sel.innerHTML = '<option value="">Danh hiệu</option>' + (Profile.TITLES || []).map(t => `<option value="${t}" ${p.title === t ? 'selected' : ''}>${t}</option>`).join('');
     sel.addEventListener('change', () => setPlayerTitle(p, sel));
-    acts.appendChild(sel);
+    if (isOwnerView || !p.owner) acts.appendChild(sel);
 
-    if (!p.owner) {
+    if (isOwnerView && !p.owner) {
       const fb = document.createElement('button');
       fb.type = 'button';
       fb.className = p.frames && p.frames.length ? 'act-on' : 'act-plain';
@@ -4487,7 +4498,7 @@ function renderAdminList() {
       fb.addEventListener('click', () => openFrameGrant(p));
       acts.appendChild(fb);
     }
-    if (!p.me && !p.owner) {
+    if (!p.me && !p.owner && (isOwnerView || !p.admin)) {
       const m = document.createElement('button');
       m.type = 'button';
       m.className = p.muted ? 'act-on' : 'act-danger';
@@ -4499,7 +4510,7 @@ function renderAdminList() {
       });
       acts.appendChild(m);
     }
-    if (!p.owner) {
+    if (isOwnerView && !p.owner) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = p.admin ? 'act-plain' : 'act-on';
@@ -4755,6 +4766,7 @@ function renderFrameChoices() {
 }
 // Tải lại khung của mọi người; báo khi vừa được chủ web cấp khung mới
 async function refreshFrames() {
+  Profile.refreshAdmin(); // cập nhật huy hiệu ADMIN; người vừa được cấp / thu hồi quyền thấy tab Admin đổi theo
   try {
     if (Profile.uid() && !Profile.isGuest()) await Profile.loadMyFrames(); else await Profile.loadFrames();
   } catch { return; }
@@ -4786,7 +4798,7 @@ async function setPlayerTitle(p, sel) {
     renderAdminList();
   } catch (err) {
     msg.className = 'admin-msg err';
-    msg.textContent = err.message === 'DENIED' ? 'Chỉ chủ web (tài khoản admin) mới cấp được danh hiệu.'
+    msg.textContent = err.message === 'DENIED' ? 'Máy chủ từ chối: chỉ chủ web và admin mới cấp được danh hiệu. Hãy dán luật Firebase mới (mục "titles") rồi Publish.'
       : err.message === 'NETWORK' ? AUTH_ERRORS.NETWORK
       : 'Có lỗi, thử lại. Hãy Publish luật Firebase mới (mục titles).';
     sel.value = p.title || '';
@@ -5122,7 +5134,7 @@ function renderContestBoard() {
       <span class="wdl"><i class="w">${p.wins}</i> / ${p.draws} / <i class="l">${p.losses}</i></span>`;
     const no = row.querySelector('.rank-no');
     if (p.medal) no.appendChild(medalEl(p.medal)); else no.textContent = p.place;
-    row.querySelector('.nm').innerHTML = (p.title ? titleBadge(p.title) + ' ' : '') + escapeHtml(p.name) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
+    row.querySelector('.nm').innerHTML = nameHtml(p.name, p.title, Profile.adminOf(p.uid)) + (p.me ? ' <span class="muted">(bạn)</span>' : '');
     setAvatar(row.querySelector('.avatar'), { name: p.name, photo: p.photo, me: !!p.me, uid: p.uid }, 'w');
     box.appendChild(row);
   }

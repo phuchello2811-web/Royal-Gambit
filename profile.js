@@ -17,6 +17,7 @@
 // Quyền admin: tài khoản tên ADMIN (OWNER) là chủ web, chỉ chủ web cấp / thu hồi được quyền admin.
 //   Firebase: quyền lưu ở /admins/<uid> = true, luật server chỉ cho email admin@rg-user.app ghi vào đó.
 //   Admin có bảng phân tích Stockfish 19 (vẫn tính Elo / rank). Gợi ý thì ai dùng cũng không tính Elo; ván Online không có Gợi ý.
+//   /admins công khai để ai cũng thấy huy hiệu ADMIN cạnh tên. Bảng quản trị của admin có mute chat, cấp danh hiệu và thông báo toàn web.
 
 const Profile = (() => {
   const PREFS_KEY = 'covua-prefs';
@@ -79,6 +80,7 @@ const Profile = (() => {
   let me = guest();
   let signedIn = false;
   let adminFlag = false;             // đã được chủ web cấp quyền admin
+  let adminMap = {};                 // { uid: true } những người được cấp quyền, để hiện huy hiệu ADMIN
   let auth = read(AUTH_KEY, null);   // Firebase: { uid, idToken, refreshToken, expires, name }
   let localKey = null;               // cục bộ: tên đăng nhập viết thường
   let queue = Promise.resolve();
@@ -857,6 +859,7 @@ const Profile = (() => {
           .catch(e => by === 'elo' ? call(`${db}/players.json?orderBy=%22exp%22&limitToLast=100`) : Promise.reject(e)),
         photos(),
         titlesMap(),
+        loadAdmins(),
       ]);
       photosMap = ph;
       titlesData = ti || {};
@@ -864,6 +867,7 @@ const Profile = (() => {
     } else {
       photosMap = await photos();
       titlesData = await titlesMap();
+      await loadAdmins();
       rows = Object.entries(read(USERS_KEY, {})).map(([key, p]) => ({ ...p, uid: key, me: key === localKey }));
     }
     return rows
@@ -873,6 +877,7 @@ const Profile = (() => {
         games: p.games, wins: p.wins || 0, draws: p.draws || 0, losses: p.losses || 0,
         photo: photoOf(p.uid, photosMap, p.me), me: p.me, lastGame: Number(p.lastGame) || 0,
         title: normalizeTitle(titlesData[p.uid] || ''),
+        admin: adminOf(p.uid),
       }))
       .sort(by === 'elo'
         ? (a, b) => b.elo - a.elo || b.exp - a.exp || a.name.localeCompare(b.name)
@@ -884,24 +889,27 @@ const Profile = (() => {
     id = String(id || '');
     if (!id) return null;
     const self = id === uid();
-    let d, photo = '', title = '', frame = '';
+    let d, photo = '', title = '', frame = '', admin = false;
     if (remote) {
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return null;
-      const [p, ph, ti, fr] = await Promise.all([
+      const [p, ph, ti, fr, ad] = await Promise.all([
         call(`${db}/players/${id}.json?ts=${Date.now()}`, { cache: 'no-store' }),
         self ? Promise.resolve(me.photo) : call(`${db}/photos/${id}.json`).catch(() => ''),
         call(`${db}/titles/${id}.json`).catch(() => ''),
         call(`${db}/frameOn/${id}.json`).catch(() => ''),
+        call(`${db}/admins/${id}.json`).catch(() => false),
       ]);
       d = p;
       photo = ph;
       title = ti;
       frame = fr;
+      admin = ad === true;
     } else {
       d = read(USERS_KEY, {})[id];
       photo = d && d.photo;
       title = read(TITLES_KEY, {})[id];
       frame = read(FRAME_ON_KEY, {})[id];
+      admin = !!(d && d.admin);
     }
     if (!d || typeof d.name !== 'string') return null;
     const int = v => Math.max(0, Math.floor(Number(v) || 0));
@@ -914,6 +922,7 @@ const Profile = (() => {
       title: normalizeTitle(title),
       frame: validFrame(frame),
       owner: d.name.toLowerCase() === OWNER,
+      admin: admin && d.name.toLowerCase() !== OWNER,
     };
   }
 
@@ -921,20 +930,33 @@ const Profile = (() => {
 
   const isOwner = () => signedIn && me.name.toLowerCase() === OWNER;
   const isAdmin = () => isOwner() || adminFlag;
+  const isGrantedAdmin = () => !isOwner() && adminFlag; // được cấp quyền (chủ web có huy hiệu riêng)
+  const adminOf = id => !!id && adminMap[id] === true;
+
+  // Danh sách admin công khai. Lỗi (mạng, luật Firebase cũ) thì giữ danh sách đang có.
+  async function loadAdmins() {
+    try {
+      if (remote) adminMap = (await call(`${db}/admins.json?ts=${Date.now()}`, { cache: 'no-store' })) || {};
+      else adminMap = Object.fromEntries(Object.entries(read(USERS_KEY, {})).filter(([, u]) => u && u.admin).map(([id]) => [id, true]));
+    } catch {}
+    return adminMap;
+  }
 
   // Đọc lại quyền admin (người vừa được cấp quyền không cần đăng nhập lại)
   async function refreshAdmin() {
+    await loadAdmins();
     if (!signedIn) return;
+    const was = adminFlag;
     try {
       if (remote) adminFlag = (await call(adminUrl(await token()))) === true;
       else adminFlag = !!(read(USERS_KEY, {})[localKey] || {}).admin;
     } catch {}
-    notify();
+    if (adminFlag !== was) notify();
   }
 
-  // Danh sách người chơi cho bảng quản trị (chỉ chủ web)
+  // Danh sách người chơi cho bảng quản trị (chủ web và admin)
   async function listPlayers() {
-    if (!isOwner()) throw new Error('DENIED');
+    if (!isAdmin()) throw new Error('DENIED');
     let rows, adminsDenied = false;
     let photosMap = {};
     let mutesData = {};
@@ -989,6 +1011,8 @@ const Profile = (() => {
       if (on) users[uid].admin = true; else delete users[uid].admin;
       write(USERS_KEY, users);
     }
+    if (on) adminMap = { ...adminMap, [uid]: true };
+    else { adminMap = { ...adminMap }; delete adminMap[uid]; }
   }
 
   // ---------- Mute chat (admin tắt chat người chơi tục tĩu) ----------
@@ -1075,7 +1099,7 @@ const Profile = (() => {
   }
 
 
-  // ---------- Thông báo toàn web (admin viết, mọi người thấy) ----------
+  // ---------- Thông báo toàn web (chủ web và admin viết, mọi người thấy) ----------
   // /announce = { text, kind: 'info' | 'warn' | 'event', by, at, until? }
   const ANNOUNCE_KEY = 'rg-announce';
   async function getAnnounce() {
@@ -1094,7 +1118,7 @@ const Profile = (() => {
     return body;
   }
 
-  // ---------- Danh hiệu (GM / IM / …) — chỉ chủ web ----------
+  // ---------- Danh hiệu (GM / IM / …) — chủ web và admin ----------
   async function titlesMap() {
     if (remote) {
       try { return (await call(`${db}/titles.json`)) || {}; } catch { return {}; }
@@ -1109,7 +1133,7 @@ const Profile = (() => {
   }
 
   async function setTitle(targetUid, title) {
-    if (!isOwner()) throw new Error('DENIED');
+    if (!isAdmin()) throw new Error('DENIED');
     if (!targetUid) throw new Error('SERVER');
     const t = normalizeTitle(title);
     if (remote) {
@@ -1235,7 +1259,7 @@ const Profile = (() => {
     email: () => notifyEmail(), provider: () => (auth && auth.provider) || (signedIn && !isGuest() ? 'password' : ''),
     register, login, restore, logout, changePassword,
     leaderboard, player, eloHistory, getAnnounce, setAnnounce,
-    isOwner, isAdmin, refreshAdmin, listPlayers, setAdmin, setMute, setMuteByName, isMuted, mutesMap, setTitle, titlesMap, loadMyTitle, TITLES,
+    isOwner, isAdmin, isGrantedAdmin, adminOf, loadAdmins, refreshAdmin, listPlayers, setAdmin, setMute, setMuteByName, isMuted, mutesMap, setTitle, titlesMap, loadMyTitle, TITLES,
     FRAME_KEYS, frameOf, loadFrames, grantsOf, allGrants, loadMyFrames, setMyFrame, setFrameGrant,
     rankOf,
     record,

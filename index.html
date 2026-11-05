@@ -37,7 +37,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700;900&display=swap">
-  <link rel="stylesheet" href="style.css?v=95">
+  <link rel="stylesheet" href="style.css?v=98">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -1150,7 +1150,7 @@
     </div>
   </div>
 
-  <!-- Bảng quản trị (chỉ tài khoản ADMIN thấy tab mở hộp này) -->
+  <!-- Bảng quản trị (chủ web: đầy đủ; admin được cấp quyền: mute chat, cấp danh hiệu, thông báo toàn web) -->
   <div id="adminModal" class="modal" hidden>
     <div class="modal-box admin-box">
       <button class="modal-close" data-close title="Đóng"><svg class="ic"><use href="#i-close"/></svg></button>
@@ -1188,7 +1188,8 @@
         <div id="adminFilters" class="lib-filters"></div>
         <p id="adminMsg" class="admin-msg" role="status"></p>
         <div class="admin-table"><div id="adminList"></div></div>
-        <p class="muted admin-hint">Chủ web cấp / thu hồi quyền admin và danh hiệu. Admin có bảng phân tích Stockfish 19 (ván vẫn tính Elo và rank; Gợi ý thì ai dùng cũng không tính Elo) và có thể <b>Mute chat</b> người chơi nói tục. Cần luật Firebase có mục <code>mutes</code> và <code>titles</code> (xem file firebase-rules.json).</p>
+        <p id="adminHintStaff" class="muted admin-hint" hidden>Với quyền admin, bạn có thể mute chat người chơi, cấp / gỡ danh hiệu và đăng thông báo toàn web. Bạn không mute được admin khác và chủ web.</p>
+        <p id="adminHintOwner" class="muted admin-hint">Chủ web cấp / thu hồi quyền admin và danh hiệu. Admin có bảng phân tích Stockfish 19 (ván vẫn tính Elo và rank; Gợi ý thì ai dùng cũng không tính Elo) và có thể <b>Mute chat</b> người chơi nói tục. Cần luật Firebase có mục <code>mutes</code> và <code>titles</code> (xem file firebase-rules.json).</p>
       </div>
 
       <div id="adminAnnounce" class="admin-pane" hidden>
@@ -1382,18 +1383,18 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=54"></script>
+  <script src="i18n.js?v=56"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=9"></script>
   <script src="config.js?v=17"></script>
-  <script src="profile.js?v=30"></script>
+  <script src="profile.js?v=32"></script>
   <script src="contest.js?v=15"></script>
   <script src="sound.js?v=14"></script>
   <script src="lessons.js?v=14"></script>
   <script src="lessons-en.js?v=2"></script>
   <script src="learn.js?v=19"></script>
-  <script src="online.js?v=33"></script>
+  <script src="online.js?v=34"></script>
   <script src="library.js?v=9"></script>
   <script src="coach.js?v=6"></script>
   <script src="puzzles.js?v=11"></script>
@@ -1403,6 +1404,6 @@
   <script src="cloudai.js?v=5"></script>
   <script src="assistant.js?v=10"></script>
   <script src="pwa.js?v=3"></script>
-  <script src="app.js?v=78"></script>
+  <script src="app.js?v=80"></script>
 </body>
 </html>
