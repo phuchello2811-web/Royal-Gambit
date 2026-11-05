@@ -851,7 +851,7 @@ const FRAMES = [
 ];
 const frameInfo = k => FRAMES.find(f => f[0] === k);
 // Quầng sáng rộng hơn avatar bao nhiêu % ở mỗi khung (đo trên ảnh): mép quầng phải khuất dưới viền, nếu không phần giữa lộ thành mảng tối
-const GLOW_INSET = { crown: 5, dragon: 6, frost: 0, neon: 0, galaxy: 1, forest: 5, thunder: 2, checker: 7, gambit: 6 };
+const GLOW_INSET = { crown: 5, dragon: 6, frost: 2, neon: 4, galaxy: 2, forest: 5, thunder: 5, checker: 7, gambit: 6 };
 function applyFrame(el, key) {
   const f = frameInfo(key);
   for (const old of el.querySelectorAll(':scope > .av-frame, :scope > .av-glow')) old.remove();
@@ -863,7 +863,7 @@ function applyFrame(el, key) {
   glow.style.inset = `-${GLOW_INSET[f[0]] || 0}%`;
   const img = document.createElement('img');
   img.className = 'av-frame';
-  img.src = `img/frames/${f[0]}.${f[4] || 'svg'}?v=9`; // đổi số khi vẽ lại khung, để trình duyệt không dùng ảnh cũ
+  img.src = `img/frames/${f[0]}.${f[4] || 'svg'}?v=10`; // đổi số khi vẽ lại khung, để trình duyệt không dùng ảnh cũ
   img.alt = '';
   // Không tải được ảnh khung (chưa đẩy thư mục img/frames lên web, mất mạng lần đầu…): bỏ khung, không để lộ icon ảnh vỡ
   img.onerror = () => {
