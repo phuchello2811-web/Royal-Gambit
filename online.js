@@ -17,6 +17,7 @@ const Online = (() => {
   // Nhịp tim: hai bên gửi 'ping' mỗi 2 giây. Im lặng 5 giây = mất kết nối (hiện đếm ngược);
   // vắng mặt quá 15 giây = xử thua. Kết nối WebRTC nhiều khi không báo 'close' khi đối thủ đóng tab / mất mạng.
   const HB_EVERY = 2000, HB_SILENT = 5000, FORFEIT_MS = 15000;
+  const FORFEIT_TRUST = 30000; // lời báo "bạn đã vắng mặt" chỉ được tin nếu mình vừa mất tín hiệu trong khoảng này
   const PENDING_KEY = 'rg-online-forfeit';
   // Đồng hồ: 'phút+giây cộng mỗi nước'. Tìm trận chỉ ghép người chọn cùng thời gian (mỗi mức một phòng chờ;
   // 'none' dùng phòng chờ cũ 'mm-main' nên vẫn ghép được với bản web chưa có đồng hồ). Contest: 10 phút mỗi bên.
@@ -46,6 +47,7 @@ const Online = (() => {
   let goneAt = 0;          // lúc đối thủ bị coi là đã thoát (0 = vẫn đang kết nối)
   let oppHb = false;       // đối thủ dùng bản web có nhịp tim (bản cũ thì chỉ dựa vào sự kiện đóng kết nối)
   let hbTimer = null, hbTick = 0;
+  let quietAt = 0;         // lần gần nhất mình thật sự vắng tín hiệu của đối thủ từ HB_SILENT trở lên (hoặc trang mình bị treo)
   let lostAt = 0;          // lúc đường truyền bắt đầu đứt giữa ván (để chỉnh đồng hồ khi nối lại)
   let oppArb = false;      // đối thủ dùng bản web có trọng tài
   let arbBase = '';        // mã trận (chủ phòng tạo, gửi kèm lệnh 'start'); mỗi ván chơi lại thêm số thứ tự
@@ -83,6 +85,20 @@ const Online = (() => {
 
   function info(text) { $('onlineInfo').textContent = text || ''; }
 
+  // Tab đang ẩn: tiêu đề báo tới lượt / đã có đối thủ / ván đã xong, để người chơi không để hết giờ khi xem tab khác
+  const BASE_TITLE = document.title;
+  function updateTitle() {
+    let note = '';
+    if (document.hidden && state === 'playing' && color) {
+      if (outcome()) note = 'Ván đã kết thúc';
+      else if (canMove()) note = 'Tới lượt bạn';
+      else if (!game.history.length) note = 'Đã có đối thủ';
+    }
+    const text = note ? `● ${typeof I18N !== 'undefined' ? I18N.t(note) : note} – ${BASE_TITLE}` : BASE_TITLE;
+    if (document.title !== text) document.title = text;
+  }
+  document.addEventListener('visibilitychange', updateTitle);
+
   function setState(s) {
     state = s;
     $('onlineLobby').hidden = s !== 'idle';
@@ -97,10 +113,12 @@ const Online = (() => {
     }
     renderOffer();
     render();
+    updateTitle();
     try { refreshMuteBtn(); } catch {}
   }
 
-  async function create() {
+  function create() { if (state === 'idle') openRoom(); }
+  async function openRoom() {
     isHost = true;
     info('');
     setState('connecting');
@@ -119,6 +137,7 @@ const Online = (() => {
   }
 
   async function join(raw) {
+    if (state !== 'idle') return; // nhấn Enter hai lần: không mở kết nối thứ hai (phòng sẽ báo đã đủ người)
     code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code.length !== 6) return info('Mã phòng gồm 6 ký tự.');
     isHost = false;
@@ -364,7 +383,7 @@ const Online = (() => {
   function onPeerError(err) {
     if (err.type === 'unavailable-id' && isHost) { // trùng mã phòng, tạo mã khác
       peer.destroy(); peer = null;
-      return create();
+      return openRoom();
     }
     const messages = {
       'peer-unavailable': 'Không tìm thấy phòng. Kiểm tra lại mã phòng.',
@@ -617,6 +636,7 @@ const Online = (() => {
         break;
       case 'forfeit': // đối thủ báo mình đã vắng quá 15 giây
         if (state !== 'playing' || result || voided || game.isGameOver()) return;
+        if (Date.now() - quietAt > FORFEIT_TRUST) return; // mình vẫn nhận tin của họ đều đặn: lời báo này không đúng
         result = { text: 'Bạn mất kết nối quá 15 giây – xử thua', reason: 'Mất kết nối quá 15 giây', score: 0 };
         chat(null, 'Bạn đã vắng mặt quá 15 giây nên bị xử thua.');
         render();
@@ -641,6 +661,7 @@ const Online = (() => {
         sentDraw = false;                        // và coi như từ chối lời xin hòa của mình
         renderOffer();
         render();
+        updateTitle();
         break;
       }
       case 'flag': // đối thủ báo họ đã hết giờ
@@ -739,7 +760,9 @@ const Online = (() => {
   // ---- Nhịp tim & xử thua khi vắng mặt ----
 
   function seen() {
-    lastSeen = Date.now();
+    const now = Date.now();
+    if (lastSeen && now - lastSeen >= HB_SILENT) quietAt = now;
+    lastSeen = now;
     if (goneAt && !left && state === 'playing') { // đối thủ kết nối lại kịp trước 15 giây
       goneAt = 0;
       judging = null;
@@ -763,6 +786,7 @@ const Online = (() => {
     stopHeartbeat();
     lastSeen = hbTick = Date.now();
     goneAt = 0;
+    quietAt = 0;
     hbTimer = setInterval(heartbeat, 1000);
   }
   function stopHeartbeat() { clearInterval(hbTimer); hbTimer = null; goneAt = 0; }
@@ -772,6 +796,8 @@ const Online = (() => {
     hbTick = now;
     if (state !== 'playing') return stopHeartbeat();
     const live = !result && !game.isGameOver();
+    if (!live && offer === 'draw') { offer = null; renderOffer(); } // ván đã xong: đóng hộp xin hòa
+    updateTitle();
     // Trang của MÌNH bị treo (điện thoại khoá màn hình, chuyển app…): không đổ lỗi cho đối thủ
     if (gap > 3000) {
       if (live && gap > FORFEIT_MS && game.history.length >= 2) {
@@ -781,6 +807,7 @@ const Online = (() => {
         render();
         return;
       }
+      quietAt = now;
       lastSeen = Math.max(lastSeen, now); // vắng ngắn: cho đối thủ thêm thời gian
       if (!left) goneAt = 0;
     }
@@ -1127,7 +1154,7 @@ const Online = (() => {
     let rows = null;
     try { rows = await Profile.dbCall('matchq/' + s.key); } catch {}
     if (search !== s || !s.queue) return;
-    if (rows && s.since) queueTry(s, rows);
+    try { if (rows && s.since) queueTry(s, rows); } catch (e) { console.warn(e); } // lỗi một nhịp không được làm dừng việc tìm trận
     s.poll = setTimeout(() => queuePoll(s), QUEUE_POLL);
   }
 
@@ -1142,6 +1169,7 @@ const Online = (() => {
     if (!list.some(x => x.uid === me)) list.push({ uid: me, elo: Profile.me().elo, since: s.since, pid: s.pid });
     renderElo(s, now, list.length - 1);
     if (conn) return; // đang nối với một người
+    if (!peer || peer.disconnected) { rejoinNow(); return; } // rớt máy chủ trung gian: chưa nối được ai, nối lại đã
     const other = pairFor(list, me, now);
     if (!other) { s.expect = null; return; }
     if (me < other.uid) {
@@ -1277,14 +1305,19 @@ const Online = (() => {
       const t = document.createElement('span');
       t.textContent = text;
       p.appendChild(t);
-      log.appendChild(p);
-      log.scrollTop = log.scrollHeight;
+      addChatLine(log, p);
       return;
     } else {
       p.className = 'system';
     }
     p.appendChild(document.createTextNode(text));
+    addChatLine(log, p);
+  }
+  // Giữ tối đa CHAT_MAX dòng: bị spam hay ván rất dài thì trang vẫn nhẹ
+  const CHAT_MAX = 200;
+  function addChatLine(log, p) {
     log.appendChild(p);
+    while (log.children.length > CHAT_MAX) log.removeChild(log.firstChild);
     log.scrollTop = log.scrollHeight;
   }
 
@@ -1296,6 +1329,7 @@ const Online = (() => {
 
   function answerOffer(yes) {
     if (offer === 'draw') {
+      if (result || game.isGameOver()) yes = false; // ván đã xong: không đổi kết quả nữa
       send({ t: yes ? 'draw-accept' : 'draw-decline' });
       if (yes) result = { text: 'Hòa – hai bên đồng ý', reason: 'Hai bên đồng ý hòa', score: 0.5 };
       offer = null;
@@ -1317,6 +1351,7 @@ const Online = (() => {
 
   function sendMove(m) {
     clockAfterMove(color);
+    if (offer === 'draw') { offer = null; renderOffer(); } // đi tiếp là từ chối: bên kia cũng đã huỷ lời xin hòa khi nhận nước này
     send({ t: 'move', from: m.from, to: m.to, promotion: m.promotion || null, left: clk ? Math.round(clk[color]) : undefined });
   }
 
@@ -1390,6 +1425,7 @@ const Online = (() => {
   });
   $('offerDraw').addEventListener('click', () => {
     if (result || left || game.isGameOver()) return;
+    if (sentDraw) { chat(null, 'Bạn đã xin hòa, đang chờ đối thủ trả lời.'); return; }
     sentDraw = true;
     send({ t: 'draw-offer' });
     chat(null, 'Đã gửi lời xin hòa.');
@@ -1397,6 +1433,7 @@ const Online = (() => {
   $('rematch').addEventListener('click', () => {
     if (left || contestId || state !== 'playing') return;
     if (!outcome()) { chat(null, 'Chỉ mời được ván mới khi ván hiện tại đã kết thúc.'); return; }
+    if (sentRematch) return; // đã mời, đang chờ trả lời
     sentRematch = true;
     send({ t: 'rematch' });
     chat(null, 'Đã gửi lời mời chơi ván mới.');
@@ -1415,6 +1452,7 @@ const Online = (() => {
         return;
       }
     } catch {}
+    if (!conn || !conn.open) { chat(null, 'Chưa gửi được tin nhắn: đang mất kết nối.'); return; } // giữ lại chữ trong ô để gửi lại
     send({ t: 'chat', text: text.slice(0, 200) });
     chat('Bạn', text.slice(0, 200));
     $('chatInput').value = '';
@@ -1488,6 +1526,7 @@ const Online = (() => {
     startedAt: () => startedAt,
     onFail: f => { hooks.fail = f; },
     oppElo: () => opp.elo,
+    selfGame: () => !!opp.uid && opp.uid === Profile.uid(), // cùng tài khoản ở hai tab / hai máy
     rematch: () => $('rematch').click(),
     // Còn "kết nối" cả trong 15 giây chờ đối thủ quay lại (để contest không vội ghép ván mới)
     connected: () => state === 'playing' && (!left || (!!goneAt && !result && !game.isGameOver())),

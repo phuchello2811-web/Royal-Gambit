@@ -222,6 +222,19 @@ const GameHistory = (() => {
     return s.replace(/\$\d+/g, ' ').replace(/\d+\.(\.\.)?/g, ' ').replace(/\.{2,}/g, ' ')
       .trim().split(/\s+/).filter(t => t && !['*', '1-0', '0-1', '1/2-1/2', '½-½'].includes(t));
   }
+  // Cách viết khác SAN chuẩn mà nhiều web / phần mềm xuất ra: e2e4, e2-e4, Ng1f3, Nb8-c6, ♘f3, e7e8q.
+  // Chỉ nhận khi đúng một nước hợp lệ khớp, mơ hồ hay sai thì trả về null như cũ.
+  const FIGURINE = { '♔': 'K', '♕': 'Q', '♖': 'R', '♗': 'B', '♘': 'N', '♚': 'K', '♛': 'Q', '♜': 'R', '♝': 'B', '♞': 'N', '♙': '', '♟': '' };
+  function looseMove(legal, want) {
+    const s = want.replace(/[♔♕♖♗♘♚♛♜♝♞♙♟]/g, c => FIGURINE[c]);
+    const p = /^([KQRBN])?([a-h])?([1-8])?[x:-]?([a-h][1-8])(?:=?([QRBNqrbn]))?$/.exec(s);
+    if (!p) return null;
+    const [, type, file, rank, to, promo] = p;
+    const hits = legal.filter(m => m.piece[1] === (type || 'P') && sqName(m.to) === to
+      && (!file || sqName(m.from)[0] === file) && (!rank || sqName(m.from)[1] === rank)
+      && (m.promotion || '') === (promo || '').toUpperCase());
+    return hits.length === 1 ? hits[0] : null;
+  }
   function playSan(g, san) {
     const want = String(san).replace(/[+#?!]/g, '').replace(/e\.p\.$/, '')
       .replace(/^0-0(-0)?$/, s => s.replace(/0/g, 'O'))          // 0-0 → O-O
@@ -229,7 +242,7 @@ const GameHistory = (() => {
       .replace(/^([a-h](?:x[a-h])?[18])=?([qrbnQRBN])$/, (m, a, p) => `${a}=${p.toUpperCase()}`); // e8Q → e8=Q
     const legal = g.legalMoves();
     // So SAN (bỏ dấu chiếu) trước rồi mới đi thật: không phải thử đi từng nước như trước
-    const m = legal.find(x => g._san(x, legal) === want);
+    const m = legal.find(x => g._san(x, legal) === want) || looseMove(legal, want);
     if (!m) return null;
     const mv = { from: m.from, to: m.to, promotion: m.promotion || undefined };
     return g.move(mv) ? mv : null;
@@ -575,5 +588,5 @@ const GameHistory = (() => {
     $('histSync').addEventListener('click', () => { if (!syncing) sync().then(ok => { if (ok && !$('histModal').hidden) render(); }); });
   }
 
-  return { save, update, read, open, bind, render, remove, clear, replay, runAnalysis, loadOnBoard, loadPosition, resultLabel, outcome, label, normalFen, sync, onChange: f => listeners.push(f) };
+  return { save, update, read, open, bind, render, remove, clear, replay, playSan, runAnalysis, loadOnBoard, loadPosition, resultLabel, outcome, label, normalFen, sync, onChange: f => listeners.push(f) };
 })();
