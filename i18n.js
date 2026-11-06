@@ -646,6 +646,40 @@ const I18N = (() => {
     "Trình duyệt đang chặn bộ nhớ web (chế độ ẩn danh hoặc chặn cookie). Tắt chế độ đó rồi thử lại.": "The browser is blocking site storage (private mode or blocked cookies). Turn that off and try again.",
     "Trình duyệt không giữ được kết quả đăng nhập Google. Hãy thử lại; nếu vẫn lỗi, chủ web nên đăng web lên Firebase Hosting (xem README).": "The browser lost the Google sign-in result. Try again; if it keeps failing, the site owner should host the site on Firebase Hosting (see README).",
     "Đăng nhập Google không thành công, thử lại sau.": "Google sign-in failed, please try again later.",
+
+    // ----- Bổ sung sau khi quét toàn web ở chế độ English -----
+    'Tìm trong thư viện kiến thức': 'Search the Knowledge Library', 'Bài học trong web': 'Lessons on this site', 'Mở web trước giờ bắt đầu để được ghép cặp:': 'Open the site before the start time to be paired:', 'Công tước Brunswick & Bá tước Isouard': 'Duke of Brunswick & Count Isouard',
+    'Chơi vài ván với máy hoặc Online: Stockfish 19 chấm từng nước và trợ lý sẽ tìm điểm yếu của bạn. Trong lúc chờ, đây là lộ trình theo tiến độ học.': 'Play a few games against the computer or online: Stockfish 19 grades every move and the assistant finds your weaknesses. Meanwhile, here is a plan based on your course progress.',
+    'Thiên Hà': 'Galaxy', 'Đổi Hậu': 'Queen trade', 'Thí Hậu': 'Queen sacrifice', 'Tên': 'Name', 'Hoạt động gần nhất': 'Last active', 'Có lỗi, thử lại.': 'Something went wrong, try again.',
+    'Ván cờ trên Royal Gambit': 'A game on Royal Gambit', 'Sao chép link này rồi mở bằng Chrome / Safari:': 'Copy this link, then open it in Chrome / Safari:', 'ứng dụng này': 'this app',
+    'Ván thắng cũng nên xem lại: tìm 1–2 chỗ đối thủ có thể phòng thủ tốt hơn để lần sau tấn công chắc hơn.': 'Won games are worth reviewing too: find 1–2 places where your opponent could have defended better, so your next attack is more solid.',
+    'Chưa có': 'Not set', 'Elo của máy ·': 'Computer Elo ·', 'Chế độ chơi': 'Game mode', 'Mức độ của máy': 'Computer level', 'Màu quân của chủ phòng': 'Host’s colour', 'Phần của trang Trợ lý': 'Assistant page sections', 'Câu hỏi cho Trợ lý Royal Gambit': 'Question for the Royal Gambit Assistant',
+    'Trợ lý Royal Gambit: huấn luyện viên riêng, nhận xét ván và lộ trình học': 'Royal Gambit Assistant: your personal coach, game reviews and study plan',
+    'Bước ngoặt, bài học và bài tập': 'Turning points, lessons and exercises', 'kiểm tra bằng Stockfish 19': 'checked with Stockfish 19',
+    'Bấm nút': 'Tap the', 'Chia sẻ': 'Share', 'ở thanh dưới của Safari': 'button in Safari’s bottom bar', 'Chọn': 'Choose', 'Thêm vào MH chính': 'Add to Home Screen', ': biểu tượng Royal Gambit xuất hiện trên màn hình chính': ': the Royal Gambit icon appears on your home screen',
+    'ở góc trên bên phải': 'in the top right corner', 'Cài đặt ứng dụng': 'Install app', '(hoặc': '(or', 'Thêm vào màn hình chính': 'Add to Home screen', 'Bấm biểu tượng': 'Click the icon', 'ở cuối thanh địa chỉ': 'at the end of the address bar', 'Hoặc menu': 'Or the menu', 'Cài đặt Royal Gambit': 'Install Royal Gambit', 'Ứng dụng › Cài đặt trang này': 'Apps › Install this site',
+    'mọi mức Elo': 'any Elo', 'Giờ chiếu hết!': 'Now checkmate!',
+    'ván': 'games', 'điểm số': 'score', 'Giải': 'Solve', 'Học': 'Learn', 'Ôn ngay': 'Review now', 'chiếu hết': 'checkmate', 'chiến thuật': 'tactics', 'tàn cuộc': 'endgame', 'khai cuộc': 'opening', 'trung cuộc': 'middlegame', 'mẫu chiếu hết': 'mating patterns', 'câu đố chiến thuật': 'tactics puzzles', 'Ôn Sổ luyện lỗi': 'Review the Mistake Notebook',
+    'để mất quân oan': 'losing pieces needlessly', 'bỏ lỡ đòn chiến thuật': 'missing tactics', 'bỏ lỡ chiếu hết': 'missing checkmates', 'khai cuộc chưa vững': 'a shaky opening', 'vua kém an toàn': 'an unsafe king', 'trung cuộc thiếu kế hoạch': 'a middlegame without a plan', 'kết thúc ván / tàn cuộc': 'finishing games / endgames',
+    'Trước mỗi nước, hỏi: "Đối thủ vừa dọa gì? Sau nước này quân nào của mình không được bảo vệ?"': 'Before each move, ask: “What did my opponent just threaten? After this move, which of my pieces is undefended?”',
+    'Mỗi lượt, xét các nước chiếu, ăn quân và đe dọa trước tiên: đòn thắng thường nằm ở đó.': 'Every turn, look at checks, captures and threats first: the winning blow is usually there.',
+    'Thuộc các mẫu chiếu hết (hàng cuối, Ả Rập, Boden, chiếu ngạt…) để thấy chúng ngay trong ván.': 'Learn the mating patterns (back rank, Arabian, Boden, smothered…) so you can see them during a game.',
+    'Chiếm trung tâm, ra Mã và Tượng trước, nhập thành sớm; đừng đi một quân hai lần khi chưa cần.': 'Take the centre, develop knights and bishops first, castle early, and do not move a piece twice without need.',
+    'Nhập thành trước nước 10 và giữ Tốt che Vua; khi Vua đối thủ còn ở giữa, hãy mở trung tâm tấn công.': 'Castle before move 10 and keep the pawns covering your king; when the enemy king is still in the middle, open the centre and attack.',
+    'Khi không có chiến thuật: tìm quân kém nhất của mình và đưa nó tới ô tốt hơn, chiếm cột mở bằng Xe.': 'When there are no tactics: find your worst piece, bring it to a better square, and take open files with your rooks.',
+    'Khi hơn quân: đổi bớt quân, đưa Vua lên, đẩy Tốt thông. Đừng vội: kiểm tra mỗi nước để không bị pat.': 'When ahead in material: exchange pieces, bring up your king and push a passed pawn. Do not rush: check every move so you do not stalemate.',
+    'Đáp 1.e4 bằng 1...e5 (Ván mở)': 'Answer 1.e4 with 1...e5 (Open Game)', 'Đã học xong phần này, ôn lại cho chắc': 'Unit finished, review it to make it stick',
+    'Chưa chấm được ván nào (đang bận phân tích ván khác?)': 'No games could be analysed (busy analysing another game?)', 'Chấm các ván chưa phân tích': 'Analyse unanalysed games', 'ở trên.': 'above.',
+    ', nước tốt hơn là': ', a better move was', 'Kế hoạch khoảng 20 phút hôm nay:': 'A plan of about 20 minutes for today:', 'Cầm Trắng:': 'As White:', 'Cầm Đen gặp 1.e4:': 'As Black against 1.e4:', 'Cầm Đen gặp 1.d4:': 'As Black against 1.d4:', 'Khai cuộc bạn đang chơi kém nhất:': 'The opening you currently play worst:', 'Giai đoạn bạn chơi tốt nhất là': 'The phase you play best is', 'Bạn ít gặp vấn đề về:': 'You rarely have problems with:',
+    'Mình chưa hiểu câu hỏi và cũng chưa tìm thấy bài nào phù hợp trong Thư viện kiến thức. Hãy thử một câu gợi ý bên dưới, hoặc gõ không dấu / từ khoá ngắn hơn (ví dụ: ghim, tốt thông, Lucena).': 'I did not understand the question and found no matching article in the Knowledge Library. Try a suggestion below, or a shorter keyword (for example: pin, passed pawn, Lucena).',
+    'Máy chủ đang đông người dùng, bạn thử lại sau ít phút nhé.': 'The server is busy, please try again in a few minutes.', 'Không kết nối được máy chủ của trợ lý.': 'Could not connect to the assistant’s server.', 'Máy chủ đang đông, đang thử lại…': 'The server is busy, retrying…', 'Mình chưa nghĩ ra câu trả lời, bạn hỏi lại theo cách khác nhé.': 'I could not come up with an answer, please try asking another way.', 'Máy chủ của trợ lý gặp lỗi.': 'The assistant’s server had an error.', 'Stockfish 19 đang chấm ván': 'Stockfish 19 is analysing the game',
+    'Chơi vài ván với máy hoặc Online: Stockfish 19 chấm từng nước và trợ lý sẽ tìm điểm yếu của bạn, rồi xây lộ trình riêng cho bạn.': 'Play a few games against the computer or online: Stockfish 19 grades every move, and the assistant finds your weaknesses and builds a plan for you.',
+    'Chơi vài ván từ thế xuất phát để thấy khai cuộc bạn hay chơi và tỉ lệ điểm của từng khai cuộc.': 'Play a few games from the starting position to see your common openings and your score in each.',
+    'Chưa có ván nào trong Nhật ký. Chơi một ván với máy hoặc Online, ván sẽ hiện ở đây để trợ lý nhận xét.': 'No games in your History yet. Play a game against the computer or online and it will appear here for the assistant to review.',
+    'Nhận xét ván gần nhất của tôi': 'Review my latest game', 'Điểm yếu lớn nhất trong lối chơi của tôi là gì và sửa thế nào?': 'What is the biggest weakness in my play and how do I fix it?', 'Hôm nay tôi nên tập gì trong khoảng 30 phút?': 'What should I practise today for about 30 minutes?', 'Phân tích thế cờ đang trên bàn giúp tôi': 'Analyse the position on the board for me', 'Tôi nên chơi khai cuộc nào với trình độ của mình?': 'Which openings should I play at my level?',
+    'Chào bạn, hôm nay mình giúp gì cho bạn?': 'Hi there, how can I help you today?', 'Mình đọc các ván của bạn, kiểm tra từng biến cờ bằng Stockfish 19 và tra Thư viện kiến thức trước khi trả lời.': 'I read your games, check every line with Stockfish 19 and look things up in the Knowledge Library before answering.',
+    'Mình đọc các ván đã được Stockfish 19 chấm để tìm điểm yếu và gợi ý lộ trình. Gõ một khái niệm (ghim, Lucena, Sicily…) để tra Thư viện kiến thức.': 'I read games analysed by Stockfish 19 to find weaknesses and suggest a study plan. Type a concept (pin, Lucena, Sicilian…) to search the Knowledge Library.',
+    'Điểm cần cải thiện nhất:': 'What to improve most:', 'Chơi vài ván để trợ lý tìm điểm yếu và xây lộ trình riêng cho bạn.': 'Play a few games so the assistant can find your weaknesses and build a plan for you.',
   };
 
   // Mẫu câu có biến: [tiếng Việt, tiếng Anh], {0} {1}… là phần thay đổi
@@ -796,11 +830,68 @@ const I18N = (() => {
     ['Độ chính xác {0}% · đã thêm {1} thế cờ vào Sổ luyện lỗi', 'Accuracy {0}% · added {1} positions to the Mistake Notebook'],
     ['Độ chính xác {0}% · không có nước hớ nào', 'Accuracy {0}% · no blunders'], ['Hạng {0}/{1} · {2} ván', 'Place {0}/{1} · {2} games'],
     ['{0} ván đã đấu', '{0} games played'], ['bởi {=0}', 'by {0}'],
+    // ----- Bổ sung sau khi quét toàn web ở chế độ English -----
+    ['Danh hiệu {=0}', '{0} title'], ['cầm {0}', 'as {0}'], ['{0}. Nên đi {=1}.', '{0}. Better was {1}.'],
+    ['Hai bên đổi Hậu ở nước {=0}: ván cờ chuyển sang thế ít quân, Vua có thể tham chiến sớm hơn.', 'Both sides traded queens on move {0}: with fewer pieces on the board, the king can join the fight sooner.'],
+    ['Bạn thí Hậu ở nước {=0} để chiếu hết. Đòn kết thúc rất đẹp!', 'You sacrificed your queen on move {0} to deliver mate. A beautiful finish!'],
+    ['Đối thủ thí Hậu ở nước {=0} để chiếu hết: khi Vua bị vây, luôn kiểm tra các nước chiếu bằng thí quân của đối thủ.', 'Your opponent sacrificed the queen on move {0} to deliver mate: when your king is hemmed in, always check for your opponent’s sacrificial checks.'],
+    ['{0} hơn {=1} điểm quân khi kết thúc ({=2}–{=3}).', '{0} was {1} points of material ahead at the end ({2}–{3}).'],
+    ['Dù kém {=0} điểm quân ({=1}–{=2}), {3} vẫn chiếu hết được: hoạt động của quân và an toàn của Vua quan trọng hơn số quân.', 'Despite being {0} points of material behind ({1}–{2}), {3} still delivered mate: piece activity and king safety matter more than material.'],
+    ['Điểm đáng chú ý: {0} dùng Hậu ăn quân nhỏ tại', 'Worth noting: {0} used the queen to capture a small piece at'],
+    ['(nước {=0}) rồi bị ăn lại Hậu ngay, thiệt khoảng {=1} điểm quân.', '(move {0}) and the queen was immediately recaptured, losing about {1} points of material.'],
+    ['(nước {=0}) của {1} đổi quân bất lợi: quân ăn bị ăn lại ngay, thiệt khoảng {=2} điểm quân.', '(move {0}) by {1} was a bad exchange: the capturing piece was immediately recaptured, losing about {2} points of material.'],
+    ['Độ mạnh: {=0}', 'Strength: {0}'], 
+    ['Bạn đang mở web trong trình duyệt của', 'You are opening this site in the browser of'], [', Google không cho đăng nhập ở đây. Bấm', ', and Google does not allow sign-in here. Tap'], ['ở góc màn hình ›', 'in the corner of the screen ›'], ['Mở bằng trình duyệt', 'Open in browser'], ['({=0}), hoặc sao chép link rồi dán vào {=1}.', '({0}), or copy the link and paste it into {1}.'],
+    ['cách #{=0} {1}', '{1} behind #{0}'], 
+    ['Đang tìm trong {0}', 'Searching within {0}'], ['{=0} người khác đang tìm', '{0} others searching'],
+    ['Giờ chiếu hết trong {=0} nước!', 'Now checkmate in {0} moves!'], ['độ chính xác TB {=0}%', 'avg accuracy {0}%'], ['{=0} thế cờ lấy từ ván của bạn', '{0} positions from your games'], ['{=0} đã thuộc', '{0} mastered'], ['Chiếu hết trong {=0} nước.', 'Checkmate in {0} moves.'], ['{0} đi. {1}', '{0} to move. {1}'],
+    ['{=0} lần để quân bị ăn lời trong {=1} ván đã chấm', '{0} times leaving a piece to be won in {1} analysed games'], ['{=0} lần bỏ lỡ nước ăn quân / chiếu tốt hơn hẳn', '{0} times missing a clearly better capture or check'], ['{=0} lần bỏ lỡ (hoặc để tuột) chiếu hết', '{0} times missing (or letting slip) a checkmate'], ['{=0} ván bất lợi ngay sau 10 nước, {=1} ván ra Hậu trong 5 nước đầu', '{0} games worse after 10 moves, {1} games moving the queen in the first 5 moves'], ['{=0} ván chưa nhập thành sau 12 nước, {=1} ván bị chiếu hết', '{0} games not castled after 12 moves, {1} games checkmated'], ['{=0} lỗi lớn và {=1} nước thiếu chính xác ở trung cuộc', '{0} major mistakes and {1} inaccuracies in the middlegame'], ['{=0} ván đang hơn ≥ 3 điểm mà không thắng, {=1} lỗi lớn ở tàn cuộc', '{0} games not won while ≥ 3 points ahead, {1} major mistakes in the endgame'],
+    ['Stockfish tuỳ chỉnh (~{=0})', 'Custom Stockfish (~{0})'], ['{0}: học phần "{1}"', '{0}: study unit "{1}"'], ['Giải câu đố: {0}', 'Solve puzzles: {0}'], ['Học: {0}', 'Learn: {0}'], ['Thư viện: {0}', 'Library: {0}'], ['Câu đố {0}', '{0} puzzles'], ['Mở {0}', 'Open {0}'], ['Phần học: {0}', 'Unit: {0}'],
+    ['Mình cần ít nhất 2 ván đã được chấm bằng Stockfish để nhận xét chính xác (hiện có {=0}). Hãy chơi thêm vài ván, hoặc bấm', 'I need at least 2 games analysed by Stockfish to comment accurately (you have {0}). Play a few more games, or press'],
+    ['Trong {=0} ván đã chấm, nguyên nhân lớn nhất là', 'In {0} analysed games, the biggest cause is'], ['({0}). Bạn mắc lỗi nhiều nhất ở', '({0}). You make the most mistakes in the'], ['({=0} lỗi lớn).', '({0} major mistakes).'], ['({=0} lỗi lớn). Ví dụ: nước {=1} ván với {=2}, bạn đi', '({0} major mistakes). Example: move {1} against {2}, you played'], ['Mẹo: {0}', 'Tip: {0}'],
+    ['Với {=0} Elo, bộ khai cuộc dễ học và chắc chắn:', 'At {0} Elo, a solid repertoire that is easy to learn:'], ['(cầm {0}, {=1} ván, {=2}% điểm).', '(as {0}, {1} games, {2}% score).'], ['(độ chính xác ~{=0}%).', '(accuracy ~{0}%).'], ['Độ chính xác trung bình {=0}%.', 'Average accuracy {0}%.'], ['Giữ thói quen tốt đó và tập trung vào {0}.', 'Keep up those good habits and focus on {0}.'],
+    ['Để từ {=0} lên {=1} Elo: (1) mỗi ngày 10–15 phút câu đố chiến thuật, (2) ôn Sổ luyện lỗi đều đặn, (3) chơi ván dài hơn (10 phút trở lên) với {2} và xem lại mọi ván thua, (4) sửa điểm yếu lớn nhất hiện tại:', 'To go from {0} to {1} Elo: (1) 10–15 minutes of tactics puzzles every day, (2) review the Mistake Notebook regularly, (3) play longer games (10 minutes or more) against {2} and review every loss, (4) fix your biggest current weakness:'],
+    ['Tàn cuộc: {=0} nước đã chấm, {=1} lỗi lớn; {=2} ván đang thắng mà không thắng được. {3}', 'Endgame: {0} moves analysed, {1} major mistakes; {2} winning games not won. {3}'],
+    ['Bạn đã bỏ lỡ {=0} đòn chiến thuật, {=1} lần chiếu hết và {=2} lần để quân bị ăn lời. {3}', 'You missed {0} tactics and {1} checkmates, and left a piece to be won {2} times. {3}'],
+    ['Gồm bài soạn sẵn, {=0} khai cuộc và các thế tàn cuộc trong Thư viện, 20 phần Học cờ. Huấn luyện viên tra thư viện này trước khi giải thích.', 'Includes written articles, {0} openings and endgame positions from the Library, and the 20 Learn units. The coach checks this library before explaining.'],
+    ['{0} Mình trả lời theo chế độ cơ bản nhé:', '{0} I will answer in basic mode:'], ['{=0} đã chấm', '{0} analysed'], ['còn {=0} ván chưa được chấm', '{0} games not analysed yet'], ['Cần thêm dữ liệu: còn {=0} ván chưa được chấm', 'More data needed: {0} games not analysed yet'], ['{=0} lỗi lớn', '{0} major mistakes'], ['Chấm {=0} ván', 'Analyse {0} games'], ['chính xác {=0}%', 'accuracy {0}%'],
+    ['Chào {=0}, hôm nay mình giúp gì cho bạn?', 'Hi {0}, how can I help you today?'], ['Giải thích "{0}" và cho mình một ví dụ áp dụng vào ván của mình', 'Explain "{0}" and give me an example that applies to my games'], ['Đã đọc {=0} ván của bạn. Chơi và chấm thêm vài ván để trợ lý tìm điểm yếu chính xác hơn.', 'Read {0} of your games. Play and analyse a few more so the assistant can find your weaknesses more accurately.'], ['Đã đọc {=0} ván của bạn ({=1} ván đã chấm). Chơi và chấm thêm vài ván để trợ lý tìm điểm yếu chính xác hơn.', 'Read {0} of your games ({1} analysed). Play and analyse a few more so the assistant can find your weaknesses more accurately.'], ['Nhận xét ván số {=0} của tôi', 'Review my game number {0}'], ['Nhận xét ván số {=0} của tôi (gặp {=1})', 'Review my game number {0} (against {1})'],
   ];
 
   // Tên / mô tả nội dung (khai cuộc, tàn cuộc, câu đố) lấy bản tiếng Anh ngay trong dữ liệu
   let contentReady = false;
+  let articlesReady = false;
+  const flatKey = s => s.normalize('NFC').replace(/\s*\n\s*/g, ' ');
+  const CAT_EN = { gambit: 'Gambit', open: 'Open Game (1.e4 e5)', semi: 'Semi-Open (1.e4, Black avoids e5)', closed: 'Closed Game (1.d4 d5)', indian: 'Indian Defence (1.d4, Black avoids d5)', flank: 'Flank opening' };
+  // Thư viện kiến thức: bài soạn sẵn (knowledge-en.js) và bài tự gộp từ Thư viện khai cuộc, Học cờ.
+  // Chạy khi mọi file đã tải xong; không đè bản dịch giao diện đã có.
+  function loadArticles() {
+    if (articlesReady || document.readyState === 'loading' || typeof Knowledge === 'undefined') return;
+    articlesReady = true;
+    const add = (vi, en) => { const k = flatKey(vi); if (en && !Object.prototype.hasOwnProperty.call(EN, k)) EN[k] = en; };
+    const byId = new Map((typeof Library !== 'undefined' ? Library.OPENINGS.concat(Library.ENDGAMES) : []).map(o => [o.id, o]));
+    const units = new Map((typeof COURSE !== 'undefined' ? COURSE : []).map(u => ['unit:' + (u.key || u.title), u]));
+    const vi = s => translateCore(String(s).normalize('NFC'));
+    for (const a of Knowledge.list()) {
+      const tr = typeof KNOWLEDGE_EN !== 'undefined' ? KNOWLEDGE_EN[a.id] : null;
+      const o = a.lib ? byId.get(a.lib) : null;
+      const u = units.get(a.id);
+      if (tr) { add(a.title, tr[0]); add(a.body, tr[1]); }
+      else if (o) {
+        add(a.title, o.name);
+        if (o.descEn) add(a.body, o.cat === 'endgame' ? o.descEn : `${CAT_EN[o.cat] || ''}. Moves: ${o.moves}. ${o.descEn}`);
+      } else if (u) {
+        const titles = (u.lessons || []).map(l => l.title).filter(Boolean);
+        add(a.body, `${vi(u.desc)}. ${titles.length} lessons: ${titles.map(vi).join(', ')}.`);
+      }
+    }
+  }
+
   function loadContent() {
+    loadBaseContent();
+    loadArticles();
+  }
+  function loadBaseContent() {
     if (contentReady) return;
     contentReady = true;
     if (typeof OPENINGS !== 'undefined') {
@@ -881,7 +972,12 @@ const I18N = (() => {
     loadContent();
     const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s.normalize('NFC'));
     const core = translateCore(m[2]);
-    return core === m[2] ? s : m[1] + core + m[3];
+    if (core !== m[2]) return m[1] + core + m[3];
+    if (!m[2].includes('\n')) return s;
+    // Xuống dòng và thụt lề trong mã HTML chỉ là khoảng trắng khi hiển thị
+    const flat = m[2].replace(/\s*\n\s*/g, ' ');
+    const line = translateCore(flat);
+    return line === flat ? s : m[1] + line + m[3];
   }
 
   // ----- Dịch DOM -----
