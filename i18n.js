@@ -648,6 +648,7 @@ const I18N = (() => {
     "Đăng nhập Google không thành công, thử lại sau.": "Google sign-in failed, please try again later.",
 
     // ----- Bổ sung sau khi quét toàn web ở chế độ English -----
+    'Tới lượt bạn': 'Your move', 'Ván đã kết thúc': 'Game over', 'Đã có đối thủ': 'Opponent found', 'Chưa gửi được tin nhắn: đang mất kết nối.': 'Message not sent: connection lost.', 'Bạn đã xin hòa, đang chờ đối thủ trả lời.': 'You already offered a draw, waiting for your opponent.', 'Ván với chính tài khoản của bạn nên không tính rank và Elo': 'A game against your own account does not count for rank or Elo',
     'Tìm trong thư viện kiến thức': 'Search the Knowledge Library', 'Bài học trong web': 'Lessons on this site', 'Mở web trước giờ bắt đầu để được ghép cặp:': 'Open the site before the start time to be paired:', 'Công tước Brunswick & Bá tước Isouard': 'Duke of Brunswick & Count Isouard',
     'Chơi vài ván với máy hoặc Online: Stockfish 19 chấm từng nước và trợ lý sẽ tìm điểm yếu của bạn. Trong lúc chờ, đây là lộ trình theo tiến độ học.': 'Play a few games against the computer or online: Stockfish 19 grades every move and the assistant finds your weaknesses. Meanwhile, here is a plan based on your course progress.',
     'Thiên Hà': 'Galaxy', 'Đổi Hậu': 'Queen trade', 'Thí Hậu': 'Queen sacrifice', 'Tên': 'Name', 'Hoạt động gần nhất': 'Last active', 'Có lỗi, thử lại.': 'Something went wrong, try again.',

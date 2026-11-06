@@ -1203,7 +1203,7 @@ function premoveTap(i) {
 // Gọi sau mỗi lần vẽ bàn: tới lượt thì thực hiện nước đã đặt
 function premoveFlush() {
   if (!premove && preFrom < 0) return;
-  if (game.isGameOver() || playResult) { premoveCancel(); return; }
+  if (game.isGameOver() || playResult || (mode === 'online' && (Online.outcome() || !Online.connected()))) { premoveCancel(); return; }
   if (!canHumanMove()) return;
   const pm = premove, pf = preFrom;
   premove = null; preFrom = -1;
@@ -1583,6 +1583,7 @@ function checkResult() {
     if (mode === 'play' && practice) note = 'Ván tập từ Thư viện không tính Elo';
     else if (Profile.isGuest()) note = 'Chế độ khách không tính Elo';
     else if (mode === 'play' && assisted) note = 'Ván có dùng Gợi ý / Đi lại nên không tính Elo';
+    else if (mode === 'online' && Online.selfGame()) note = 'Ván với chính tài khoản của bạn nên không tính rank và Elo';
     else if (game.history.length < MIN_RANKED_PLIES) note = mode === 'online' ? 'Ván quá ngắn nên không tính rank và Elo' : 'Ván quá ngắn nên không tính Elo';
     else change = mode === 'online' ? Profile.record(o.score, Online.oppElo()) : Profile.recordBot(o.score, BOT_ELO[gameLevel]);
     // Ván ghép trong contest: cộng điểm contest (thắng +2, hòa +1, thua 0)
