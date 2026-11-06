@@ -362,9 +362,9 @@ const Assistant = (() => {
         const good = w.slice().reverse().filter(x => x.sev < 0.15 && x.sure).slice(0, 2);
         const ph = PHASES.map(([k, n]) => [n, P[k].n ? P[k].acc / P[k].n : 0, P[k].n]).filter(x => x[2] >= 10).sort((a, b) => b[1] - a[1])[0];
         const avg = d.acc.length ? Math.round(d.acc.reduce((a, x) => a + x, 0) / d.acc.length) : null;
-        return `${ph ? `Giai đoạn bạn chơi tốt nhất là <b>${ph[0].toLowerCase()}</b> (độ chính xác ~${Math.round(ph[1])}%). ` : ''}
-          ${good.length ? `Bạn ít gặp vấn đề về: ${good.map(x => `<b>${esc(x.name.toLowerCase())}</b>`).join(', ')}. ` : ''}
-          ${avg != null ? `Độ chính xác trung bình ${avg}%.` : ''} Giữ thói quen tốt đó và tập trung vào ${esc(top.name.toLowerCase())}.`;
+        return `${ph ? `Giai đoạn bạn chơi tốt nhất là <b>${ph[0].toLowerCase()}</b> <span>(độ chính xác ~${Math.round(ph[1])}%).</span> ` : ''}
+          ${good.length ? `<span>Bạn ít gặp vấn đề về:</span> ${good.map(x => `<b>${esc(x.name.toLowerCase())}</b>`).join(', ')}. ` : ''}
+          ${avg != null ? `<span>Độ chính xác trung bình ${avg}%.</span>` : ''} <span>Giữ thói quen tốt đó và tập trung vào ${esc(top.name.toLowerCase())}.</span>`;
       }
       case 'elo': {
         const e = elo();
@@ -410,6 +410,8 @@ const Assistant = (() => {
 
   const hasKb = () => typeof Knowledge !== 'undefined';
   const snippet = (t, n) => (t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t);
+  // Thân bài phải dịch trước khi cắt: câu đã cắt không còn khớp bảng dịch
+  const tr = s => (typeof I18N !== 'undefined' ? I18N.t(s) : s);
   const PZ_NAME = { tactics: 'chiến thuật', mates: 'chiếu hết', end: 'tàn cuộc' };
 
   // Gợi ý `see` của bài viết → hành động của web (bỏ những gì web không có)
@@ -440,7 +442,7 @@ const Assistant = (() => {
   function kbAnswer(q) {
     const hits = hasKb() ? Knowledge.search(q, 'any', 3) : [];
     if (!hits.length) return 'Mình chưa hiểu câu hỏi và cũng chưa tìm thấy bài nào phù hợp trong Thư viện kiến thức. Hãy thử một câu gợi ý bên dưới, hoặc gõ không dấu / từ khoá ngắn hơn (ví dụ: ghim, tốt thông, Lucena).';
-    return `Mình tìm thấy trong Thư viện kiến thức:${hits.map(a => `<div class="ai-ref"><b>${esc(a.title)}</b><p>${esc(snippet(a.body, 280))}</p>
+    return `Mình tìm thấy trong Thư viện kiến thức:${hits.map(a => `<div class="ai-ref"><b>${esc(a.title)}</b><p>${esc(snippet(tr(a.body), 280))}</p>
       <button type="button" class="ai-inline" data-kb-open="${esc(a.id)}">Đọc cả bài</button>${seeActs([a], 1).map(actBtn).join('')}</div>`).join('')}`;
   }
 
@@ -504,7 +506,7 @@ const Assistant = (() => {
     const list = q ? Knowledge.search(q, 'any', 12) : Knowledge.byTopic(kb.topic);
     box.innerHTML = `<div class="kb-search"><svg class="ic"><use href="#i-search"/></svg><input id="kbInput" type="search" maxlength="80" autocomplete="off" placeholder="Tìm: ghim, tốt thông, Lucena, Sicily, nhà vô địch…" aria-label="Tìm trong thư viện kiến thức" value="${esc(kb.q)}"></div>
       <div class="kb-topics">${Knowledge.TOPICS.filter(t => t[0] !== 'lesson').map(([id, n]) => `<button type="button" class="${!q && kb.topic === id ? 'on' : ''}" data-kb-topic="${id}"><svg class="ic"><use href="#${TOPIC_IC[id] || 'i-book'}"/></svg>${esc(n)}<small>${Knowledge.byTopic(id).length}</small></button>`).join('')}</div>
-      <div class="kb-grid">${list.length ? list.map(a => `<button type="button" class="kb-item" data-kb-open="${esc(a.id)}"><small class="kb-topic">${esc(Knowledge.topicName(a.topic))}</small><b>${esc(a.title)}</b><span>${esc(snippet(a.body, 120))}</span></button>`).join('')
+      <div class="kb-grid">${list.length ? list.map(a => `<button type="button" class="kb-item" data-kb-open="${esc(a.id)}"><small class="kb-topic">${esc(Knowledge.topicName(a.topic))}</small><b>${esc(a.title)}</b><span>${esc(snippet(tr(a.body), 120))}</span></button>`).join('')
         : '<p class="muted">Không tìm thấy bài nào. Thử từ khác (có thể gõ không dấu).</p>'}</div>
       <p class="ai-privacy">Gồm bài soạn sẵn, ${Library.OPENINGS.length} khai cuộc và các thế tàn cuộc trong Thư viện, 20 phần Học cờ. Huấn luyện viên tra thư viện này trước khi giải thích.</p>`;
   }
@@ -998,7 +1000,7 @@ const Assistant = (() => {
     $('cpGames').innerHTML = `<div class="cp-games">${list.map((g, i) => {
       const [cls, label] = RES[GameHistory.outcome(g)] || ['', '–'];
       return `<div class="cp-game"><span class="cp-res ${cls}">${label}</span>
-        <span class="cp-game-text"><b>${esc(g.opp || g.title || 'Ván cờ')}</b><small>${esc(new Date(g.at).toLocaleDateString('vi-VN'))} · cầm ${g.color === 'w' ? 'Trắng' : 'Đen'} · ${Math.ceil((g.moves || 0) / 2)} nước${Number.isFinite(g.acc) ? ` · chính xác ${Math.round(g.acc)}%` : g.rev ? '' : ' · chưa chấm'}</small></span>
+        <span class="cp-game-text"><b>${esc(g.opp || g.title || 'Ván cờ')}</b><small>${esc(new Date(g.at).toLocaleDateString(typeof I18N !== 'undefined' && I18N.lang() === 'en' ? 'en-GB' : 'vi-VN'))} · cầm ${g.color === 'w' ? 'Trắng' : 'Đen'} · ${Math.ceil((g.moves || 0) / 2)} nước${Number.isFinite(g.acc) ? ` · chính xác ${Math.round(g.acc)}%` : g.rev ? '' : ' · chưa chấm'}</small></span>
         <span class="cp-game-btns">${aiOn() ? `<button type="button" class="primary" data-cp-review="${i + 1}"><svg class="ic"><use href="#i-spark"/></svg>Nhận xét</button>` : ''}
         <button type="button" class="ghost" data-cp-replay="${esc(g.id)}">Xem lại</button></span></div>`; }).join('')}</div>`;
   }
@@ -1133,7 +1135,7 @@ const Assistant = (() => {
       const ka = e.target.closest('[data-kb-ask]');
       if (ka && hasKb()) {
         const art = Knowledge.get(ka.dataset.kbAsk);
-        if (art) { setPane('chat'); const inp = $('aiInput'); inp.value = `Giải thích "${art.title}" và cho mình một ví dụ áp dụng vào ván của mình`; autosize(inp); inp.focus(); }
+        if (art) { setPane('chat'); const inp = $('aiInput'); inp.value = tr(`Giải thích "${art.title}" và cho mình một ví dụ áp dụng vào ván của mình`); autosize(inp); inp.focus(); }
       }
     });
     let kbT = 0;

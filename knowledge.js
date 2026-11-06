@@ -497,7 +497,8 @@ const Knowledge = (() => {
     for (const a of list) {
       a.nt = norm(a.title);
       a.tt = tokens(a.title);
-      a.tg = tokens(a.tags);
+      // Tên bài tiếng Anh cũng tìm được, để gõ tiếng Anh vẫn ra bài
+      a.tg = tokens(a.tags + (typeof KNOWLEDGE_EN !== 'undefined' && KNOWLEDGE_EN[a.id] ? ' ' + KNOWLEDGE_EN[a.id][0] : ''));
       a.tb = tokens(a.body);
     }
     // IDF đơn giản: từ càng hiếm càng có trọng số
@@ -549,5 +550,6 @@ const Knowledge = (() => {
   const count = () => (all || build()).list.length;
   const topicName = id => (TOPICS.find(t => t[0] === id) || [, ''])[1];
 
-  return { search, get, byTopic, count, TOPICS, topicName, norm };
+  const listAll = () => (all || build()).list;
+  return { search, get, byTopic, count, TOPICS, topicName, norm, list: listAll };
 })();

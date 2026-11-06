@@ -105,6 +105,7 @@ Chế độ Online cần mạng Internet. Hai trình duyệt kết nối trực 
 | `cloudai.js` | Gọi Cloudflare Worker (GLM-4.7 của Z.ai), nhận câu trả lời từng chữ và yêu cầu tra công cụ của AI |
 | `tools/ai-worker.js` | Cloudflare Worker giữ khoá API, cẩm nang huấn luyện viên + thuật ngữ cờ tiếng Việt, danh sách công cụ tra cứu của AI, gọi GLM-4.7 (Z.ai hoặc Workers AI), chặn web lạ, giới hạn 20 lượt / phút / IP |
 | `knowledge.js` | Thư viện kiến thức: bài viết theo chủ đề và tìm kiếm không dấu, gộp cả Thư viện khai cuộc và Học cờ |
+| `knowledge-en.js` | Bản tiếng Anh của các bài trong Thư viện kiến thức (thêm bài ở `knowledge.js` thì thêm một dòng ở đây) |
 | `pwa.js` | Ứng dụng (PWA): đăng ký service worker, nút cài đặt, thanh cập nhật, thanh điều hướng dưới đáy trên điện thoại, giữ màn hình sáng |
 | `sw.js` | Service worker: lưu file để mở nhanh và chơi khi mất mạng |
 | `manifest.webmanifest` | Thông tin ứng dụng: tên, biểu tượng, lối tắt |

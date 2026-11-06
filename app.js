@@ -2270,7 +2270,7 @@ function gameToPGN(annotated = false) {
       const e = rv.evals[i + 1];
       let note = e != null && Math.abs(e) < 10000 ? `[%eval ${pgnEval(e)}]` : ''; // ±10000 = đã chiếu hết trên bàn
       if (PGN_NAG[cls] && rv.best[i] && cls !== 'brilliant' && cls !== 'great') {
-        note += ` ${Coach.CLASS[cls].name}. Nên đi ${rv.best[i]}.`;
+        note += ' ' + I18N.t(`${Coach.CLASS[cls].name}. Nên đi ${rv.best[i]}.`);
       }
       if (note) { moves.push(`{${note.trim()}}`); afterComment = true; }
     }
@@ -3328,7 +3328,7 @@ async function shareGame() {
   if (!game.history.length) { toast('Chưa có nước đi'); return; }
   const url = shareUrl();
   if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-    try { await navigator.share({ title: 'Ván cờ trên Royal Gambit', url }); return; }
+    try { await navigator.share({ title: I18N.t('Ván cờ trên Royal Gambit'), url }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
   }
   copyText(url, 'Đã sao chép link ván cờ');
@@ -4542,10 +4542,10 @@ function renderAdminList() {
 function exportPlayersCsv() {
   const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const head = ['Tên', 'Danh hiệu', 'Vai trò', 'Rank', 'Exp', 'Elo', 'Ván Online', 'Thắng', 'Hòa', 'Thua', 'Bị mute', 'Hoạt động gần nhất'];
-  const lines = [head.map(cell).join(',')];
+  const lines = [head.map(h => cell(I18N.t(h))).join(',')];
   for (const p of adminRows) {
     lines.push([p.name, p.title, p.owner ? 'Chủ web' : p.admin ? 'Admin' : '', Profile.rankOf(p.exp).name, p.exp, p.elo, p.games, p.wins, p.draws, p.losses,
-      p.muted ? 'Có' : '', p.lastGame ? new Date(p.lastGame).toLocaleString('vi-VN') : ''].map(cell).join(','));
+      p.muted ? 'Có' : '', p.lastGame ? new Date(p.lastGame).toLocaleString(I18N.lang() === 'en' ? 'en-GB' : 'vi-VN') : ''].map(cell).join(','));
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
@@ -5034,7 +5034,7 @@ function downloadIcs(c) {
   const esc = x => String(x || '').replace(/[\\,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
   const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Royal Gambit//Contest//VI', 'BEGIN:VEVENT',
     `UID:${c.id}@royal-gambit`, `DTSTAMP:${t(Date.now())}`, `DTSTART:${t(c.start)}`, `DTEND:${t(c.end)}`,
-    `SUMMARY:${esc('Royal Gambit · ' + c.name)}`, `DESCRIPTION:${esc((c.desc ? c.desc + '\n' : '') + 'Mở web trước giờ bắt đầu để được ghép cặp: ' + contestLink(c))}`,
+    `SUMMARY:${esc('Royal Gambit · ' + c.name)}`, `DESCRIPTION:${esc((c.desc ? c.desc + '\n' : '') + I18N.t('Mở web trước giờ bắt đầu để được ghép cặp:') + ' ' + contestLink(c))}`,
     `URL:${contestLink(c)}`, 'BEGIN:VALARM', 'TRIGGER:-PT10M', 'ACTION:DISPLAY', `DESCRIPTION:${esc(c.name)}`, 'END:VALARM',
     'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   const a = document.createElement('a');
