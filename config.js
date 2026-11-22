@@ -14,7 +14,7 @@ window.LEADERBOARD = {
   // trong firebase-rules.json). Muốn nhanh hơn thì thêm máy chủ TURN riêng (ví dụ tài khoản miễn phí metered.ca), dạng:
   // [{ urls: ['turn:global.relay.metered.ca:80', 'turn:global.relay.metered.ca:443?transport=tcp'], username: '...', credential: '...' }]
   iceServers: [],
-  // Trợ lý Royal Gambit trò chuyện bằng mô hình GLM-4.7 của Z.ai: địa chỉ Cloudflare Worker chạy tools/ai-worker.js (xem README).
+  // Trợ lý Royal Gambit trò chuyện bằng mô hình Gemini 3.5 Flash-Lite của Google: địa chỉ Cloudflare Worker chạy tools/ai-worker.js (xem README).
   // Dạng https://royal-gambit-ai.ten-ban.workers.dev. Bỏ trống thì Trợ lý dùng chế độ cơ bản (trả lời theo mẫu + Thư viện kiến thức).
   aiApi: 'https://red-dawn-a2a8.phuchello2811.workers.dev',
 };

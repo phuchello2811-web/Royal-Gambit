@@ -1,12 +1,13 @@
-// AI qua máy chủ: gọi Cloudflare Worker (tools/ai-worker.js) chạy GLM-4.7 của Z.ai. Không cần tải gì về máy.
+// AI qua máy chủ: gọi Cloudflare Worker (tools/ai-worker.js) chạy Gemini 3.5 Flash-Lite của Google. Không cần tải gì về máy.
 // Bật bằng cách điền aiApi trong config.js; để trống thì Trợ lý dùng chế độ cơ bản (trả lời theo mẫu + Thư viện kiến thức).
-// Worker trả về luồng SSE dạng chung: data: {"t":"đoạn chữ"} … data: {"tools":[{id,name,arguments}]} data: [DONE],
-// lỗi thì JSON { error }. AI muốn tra công cụ thì assistant.js thực hiện rồi gửi kết quả ở lượt gọi tiếp theo.
+// Worker trả về luồng SSE dạng chung: data: {"t":"đoạn chữ"} … data: {"tools":[{id,name,arguments,sig}]} data: [DONE],
+// lỗi thì JSON { error }. AI muốn tra công cụ thì assistant.js thực hiện rồi gửi kết quả ở lượt gọi tiếp theo
+// (kèm nguyên trường sig: "thought signature" Gemini bắt buộc gửi trả).
 
 const CloudAI = (() => {
   const url = () => String((window.LEADERBOARD && window.LEADERBOARD.aiApi) || '').trim();
   const available = () => /^https:\/\//.test(url()) || /^http:\/\/(localhost|127\.0\.0\.1)[:/]/.test(url());
-  const LABEL = 'GLM-4.7 (Z.ai)';
+  const LABEL = 'Gemini 3.5 Flash-Lite';
   let ctrl = null;
   let failAt = 0; // lần lỗi gần nhất: tạm dùng chế độ cơ bản trong 1 phút
 
