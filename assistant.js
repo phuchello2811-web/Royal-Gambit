@@ -1,7 +1,7 @@
 // Trợ lý Royal Gambit (trang riêng, mở bằng tab Trợ lý): huấn luyện viên riêng và lộ trình học: đọc các ván trong Nhật ký (đã được Stockfish chấm từng nước), Sổ luyện lỗi và tiến độ Học cờ,
 // tìm điểm yếu của người chơi rồi gợi ý lộ trình: phần học, câu đố theo chủ đề, khai cuộc nên ôn, mức máy nên đấu.
 // Chạy hoàn toàn trên máy người chơi (không gửi dữ liệu đi đâu), không cần khoá API.
-// Hỏi đáp: nếu đã cài máy chủ AI (aiApi trong config.js, tools/ai-worker.js), câu hỏi được gửi cho GLM-4.7 của Z.ai;
+// Hỏi đáp: nếu đã cài máy chủ AI (aiApi trong config.js, tools/ai-worker.js), câu hỏi được gửi cho Gemini 3.5 Flash-Lite của Google;
 // AI tự gọi công cụ để tra Thư viện kiến thức (knowledge.js), hồ sơ và ván đấu của người chơi, phân tích thế cờ
 // (Lichess cloud eval / Stockfish) và bảng tàn cuộc, rồi mới trả lời. Chưa cài / máy chủ lỗi: trả lời theo mẫu như cũ,
 // câu hỏi lạ thì tra Thư viện kiến thức. Cách chẩn đoán điểm yếu và lộ trình bên dưới vẫn chạy hoàn toàn trên máy.
@@ -511,7 +511,7 @@ const Assistant = (() => {
       <p class="ai-privacy">Gồm bài soạn sẵn, ${Library.OPENINGS.length} khai cuộc và các thế tàn cuộc trong Thư viện, 20 phần Học cờ. Huấn luyện viên tra thư viện này trước khi giải thích.</p>`;
   }
 
-  // ---------- AI qua máy chủ (GLM-4.7) ----------
+  // ---------- AI qua máy chủ (Gemini 3.5 Flash-Lite) ----------
   // AI tự gọi công cụ (định nghĩa trong tools/ai-worker.js), trình duyệt thực hiện rồi gửi kết quả ở lượt gọi tiếp:
   // Thư viện kiến thức, hồ sơ / ván đấu của người chơi, thế cờ trên bàn, phân tích thế cờ, bảng tàn cuộc.
 
@@ -833,7 +833,7 @@ const Assistant = (() => {
         if (r.stopped) { msg.md = msg.md || 'Đã dừng.'; break; }
         if (!r.tools.length || final) { msg.md = r.text || 'Mình chưa nghĩ ra câu trả lời, bạn hỏi lại theo cách khác nhé.'; break; }
         // AI muốn tra cứu: thực hiện các công cụ rồi gửi kết quả
-        messages.push({ role: 'assistant', content: r.text || '', tool_calls: r.tools.map(t => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.arguments } })) });
+        messages.push({ role: 'assistant', content: r.text || '', tool_calls: r.tools.map(t => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.arguments }, ...(t.sig ? { sig: t.sig } : {}) })) });
         msg.md = '';
         const results = await Promise.all(r.tools.map(async t => {
           let args = {};
@@ -912,7 +912,7 @@ const Assistant = (() => {
         : '<span class="ai-dot"></span>Chế độ cơ bản · chẩn đoán bằng Stockfish 19 trên máy bạn';
     if (hasCloud() && !ok) setTimeout(() => { renderEngine(); renderQuick(); }, 61000);
     if (priv) priv.textContent = hasCloud()
-      ? 'Câu hỏi và số liệu ván được gửi tới máy chủ của Royal Gambit (mô hình GLM-4.7 của Z.ai) để trả lời, thế cờ có thể được gửi tới Lichess. Stockfish 19 chạy trên máy bạn.'
+      ? 'Câu hỏi và số liệu ván được gửi tới máy chủ của Royal Gambit (mô hình Gemini 3.5 Flash-Lite của Google) để trả lời, thế cờ có thể được gửi tới Lichess. Stockfish 19 chạy trên máy bạn.'
       : 'Mọi phân tích chạy ngay trên máy bạn (Stockfish 19 và Thư viện kiến thức). Không gửi dữ liệu ra ngoài.';
   }
 

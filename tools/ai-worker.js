@@ -1,7 +1,7 @@
 /**
  * Royal Gambit – máy chủ AI nhỏ chạy trên Cloudflare Workers (gói miễn phí: 100.000 lượt / ngày).
  * Web là trang tĩnh nên không giấu được khoá API; Worker này giữ khoá, nhận câu hỏi từ Trợ lý AI (assistant.js)
- * rồi gọi mô hình GLM-4.7 của Z.ai và trả câu trả lời về từng chữ. Người chơi chỉ thấy tên "Trợ lý Royal Gambit".
+ * rồi gọi mô hình Gemini 3.5 Flash-Lite của Google và trả câu trả lời về từng chữ. Người chơi chỉ thấy tên "Trợ lý Royal Gambit".
  *
  * "Kiến thức cờ" của AI nằm ở đây và trong web:
  *   • COACH: cẩm nang huấn luyện viên (cách chẩn đoán, ưu tiên theo Elo, cách giải thích) + bảng thuật ngữ cờ tiếng Việt.
@@ -13,11 +13,12 @@
  *   Sửa COACH / TOOLS ở đây rồi Deploy lại là AI "học" thêm, không cần sửa web.
  *
  * Hai cách chạy mô hình (chọn một):
- *   A) API Z.ai: thêm secret ZAI_API_KEY (lấy ở https://z.ai › API Keys). Mô hình mặc định glm-4.7-flash;
- *      đổi bằng biến MODEL (ví dụ glm-4.7 mạnh hơn nhưng tính tiền theo token).
- *      Khoá thuộc gói GLM Coding Plan: thêm biến ZAI_BASE = https://api.z.ai/api/coding/paas/v4
- *      Mô hình quá tải (mã 1305) thì Worker tự thử lại rồi chuyển sang FALLBACK_MODEL (mặc định glm-4.5-flash, miễn phí).
- *   B) Workers AI của Cloudflare (không cần khoá Z.ai): thêm binding Workers AI tên AI, không đặt ZAI_API_KEY.
+ *   A) Gemini API của Google: thêm secret GEMINI_API_KEY (lấy ở https://aistudio.google.com › Get API key).
+ *      Mô hình mặc định gemini-3.5-flash-lite (có gói miễn phí); đổi bằng biến MODEL.
+ *      Mức "suy nghĩ" để mặc định của mô hình (minimal, nhanh nhất); muốn kỹ hơn đặt biến THINKING = low / medium / high.
+ *      Mô hình quá tải (HTTP 429 / 503) thì Worker tự thử lại rồi chuyển sang FALLBACK_MODEL
+ *      (mặc định gemini-flash-lite-latest; đặt FALLBACK_MODEL = none để tắt).
+ *   B) Workers AI của Cloudflare (không cần khoá Gemini): thêm binding Workers AI tên AI, không đặt GEMINI_API_KEY.
  *      Mô hình mặc định @cf/zai-org/glm-4.7-flash; đổi bằng biến CF_MODEL.
  *
  * Bảo vệ:
@@ -26,12 +27,12 @@
  *     dùng binding Rate Limiting tên LIMITER nếu có, nếu không thì đếm tạm trong bộ nhớ.
  *   • Chỉ nhận hội thoại ≤ 40 tin, ≤ 60.000 ký tự, công cụ phải nằm trong TOOLS; mô hình và số chữ do Worker quyết định.
  *
- * CÀI ĐẶT (không cần cài gì trên máy, xem thêm README mục "AI qua máy chủ (GLM-4.7)"):
+ * CÀI ĐẶT (không cần cài gì trên máy, xem thêm README mục "Trợ lý Royal Gambit: máy chủ"):
  *   1. https://dash.cloudflare.com › Workers & Pages › Create › Create Worker › đặt tên (ví dụ royal-gambit-ai) › Deploy.
  *   2. Edit code › xoá hết, dán toàn bộ file này › Deploy.
  *   3. Settings › Variables and Secrets:
  *        ALLOWED_ORIGINS = https://ten-ban.github.io   (Text; thêm ,http://localhost:8000 nếu chạy thử trên máy)
- *        ZAI_API_KEY     = khoá API Z.ai                (Secret) – cách A
+ *        GEMINI_API_KEY  = khoá Gemini API              (Secret) – cách A
  *      Hoặc cách B: Settings › Bindings › Add › Workers AI › tên biến AI.
  *   4. Copy địa chỉ Worker (dạng https://royal-gambit-ai.ten-ban.workers.dev) dán vào aiApi trong config.js.
  *   Mở địa chỉ Worker trên trình duyệt: thấy {"ok":true,...} là đã chạy.
@@ -142,7 +143,9 @@ function validMessages(m) {
           if (!f || typeof c.id !== 'string' || c.id.length > 80 || !TOOL_NAMES.has(f.name) || typeof f.arguments !== 'string' || f.arguments.length > 2000) return null;
           total += f.arguments.length;
           callIds.add(c.id);
-          msg.tool_calls.push({ id: c.id, type: 'function', function: { name: f.name, arguments: f.arguments } });
+          // sig: "thought signature" Gemini gửi kèm lệnh gọi công cụ, web gửi trả nguyên vẹn ở lượt sau (Gemini 3 bắt buộc)
+          if (c.sig != null && (typeof c.sig !== 'string' || c.sig.length > 40000)) return null;
+          msg.tool_calls.push({ id: c.id, type: 'function', function: { name: f.name, arguments: f.arguments }, ...(c.sig ? { sig: c.sig } : {}) });
         }
       }
       out.push(msg);
@@ -166,6 +169,8 @@ const callId = () => 'call_' + Date.now().toString(36) + '_' + (callSeq++).toStr
 
 // Workers AI: gọi một lần (không stream) rồi đổi thành luồng chung; hỗ trợ cả dạng { response, tool_calls } lẫn dạng OpenAI
 async function workersAI(env, messages, withTools) {
+  // bỏ trường sig (chỉ Gemini dùng) cho đúng dạng OpenAI
+  messages = messages.map(m => m.tool_calls ? { ...m, tool_calls: m.tool_calls.map(({ sig, ...c }) => c) } : m);
   const r = await env.AI.run(env.CF_MODEL || '@cf/zai-org/glm-4.7-flash', { messages, max_tokens: MAX_TOKENS, temperature: 0.5, ...(withTools ? { tools: OPENAI_TOOLS } : {}) });
   const msg = r && r.choices && r.choices[0] && r.choices[0].message;
   const text = (msg && typeof msg.content === 'string' ? msg.content : '') || (typeof r.response === 'string' ? r.response : '');
@@ -186,43 +191,103 @@ async function workersAI(env, messages, withTools) {
   });
 }
 
-// API Z.ai: luồng SSE dạng OpenAI → luồng chung cho web:
-//   data: {"t":"đoạn chữ"} …  data: {"tools":[{id,name,arguments}]}  data: [DONE]   (bỏ phần "suy nghĩ" reasoning_content)
-// Gói miễn phí glm-4.7-flash hay báo quá tải (HTTP 429, mã 1305): đợi rồi thử lại, vẫn quá tải thì sang mô hình dự phòng
-// (FALLBACK_MODEL, mặc định glm-4.5-flash, cũng miễn phí; đặt FALLBACK_MODEL = none để tắt).
+// Gemini API (Google): đổi hội thoại dạng OpenAI của web sang dạng Gemini, gọi streamGenerateContent (SSE) rồi đổi kết quả
+// thành luồng chung cho web:  data: {"t":"đoạn chữ"} …  data: {"tools":[{id,name,arguments,sig}]}  data: [DONE]
+// Gemini 3 bắt buộc gửi trả "thought signature" của lệnh gọi công cụ đầu tiên trong mỗi bước; web giữ nó ở trường sig.
+// Thiếu (web bản cũ còn trong bộ nhớ đệm) thì dùng chữ ký giả skip_thought_signature_validator mà Google cho phép.
+const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+const GEMINI_MAX_TOKENS = 4096; // Gemini tính cả phần "suy nghĩ" vào số chữ trả lời
+const DUMMY_SIG = 'skip_thought_signature_validator';
+const GEMINI_TOOLS = [{
+  functionDeclarations: TOOLS.map(t => ({
+    name: t.name, description: t.description,
+    // Gemini không nhận object rỗng làm tham số: công cụ không có tham số thì bỏ hẳn parameters
+    ...(Object.keys(t.parameters.properties || {}).length ? { parameters: t.parameters } : {}),
+  })),
+}];
+const ownId = id => id.startsWith('call_'); // id do Worker tự đặt (Gemini không trả id) thì không gửi lại cho Gemini
+
+function toGemini(messages) {
+  let system = '';
+  const contents = [];
+  const names = new Map(); // tool_call_id → tên công cụ (functionResponse cần tên)
+  const push = (role, parts) => {
+    if (!parts.length) return;
+    const last = contents[contents.length - 1];
+    if (last && last.role === role) last.parts.push(...parts); // Gemini muốn user / model xen kẽ: gộp các tin liền nhau
+    else contents.push({ role, parts });
+  };
+  for (const m of messages) {
+    if (m.role === 'system') system = m.content;
+    else if (m.role === 'user') push('user', m.content ? [{ text: m.content }] : []);
+    else if (m.role === 'assistant') {
+      const parts = m.content ? [{ text: m.content }] : [];
+      (m.tool_calls || []).forEach((c, i) => {
+        names.set(c.id, c.function.name);
+        let args = {};
+        try { args = JSON.parse(c.function.arguments || '{}') || {}; } catch {}
+        const part = { functionCall: { name: c.function.name, args, ...(ownId(c.id) ? {} : { id: c.id }) } };
+        const sig = c.sig || (i === 0 ? DUMMY_SIG : '');
+        if (sig) part.thoughtSignature = sig;
+        parts.push(part);
+      });
+      push('model', parts.length ? parts : [{ text: ' ' }]);
+    } else if (m.role === 'tool') {
+      push('user', [{ functionResponse: { name: names.get(m.tool_call_id) || '', response: { result: m.content }, ...(ownId(m.tool_call_id) ? {} : { id: m.tool_call_id }) } }]);
+    }
+  }
+  return { system, contents };
+}
+
+function geminiBody(env, model, messages, withTools) {
+  const { system, contents } = toGemini(messages);
+  const gen = { maxOutputTokens: GEMINI_MAX_TOKENS };
+  // Gemini 3 trở lên: giữ temperature mặc định (Google khuyên vậy), suy nghĩ theo THINKING nếu có.
+  // Gemini 2.x (mô hình dự phòng cũ): tắt suy nghĩ cho nhanh.
+  if (/^gemini-([3-9]|flash|pro)/.test(model)) { if (env.THINKING) gen.thinkingConfig = { thinkingLevel: env.THINKING }; }
+  else gen.thinkingConfig = { thinkingBudget: 0 };
+  return {
+    ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+    contents,
+    // Lượt cuối vẫn khai báo công cụ (hội thoại có lệnh gọi cũ) nhưng cấm gọi thêm
+    tools: GEMINI_TOOLS,
+    toolConfig: { functionCallingConfig: { mode: withTools ? 'AUTO' : 'NONE' } },
+    generationConfig: gen,
+  };
+}
+
+// Quá tải (HTTP 429 / 503): đợi rồi thử lại, vẫn quá tải thì sang mô hình dự phòng
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-async function zaiFetch(env, messages, withTools) {
-  const base = String(env.ZAI_BASE || 'https://api.z.ai/api/paas/v4').replace(/\/+$/, '');
-  const main = env.MODEL || 'glm-4.7-flash';
-  const fb = env.FALLBACK_MODEL === 'none' ? '' : env.FALLBACK_MODEL || 'glm-4.5-flash';
+const busy = s => s === 429 || s === 503;
+async function geminiFetch(env, messages, withTools) {
+  const base = String(env.GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '');
+  const main = env.MODEL || GEMINI_MODEL;
+  const fb = env.FALLBACK_MODEL === 'none' ? '' : env.FALLBACK_MODEL || 'gemini-flash-lite-latest';
   const plan = [[main, 0], [main, 1200], ...(fb && fb !== main ? [[fb, 300], [fb, 1500]] : [])];
   let err = null;
   for (const [model, wait] of plan) {
     if (wait) await sleep(wait);
-    const res = await fetch(base + '/chat/completions', {
+    const res = await fetch(`${base}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + env.ZAI_API_KEY, 'Accept-Language': 'vi-VN,vi' },
-      body: JSON.stringify({
-        model, messages, stream: true, max_tokens: MAX_TOKENS, temperature: 0.5, thinking: { type: 'disabled' },
-        ...(withTools ? { tools: OPENAI_TOOLS, tool_choice: 'auto' } : {}),
-      }),
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+      body: JSON.stringify(geminiBody(env, model, messages, withTools)),
     });
     if (res.ok) return res;
     const e = new Error('UPSTREAM');
     e.status = res.status;
     e.detail = (await res.text()).slice(0, 300);
-    // Lỗi khác quá tải (sai khoá, hết số dư…): báo ngay; mô hình dự phòng không dùng được thì giữ lỗi quá tải ban đầu
-    if (res.status !== 429 && model === main) throw e;
+    // Lỗi khác quá tải (sai khoá, sai tên mô hình…): báo ngay; mô hình dự phòng không dùng được thì giữ lỗi quá tải ban đầu
+    if (!busy(res.status) && model === main) throw e;
     if (!err || model === main) err = e;
-    if (res.status !== 429 && model !== main) break;
+    if (!busy(res.status) && model !== main) break;
   }
   throw err;
 }
 
-async function zai(env, messages, withTools) {
-  const res = await zaiFetch(env, messages, withTools);
+async function gemini(env, messages, withTools) {
+  const res = await geminiFetch(env, messages, withTools);
   const dec = new TextDecoder(), enc = new TextEncoder();
-  const calls = []; // gom dần theo index: { id, name, arguments }
+  const calls = []; // { id, name, arguments, sig }
   let buf = '';
   const handle = (ctl, line) => {
     if (!line.startsWith('data:')) return;
@@ -230,16 +295,18 @@ async function zai(env, messages, withTools) {
     if (!data || data === '[DONE]') return;
     let j;
     try { j = JSON.parse(data); } catch { return; }
-    const c = j.choices && j.choices[0];
-    if (!c) return;
-    const d = c.delta || c.message || {};
-    if (typeof d.content === 'string' && d.content) ctl.enqueue(enc.encode(sseLine({ t: d.content })));
-    for (const tc of d.tool_calls || []) {
-      const k = Number.isInteger(tc.index) ? tc.index : calls.length;
-      const cur = calls[k] || (calls[k] = { id: '', name: '', arguments: '' });
-      if (tc.id) cur.id = tc.id;
-      if (tc.function && tc.function.name) cur.name = tc.function.name;
-      if (tc.function && tc.function.arguments != null) cur.arguments += typeof tc.function.arguments === 'string' ? tc.function.arguments : JSON.stringify(tc.function.arguments);
+    const c = j.candidates && j.candidates[0];
+    const parts = (c && c.content && c.content.parts) || [];
+    for (const p of parts) {
+      if (p.thought) continue; // bỏ phần "suy nghĩ"
+      if (typeof p.text === 'string' && p.text) ctl.enqueue(enc.encode(sseLine({ t: p.text })));
+      if (p.functionCall && TOOL_NAMES.has(p.functionCall.name)) {
+        calls.push({
+          id: p.functionCall.id || callId(), name: p.functionCall.name,
+          arguments: JSON.stringify(p.functionCall.args || {}),
+          ...(p.thoughtSignature ? { sig: p.thoughtSignature } : {}),
+        });
+      }
     }
   };
   return res.body.pipeThrough(new TransformStream({
@@ -251,8 +318,7 @@ async function zai(env, messages, withTools) {
     flush(ctl) {
       buf += dec.decode();
       if (buf.trim()) handle(ctl, buf.trim());
-      const tools = calls.filter(c => c && TOOL_NAMES.has(c.name)).map(c => ({ id: c.id || callId(), name: c.name, arguments: c.arguments || '{}' }));
-      if (tools.length) ctl.enqueue(enc.encode(sseLine({ tools })));
+      if (calls.length) ctl.enqueue(enc.encode(sseLine({ tools: calls })));
       ctl.enqueue(enc.encode('data: [DONE]\n\n'));
     },
   }));
@@ -265,7 +331,7 @@ export default {
     const okOrigin = allowed.includes(origin);
     if (request.method === 'OPTIONS') return new Response(null, { status: okOrigin ? 204 : 403, headers: okOrigin ? cors(origin) : {} });
     if (request.method === 'GET') {
-      return json({ ok: true, app: 'royal-gambit-ai', model: env.ZAI_API_KEY ? env.MODEL || 'glm-4.7-flash' : env.AI ? env.CF_MODEL || '@cf/zai-org/glm-4.7-flash' : null, tools: [...TOOL_NAMES] }, 200, okOrigin ? origin : '');
+      return json({ ok: true, app: 'royal-gambit-ai', model: env.GEMINI_API_KEY ? env.MODEL || GEMINI_MODEL : env.AI ? env.CF_MODEL || '@cf/zai-org/glm-4.7-flash' : null, tools: [...TOOL_NAMES] }, 200, okOrigin ? origin : '');
     }
     if (request.method !== 'POST') return json({ error: 'METHOD' }, 405);
     if (!okOrigin) return json({ error: 'ORIGIN' }, 403);
@@ -282,16 +348,17 @@ export default {
 
     let stream;
     try {
-      if (env.ZAI_API_KEY) stream = await zai(env, messages, withTools);
+      if (env.GEMINI_API_KEY) stream = await gemini(env, messages, withTools);
       else if (env.AI) stream = await workersAI(env, messages, withTools);
       else return json({ error: 'NO_MODEL' }, 500, origin);
     } catch (e) {
       console.error('AI', e.status, e.message, e.detail || '');
       // Kèm mã lỗi của nhà cung cấp để chủ web tìm nguyên nhân (không chứa khoá API).
-      // Z.ai: 1113 = hết số dư / khoá thuộc gói khác (GLM Coding Plan dùng ZAI_BASE riêng), 1302 / 1305 = quá nhiều yêu cầu, 1211 = sai tên mô hình.
+      // Gemini: 400 INVALID_ARGUMENT = sai tham số / sai khoá, 400 FAILED_PRECONDITION = vùng chưa hỗ trợ gói miễn phí, 403 PERMISSION_DENIED = khoá không có quyền,
+      // 404 NOT_FOUND = sai tên mô hình, 429 RESOURCE_EXHAUSTED = vượt hạn mức, 503 UNAVAILABLE = mô hình quá tải.
       let detail = '';
-      try { const j = JSON.parse(e.detail || '{}'); detail = j.error ? `${j.error.code || ''} ${j.error.message || ''}`.trim() : ''; } catch { detail = String(e.detail || '').slice(0, 160); }
-      return json({ error: e.status === 429 ? 'BUSY' : 'UPSTREAM', status: e.status || 0, detail }, e.status === 429 ? 429 : 502, origin);
+      try { let j = JSON.parse(e.detail || '{}'); if (Array.isArray(j)) j = j[0] || {}; detail = j.error ? `${j.error.status || j.error.code || ''} ${j.error.message || ''}`.trim() : ''; } catch { detail = String(e.detail || '').slice(0, 160); }
+      return json({ error: busy(e.status) ? 'BUSY' : 'UPSTREAM', status: e.status || 0, detail }, busy(e.status) ? 429 : 502, origin);
     }
     return new Response(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', ...cors(origin) } });
   },
