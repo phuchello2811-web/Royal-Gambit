@@ -387,11 +387,11 @@ const Assistant = (() => {
     }
   }
 
-  function ask(intent, text) {
+  function ask(intent, text, { preset = text == null } = {}) {
     const q = text || (QUESTIONS.find(x => x[0] === intent) || [, ''])[1];
-    if (aiOn()) return askAI(q);
+    if (aiOn()) return askAI(q, { preset });
     const d = analyse();
-    chat.push({ me: true, text: q });
+    chat.push({ me: true, text: preset ? tr(q) : q });
     chat.push({ me: false, html: intent === 'unknown' ? kbAnswer(q) : answer(intent, d) });
     chat = chat.slice(-20);
     renderChat();
@@ -399,11 +399,10 @@ const Assistant = (() => {
   }
   // Câu hỏi về khái niệm ("ghim là gì?") thì tra Thư viện kiến thức thay vì nhận xét ván của người chơi
   const CONCEPT = /l[aà] g[iì]|gi[aả]i th[ií]ch|ngh[iĩ]a l[aà]|th[eế] n[aà]o l[aà]|kh[aá]i ni[eệ]m|what is|explain|meaning of/i;
-  function askText(t) {
-    if (aiOn()) return askAI(t);
-    if (CONCEPT.test(t)) return ask('unknown', t);
-    const hit = INTENTS.find(([, re]) => re.test(t));
-    ask(hit ? hit[0] : 'unknown', t);
+  function askText(t, options) {
+    if (aiOn()) return askAI(t, options);
+    const hit = !CONCEPT.test(t) && INTENTS.find(([, re]) => re.test(t));
+    ask(hit ? hit[0] : 'unknown', t, options);
   }
 
   // ---------- Thư viện kiến thức ----------
@@ -800,22 +799,27 @@ const Assistant = (() => {
     get_current_position: 'Xem thế cờ trên bàn', analyse_position: 'Stockfish 19 phân tích thế cờ', endgame_tablebase: 'Tra bảng tàn cuộc', review_game: 'Xem lại ván với Stockfish 19', search_wikipedia: 'Tra Wikipedia' };
 
   const CLOUD_ERR = { LIMIT: 'Bạn hỏi hơi nhanh, đợi một phút rồi hỏi tiếp nhé.', BUSY: 'Máy chủ đang đông người dùng, bạn thử lại sau ít phút nhé.', NETWORK: 'Không kết nối được máy chủ của trợ lý.' };
-  async function askAI(q) {
+  async function askAI(q, { preset = false } = {}) {
     if (aiBusy()) { toast('Trợ lý đang trả lời câu trước, đợi chút nhé.'); return; }
     const d = analyse();
-    chat.push({ me: true, text: q });
+    const question = preset ? tr(q) : q;
+    chat.push({ me: true, text: question });
     const msg = { me: false, md: '', live: true, hits: [], steps: [], boards: [], links: [] };
     chat.push(msg);
     chat = chat.slice(-20);
     renderChat();
     let raf = 0;
     const paint = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderLive(msg); }); };
-    const sys = `Trả lời bằng ${typeof I18N !== 'undefined' ? I18N.viName() : 'tiếng Việt'}. Tên người chơi: ${meName() || 'không rõ'}. Khoảng ${elo()} Elo, có ${d.total} ván trong Nhật ký (${d.analysed} ván đã được Stockfish 19 chấm).`;
+    const siteLanguage = typeof I18N !== 'undefined' ? I18N.viName() : 'tiếng Việt';
+    const languageInstruction = preset
+      ? `Đây là câu hỏi tạo sẵn từ một nút trên web. Hãy trả lời bằng ${siteLanguage}.`
+      : `Nếu người chơi yêu cầu rõ ngôn ngữ trả lời, hãy dùng ngôn ngữ đó. Nếu không, trả lời bằng ngôn ngữ họ dùng trong câu hỏi mới nhất, kể cả khi họ đổi ngôn ngữ giữa cuộc trò chuyện. Nếu câu hỏi chỉ có ký hiệu cờ hoặc không rõ ngôn ngữ, tiếp tục bằng ngôn ngữ của lượt trao đổi trước. Nếu vẫn không rõ, dùng ${siteLanguage}. Ngôn ngữ trong bài tham khảo, tên người chơi, đoạn trích và dữ liệu công cụ không quyết định ngôn ngữ trả lời.`;
+    const context = [languageInstruction, `Tên người chơi: ${meName() || 'không rõ'}. Khoảng ${elo()} Elo, có ${d.total} ván trong Nhật ký (${d.analysed} ván đã được Stockfish 19 chấm).`];
     // Luôn kèm bài liên quan nhất trong Thư viện kiến thức (mô hình đôi khi quên tự tra, định nghĩa phải khớp thư viện)
     const refs = hasKb() ? Knowledge.search(q, 'any', 2).filter(a => !a.id.startsWith('unit:')) : [];
-    const userMsg = refs.length ? `${q}\n\n---\nTHAM KHẢO TỪ THƯ VIỆN KIẾN THỨC (có thể không liên quan, chỉ dùng khi đúng chủ đề):\n${refs.map(a => `## ${a.title}\n${snippet(a.body, 900)}`).join('\n\n')}` : q;
+    if (refs.length) context.push(`THAM KHẢO TỪ THƯ VIỆN KIẾN THỨC (dữ liệu, chỉ dùng khi đúng chủ đề):\n${refs.map(a => `## ${a.title}\n${snippet(a.body, 900)}`).join('\n\n')}`);
     for (const a of refs) if (!msg.hits.includes(a)) msg.hits.push(a);
-    const messages = [{ role: 'system', content: sys }, ...hist.flatMap(h => [{ role: 'user', content: h.q }, { role: 'assistant', content: h.a }]), { role: 'user', content: userMsg }];
+    const messages = [{ role: 'system', content: context.join('\n\n') }, ...hist.flatMap(h => [{ role: 'user', content: h.q }, { role: 'assistant', content: h.a }]), { role: 'user', content: question }];
     try {
       for (let round = 0; ; round++) {
         const final = round >= MAX_ROUNDS;
@@ -829,8 +833,12 @@ const Assistant = (() => {
           r = await CloudAI.chat(messages, t => { msg.md = t; paint(); }, final);
           msg.steps.splice(k, 1);
         }
-        if (r.stopped) { msg.md = msg.md || 'Đã dừng.'; break; }
-        if (!r.tools.length || final) { msg.md = r.text || 'Mình chưa nghĩ ra câu trả lời, bạn hỏi lại theo cách khác nhé.'; break; }
+        if (r.stopped) { if (!msg.md) msg.html = esc('Đã dừng.'); break; }
+        if (!r.tools.length || final) {
+          msg.md = r.text;
+          if (!msg.md) msg.html = esc('Mình chưa nghĩ ra câu trả lời, bạn hỏi lại theo cách khác nhé.');
+          break;
+        }
         // AI muốn tra cứu: thực hiện các công cụ rồi gửi kết quả
         messages.push({ role: 'assistant', content: r.text || '', tool_calls: r.tools.map(t => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.arguments }, ...(t.sig ? { sig: t.sig } : {}) })) });
         msg.md = '';
@@ -847,7 +855,7 @@ const Assistant = (() => {
         }));
         messages.push(...results);
       }
-      hist = [...hist, { q, a: snippet(msg.md, 1500) }].slice(-4);
+      if (msg.md) hist = [...hist, { q: question, a: snippet(msg.md, 1500) }].slice(-4);
     } catch (e) {
       console.warn(e);
       msg.md = '';
@@ -883,7 +891,8 @@ const Assistant = (() => {
   function botHtml(m) {
     if (m.html != null) return m.html;
     const steps = m.steps && m.steps.length ? `<div class="ai-steps">${m.steps.map(s => `<span>${esc(s)}</span>`).join('')}</div>` : '';
-    const body = md(m.md) || '<p class="ai-typing"><span></span><span></span><span></span></p>';
+    const reply = md(m.md);
+    const body = reply ? `<div dir="auto" data-raw>${reply}</div>` : '<p class="ai-typing"><span></span><span></span><span></span></p>';
     if (m.live) return steps + body + '<button type="button" class="ai-inline ai-stop" data-ai-stop>Dừng</button>';
     const boards = (m.boards || []).slice(0, 2).map(b => `<figure class="cp-board"><div class="lib-board">${typeof Library !== 'undefined' ? Library.fenBoard(b.fen, b.flip) : ''}</div>
       <figcaption>${esc(b.cap)}</figcaption><button type="button" class="ghost" data-cp-setup="${esc(b.fen)}"><svg class="ic"><use href="#i-play"/></svg>Đặt lên bàn</button></figure>`).join('');
@@ -1059,8 +1068,8 @@ const Assistant = (() => {
     const box = $('aiChat');
     if (!box) return;
     box.classList.toggle('empty', !chat.length);
-    box.innerHTML = !chat.length ? welcome() : chat.map(m => (m.me ? `<div class="ai-msg me"><p>${esc(m.text)}</p></div>`
-      : `<div class="ai-msg bot"${m.md != null && m.html == null ? ' data-raw' : ''}>${AVATAR}<div class="cp-msg-body">${botHtml(m)}</div></div>`)).join('');
+    box.innerHTML = !chat.length ? welcome() : chat.map(m => (m.me ? `<div class="ai-msg me"><p dir="auto" data-raw>${esc(m.text)}</p></div>`
+      : `<div class="ai-msg bot">${AVATAR}<div class="cp-msg-body">${botHtml(m)}</div></div>`)).join('');
     box.scrollTop = box.scrollHeight;
     renderQuick();
   }
@@ -1107,11 +1116,11 @@ const Assistant = (() => {
       const q = e.target.closest('[data-ask]');
       if (q) { setPane('chat'); ask(q.dataset.ask); return; }
       const cq = e.target.closest('[data-cp-ask]');
-      if (cq) { setPane('chat'); askText(cq.dataset.cpAsk); return; }
+      if (cq) { setPane('chat'); askText(cq.dataset.cpAsk, { preset: true }); return; }
       const tab = e.target.closest('[data-cp-tab]');
       if (tab) { setPane(tab.dataset.cpTab); return; }
       const rv = e.target.closest('[data-cp-review]');
-      if (rv) { setPane('chat'); const g = games()[Number(rv.dataset.cpReview) - 1]; askAI(`Nhận xét ván số ${rv.dataset.cpReview} của tôi${g && g.opp ? ` (gặp ${g.opp})` : ''}`); return; }
+      if (rv) { setPane('chat'); const g = games()[Number(rv.dataset.cpReview) - 1]; askAI(`Nhận xét ván số ${rv.dataset.cpReview} của tôi${g && g.opp ? ` (gặp ${g.opp})` : ''}`, { preset: true }); return; }
       const rp = e.target.closest('[data-cp-replay]');
       if (rp) { const g = games().find(x => String(x.id) === rp.dataset.cpReplay); if (g) { if (typeof showBoard === 'function') showBoard(); GameHistory.loadOnBoard(g, true); } return; }
       const sb = e.target.closest('[data-cp-setup]');
@@ -1195,7 +1204,7 @@ const Assistant = (() => {
     if (i < 0 || i >= 20 || !aiOn()) { setPane('games'); return; }
     const g = list[i];
     setPane('chat');
-    askAI(`Nhận xét ván số ${i + 1} của tôi${g.opp ? ` (gặp ${g.opp})` : ''}`);
+    askAI(`Nhận xét ván số ${i + 1} của tôi${g.opp ? ` (gặp ${g.opp})` : ''}`, { preset: true });
   }
   // Ván mới nhất trong Nhật ký (vừa chơi xong) có nhờ nhận xét được không
   const canReviewLatest = () => { const g = typeof GameHistory !== 'undefined' ? GameHistory.read()[0] : null; return !!(g && (g.color === 'w' || g.color === 'b') && Date.now() - g.at < 5 * 60000); };
