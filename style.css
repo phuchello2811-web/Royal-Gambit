@@ -3448,10 +3448,16 @@ button.lib-back:hover { color: #fff; background: #ffffff0d; }
 /* ---------- Ngôn ngữ ---------- */
 .lang-btn { gap: 8px; }
 .lang-btn span { font-weight: 700; }
-.auth-lang { display: flex; justify-content: center; gap: 4px; margin: -6px auto 12px; padding: 3px; width: fit-content; border-radius: 99px; background: #1f1e1c; }
-.auth-lang button { padding: 5px 12px; border: none; border-radius: 99px; background: transparent; box-shadow: none; color: #8b8987; font-size: 0.78rem; font-weight: 700; }
-.auth-lang button.on { background: #3c3a37; color: #fff; }
-.auth-lang button:active { transform: none; }
+.auth-lang { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -6px auto 12px; padding: 3px 4px 3px 10px; width: fit-content; border-radius: 99px; background: #1f1e1c; color: #8b8987; }
+.auth-lang .ic { width: 15px; height: 15px; }
+.auth-lang select { width: auto; min-width: 0; padding: 4px 26px 4px 8px; border: none; border-radius: 99px; background-color: #3c3a37; color: #fff; font-size: 0.78rem; font-weight: 700; }
+/* Danh sách ngôn ngữ mở từ nút quả địa cầu */
+.lang-menu { position: fixed; z-index: 3000; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 6px; min-width: 300px; border-radius: 12px; background: #262522; border: 1px solid #3c3a37; box-shadow: 0 12px 32px rgba(0, 0, 0, .5); }
+.lang-menu button { padding: 8px 12px; border: none; border-radius: 8px; background: transparent; box-shadow: none; color: #e0dfde; font-size: 0.9rem; font-weight: 600; text-align: start; }
+.lang-menu button:hover { background: #3c3a37; }
+.lang-menu button.on { background: #81b64c; color: #fff; }
+.lang-menu button:active { transform: none; }
+@media (max-width: 420px) { .lang-menu { min-width: 0; grid-template-columns: 1fr; } }
 .lang-row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 0 0; text-transform: none; letter-spacing: 0; color: #e0dfde; font-size: 0.88rem; font-weight: 500; }
 .lang-row select { width: auto; min-width: 140px; }
 .view-row { flex-wrap: wrap; }
@@ -5838,3 +5844,4 @@ body:is([data-board="neon"], [data-board="cosmos"], [data-board="lava"], [data-b
   .frame-stage.pop .avatar { animation: none; }
   .frame-tile { transition: none; }
 }
+

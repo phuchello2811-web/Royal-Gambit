@@ -5,9 +5,9 @@
 // • Không đụng tới Firebase, PeerJS, Google đăng nhập (/__/auth/…) và mọi yêu cầu khác GET.
 // Sửa danh sách CORE hoặc đổi VERSION khi thêm file mới cần có sẵn lúc offline.
 
-const VERSION = 'rg-v62';
+const VERSION = 'rg-v65';
 const CORE = [
-  './', 'index.html', 'style.css', 'manifest.webmanifest',
+  './', 'index.html', 'style.css', 'lang/rtl.css', 'manifest.webmanifest',
   'i18n.js', 'chess.js', 'ai.js', 'engine.js', 'config.js', 'profile.js', 'contest.js', 'sound.js',
   'lessons.js', 'lessons-en.js', 'learn.js', 'online.js', 'library.js', 'coach.js', 'puzzles.js',
   'history.js', 'openings.js', 'knowledge.js', 'knowledge-en.js', 'cloudai.js', 'assistant.js', 'pwa.js', 'app.js',

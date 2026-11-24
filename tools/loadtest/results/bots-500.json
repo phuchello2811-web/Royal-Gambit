@@ -1,0 +1,47 @@
+{
+  "bots": 500,
+  "created": 500,
+  "minutes": 3,
+  "games": 818,
+  "gamesPerMin": 272.8,
+  "plies": 39344,
+  "matchMs": {
+    "median": 6567,
+    "p95": 50128,
+    "n": 1642
+  },
+  "pairGap": {
+    "median": 1,
+    "p95": 19,
+    "max": 173
+  },
+  "moveLagMs": {
+    "median": 1,
+    "p95": 19,
+    "p99": 86,
+    "n": 39337
+  },
+  "illegalMoves": 0,
+  "boardDesync": 0,
+  "busyReplies": 23,
+  "noStart": 0,
+  "stalledGames": 14,
+  "unmatchedAtEnd": 141,
+  "legitWrites": 5859,
+  "legitRejected": 2,
+  "legitRejectedSample": [
+    "PATCH players 401 {\"error\":\"Permission denied\"}",
+    "PATCH players 401 {\"error\":\"Permission denied\"}"
+  ],
+  "cheatTried": 40,
+  "cheatBlocked": 40,
+  "eloDeltaMean": 0,
+  "queueSize": {
+    "median": 152,
+    "max": 252
+  },
+  "requests": 75777,
+  "requestsPerSec": 421,
+  "MBin": 130.1,
+  "errors": {}
+}

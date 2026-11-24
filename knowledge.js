@@ -520,6 +520,7 @@ const Knowledge = (() => {
     const q = [...new Set(tokens(query))];
     const nq = norm(query).trim();
     if (!q.length && !nq) return [];
+    const translatedSearch = nq.length >= 2 && typeof I18N !== 'undefined' && I18N.lang() !== 'vi';
     const idf = w => Math.log(1 + list.length / (df.get(w) || 0.5));
     const scored = [];
     for (const a of list) {
@@ -539,6 +540,11 @@ const Knowledge = (() => {
         else if ((a.tb.join(' ') + ' ' + a.tg.join(' ')).includes(ph)) s += 1.5;
       }
       if (nq.length >= 4 && a.nt.includes(nq)) s += 6;
+      if (translatedSearch) {
+        const title = norm(I18N.t(a.title));
+        if (title !== a.nt && title.includes(nq)) s += 6;
+        else if (!s && norm(I18N.t(a.body)).includes(nq)) s += 1;
+      }
       // Bài soạn sẵn được ưu tiên nhẹ hơn mục khai cuộc tự gộp khi điểm ngang nhau
       if (s > 0) scored.push([s + (a.lib || a.id.startsWith('unit:') ? 0 : 0.5), a]);
     }

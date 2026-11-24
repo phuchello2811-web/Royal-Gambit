@@ -1,0 +1,196 @@
+Bot: 100 · thời gian: 3 phút · emulator demo-rg-default-rtdb
+Tạo 100 tài khoản giả lập trong 0.5 s
+{
+  "bots": 100,
+  "created": 100,
+  "minutes": 3,
+  "games": 181,
+  "gamesPerMin": 60.3,
+  "plies": 8729,
+  "matchMs": {
+    "median": 3011,
+    "p95": 36544,
+    "n": 362
+  },
+  "pairGap": {
+    "median": 11,
+    "p95": 72,
+    "max": 1100
+  },
+  "moveLagMs": {
+    "median": 2,
+    "p95": 4,
+    "p99": 30,
+    "n": 8729
+  },
+  "illegalMoves": 0,
+  "boardDesync": 0,
+  "busyReplies": 6,
+  "noStart": 0,
+  "stalledGames": 0,
+  "unmatchedAtEnd": 25,
+  "legitWrites": 1180,
+  "legitRejected": 0,
+  "legitRejectedSample": [],
+  "cheatTried": 40,
+  "cheatBlocked": 40,
+  "eloDeltaMean": 0,
+  "queueSize": {
+    "median": 24,
+    "max": 39
+  },
+  "requests": 15626,
+  "requestsPerSec": 87,
+  "MBin": 6.7,
+  "errors": {}
+}
+Bot: 250 · thời gian: 3 phút · emulator demo-rg-default-rtdb
+Tạo 250 tài khoản giả lập trong 1.3 s
+{
+  "bots": 250,
+  "created": 250,
+  "minutes": 3,
+  "games": 413,
+  "gamesPerMin": 137.7,
+  "plies": 19620,
+  "matchMs": {
+    "median": 6024,
+    "p95": 41704,
+    "n": 828
+  },
+  "pairGap": {
+    "median": 3,
+    "p95": 40,
+    "max": 189
+  },
+  "moveLagMs": {
+    "median": 1,
+    "p95": 12,
+    "p99": 53,
+    "n": 19618
+  },
+  "illegalMoves": 0,
+  "boardDesync": 0,
+  "busyReplies": 7,
+  "noStart": 0,
+  "stalledGames": 5,
+  "unmatchedAtEnd": 87,
+  "legitWrites": 2969,
+  "legitRejected": 0,
+  "legitRejectedSample": [],
+  "cheatTried": 40,
+  "cheatBlocked": 40,
+  "eloDeltaMean": 0,
+  "queueSize": {
+    "median": 78,
+    "max": 108
+  },
+  "requests": 37755,
+  "requestsPerSec": 210,
+  "MBin": 36.2,
+  "errors": {}
+}
+Bot: 500 · thời gian: 3 phút · emulator demo-rg-default-rtdb
+Tạo 500 tài khoản giả lập trong 1.7 s
+{
+  "bots": 500,
+  "created": 500,
+  "minutes": 3,
+  "games": 818,
+  "gamesPerMin": 272.8,
+  "plies": 39344,
+  "matchMs": {
+    "median": 6567,
+    "p95": 50128,
+    "n": 1642
+  },
+  "pairGap": {
+    "median": 1,
+    "p95": 19,
+    "max": 173
+  },
+  "moveLagMs": {
+    "median": 1,
+    "p95": 19,
+    "p99": 86,
+    "n": 39337
+  },
+  "illegalMoves": 0,
+  "boardDesync": 0,
+  "busyReplies": 23,
+  "noStart": 0,
+  "stalledGames": 14,
+  "unmatchedAtEnd": 141,
+  "legitWrites": 5859,
+  "legitRejected": 2,
+  "legitRejectedSample": [
+    "PATCH players 401 {\"error\":\"Permission denied\"}",
+    "PATCH players 401 {\"error\":\"Permission denied\"}"
+  ],
+  "cheatTried": 40,
+  "cheatBlocked": 40,
+  "eloDeltaMean": 0,
+  "queueSize": {
+    "median": 152,
+    "max": 252
+  },
+  "requests": 75777,
+  "requestsPerSec": 421,
+  "MBin": 130.1,
+  "errors": {}
+}
+Bot: 1000 · thời gian: 3 phút · emulator demo-rg-default-rtdb
+Tạo 1000 tài khoản giả lập trong 3.7 s
+{
+  "bots": 1000,
+  "created": 1000,
+  "minutes": 3,
+  "games": 1021,
+  "gamesPerMin": 340.5,
+  "plies": 35997,
+  "matchMs": {
+    "median": 23280,
+    "p95": 79449,
+    "n": 2138
+  },
+  "pairGap": {
+    "median": 0,
+    "p95": 8,
+    "max": 264
+  },
+  "moveLagMs": {
+    "median": 1,
+    "p95": 724,
+    "p99": 2104,
+    "n": 35512
+  },
+  "illegalMoves": 0,
+  "boardDesync": 0,
+  "busyReplies": 195,
+  "noStart": 94,
+  "stalledGames": 989,
+  "unmatchedAtEnd": 239,
+  "legitWrites": 10006,
+  "legitRejected": 1853,
+  "legitRejectedSample": [
+    "PUT matchq 503 {\"error\":\"Firebase database instance is inactive\"}",
+    "PUT matchq 503 {\"error\":\"Firebase database instance is inactive\"}",
+    "PUT matchq 503 {\"error\":\"Firebase database instance is inactive\"}",
+    "PATCH players 503 {\"error\":\"Firebase database instance is inactive\"}",
+    "PATCH players 503 {\"error\":\"Firebase database instance is inactive\"}"
+  ],
+  "cheatTried": 40,
+  "cheatBlocked": 40,
+  "eloDeltaMean": -0.12,
+  "queueSize": {
+    "median": 156,
+    "max": 796
+  },
+  "requests": 91968,
+  "requestsPerSec": 511,
+  "MBin": 299.7,
+  "errors": {
+    "relay-503": 4620,
+    "sse": 1
+  }
+}

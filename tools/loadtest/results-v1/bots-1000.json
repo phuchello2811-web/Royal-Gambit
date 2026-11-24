@@ -1,0 +1,52 @@
+{
+  "bots": 1000,
+  "created": 1000,
+  "minutes": 3,
+  "games": 857,
+  "gamesPerMin": 285.7,
+  "plies": 17501,
+  "matchMs": {
+    "median": 23811,
+    "p95": 125147,
+    "n": 1788
+  },
+  "pairGap": {
+    "median": 0,
+    "p95": 7,
+    "max": 299
+  },
+  "moveLagMs": {
+    "median": 1,
+    "p95": 2244,
+    "p99": 7004,
+    "n": 16720
+  },
+  "illegalMoves": 0,
+  "boardDesync": 0,
+  "busyReplies": 168,
+  "noStart": 152,
+  "stalledGames": 1554,
+  "unmatchedAtEnd": 383,
+  "legitWrites": 9756,
+  "legitRejected": 2919,
+  "legitRejectedSample": [
+    "PUT matchq 500 {\"error\":\"An internal error occurred\"}",
+    "PUT matchq 500 {\"error\":\"An internal error occurred\"}",
+    "PUT matchq 500 {\"error\":\"An internal error occurred\"}",
+    "PUT matchq 500 {\"error\":\"An internal error occurred\"}",
+    "PUT matchq 500 {\"error\":\"An internal error occurred\"}"
+  ],
+  "cheatTried": 40,
+  "cheatBlocked": 40,
+  "eloDeltaMean": -0.13,
+  "queueSize": {
+    "median": 123,
+    "max": 784
+  },
+  "requests": 514896,
+  "requestsPerSec": 2861,
+  "MBin": 354.8,
+  "errors": {
+    "relay-503": 449212
+  }
+}

@@ -1,0 +1,142 @@
+/* Nạp sau style.css. I18N đặt dir trên html khi đổi ngôn ngữ. */
+@media (min-width: 701px) {
+  html[dir="rtl"] body,
+  html[dir="rtl"].standalone body {
+    padding-left: 0;
+    padding-right: var(--nav-w);
+  }
+
+  html[dir="rtl"] .topbar {
+    inset-inline: 0 auto;
+  }
+
+  html[dir="rtl"] :is(.toast, .update-bar) {
+    left: calc(50% - var(--nav-w) / 2);
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1199px) {
+  html[dir="rtl"] .topbar .tab .nav-badge {
+    right: auto;
+    left: 6px;
+  }
+}
+
+@media (min-width: 1200px) {
+  html[dir="rtl"] .topbar .nav-badge {
+    margin-left: 0;
+    margin-right: auto;
+  }
+}
+
+/* Bàn cờ, nước đi và nút tua theo cùng thứ tự với phím ← →. */
+html[dir="rtl"] :is(.board, .lib-board, .lib-card-board, .move-row, #moveNav,
+  .lib-step, .lib-moves, .kg-nav, .kg-moves, .engine-ev, .engine-pv,
+  .clock, .eval-label, #histImportText, #roomCode, .room-code, #inviteLink) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+@media (max-width: 700px) {
+  html[dir="rtl"] body[data-relief="on"] .board-wrap {
+    padding-right: 0;
+    padding-left: var(--frame);
+  }
+}
+
+html[dir="rtl"] :is(.profile-chip, .place-opt, .contest-item, .toc-item,
+  .ls-opt, .result-review, .lib-card, .puzzle-card, .rank-row.clickable,
+  .contest-row.clickable, .pf-medal-tile, .pf-contest-row, .pz-daily, .pz-card,
+  .bot-card, .coach-mini, .result-coach, .coach-card.empty, .admin-who,
+  .hm-act, .hm-daily-btn, .hm-todo-item, .hm-game, .hm-ct, .hm-top-row,
+  .hm-open-btn, .ld-unit-head, .hist-sync, .hm-muted.error, .kb-item,
+  .hm-ai-step, .cp-suggest button, .result-coach-ask) {
+  text-align: start;
+}
+
+html[dir="rtl"] :is(.pf-elo-block, .pf-card-head small, .hm-when, .keys-list dt) {
+  text-align: end;
+}
+
+html[dir="rtl"] :is(.pf-back, .lib-back) { padding-inline: 4px 10px; }
+html[dir="rtl"] .modal-close { right: auto; left: 12px; }
+html[dir="rtl"] .hm-resume-main { padding-inline: 16px 0; }
+html[dir="rtl"] .hm-resume-main > .hm-live-dot { left: auto; right: 0; }
+html[dir="rtl"] .captured img { margin-inline: -9px 0; }
+html[dir="rtl"] .captured img.group { margin-inline-start: -2px; }
+html[dir="rtl"] .captured img:first-child { margin-inline-start: 0; }
+html[dir="rtl"] .captured b { margin-inline: 6px 0; }
+html[dir="rtl"] .turn-dot { margin-inline: 0 6px; }
+
+html[dir="rtl"] :is(.hm-link, .pf-back, .lib-back, .af-back) > .ic,
+html[dir="rtl"] .rca-go {
+  transform: scaleX(-1);
+}
+
+html[dir="rtl"] select {
+  padding-inline: 10px 34px;
+  background-position: left 11px center;
+}
+
+html[dir="rtl"] .title-select {
+  padding-inline-end: 22px;
+  background-position: left 5px center;
+}
+
+html[dir="rtl"] .select-pill > .ic { margin-inline: 12px 0; }
+html[dir="rtl"] .select-pill .sp-cap {
+  margin-inline: 8px 0;
+  padding-inline: 0 9px;
+  border-right: 0;
+  border-left: 1px solid #ffffff1a;
+}
+
+@media (min-width: 900px) {
+  html[dir="rtl"] .auth-hero {
+    border-right: 0;
+    border-left: 1px solid #ffffff0f;
+  }
+
+  html[dir="rtl"] .auth-welcome { text-align: start; }
+}
+
+html[dir="rtl"] .auth-lang { padding-inline: 10px 4px; }
+html[dir="rtl"] .auth-lang select {
+  padding-inline: 8px 26px;
+  background-position: left 7px center;
+}
+html[dir="rtl"] .auth-tab-pill { left: auto; right: 4px; }
+html[dir="rtl"] .auth-tabs.reg .auth-tab-pill { transform: translateX(calc(-100% - 6px)); }
+html[dir="rtl"] .auth-field > .ic { left: auto; right: 13px; }
+html[dir="rtl"] .auth-field input { padding-left: 44px; padding-right: 42px; }
+html[dir="rtl"] :is(.auth-field input[autocomplete="username"], .auth-field input[type="email"],
+  .auth-field input[type="password"], .auth-field .code-input) {
+  direction: ltr;
+  text-align: right;
+}
+html[dir="rtl"] .auth-eye { right: auto; left: 6px; }
+html[dir="rtl"] .auth-ok { right: auto; left: 12px; }
+
+html[dir="rtl"] body:not([data-lstep="quiz"]) .ls-bubble::before {
+  right: auto;
+  left: 100%;
+  border-right-color: transparent;
+  border-left-color: #ffffff1c;
+}
+
+html[dir="rtl"] .chat-log p.opp,
+html[dir="rtl"] .ai-msg.bot { border-radius: 14px 14px 4px 14px; }
+html[dir="rtl"] .chat-log p.me,
+html[dir="rtl"] .ai-msg.me { border-radius: 14px 14px 14px 4px; }
+html[dir="rtl"] .cp-chat .ai-msg.me { border-radius: 18px 18px 18px 4px; }
+html[dir="rtl"] :is(.ai-msg, .cp-msg-body) :is(ul, ol) { padding-inline: 20px 0; }
+html[dir="rtl"] .cp-composer { padding-inline: 18px 6px; }
+html[dir="rtl"] .cp-quick {
+  padding-inline: 0 28px;
+  mask-image: linear-gradient(270deg, #000 90%, transparent);
+}
+
+.lang-menu {
+  max-block-size: calc(100dvh - 16px);
+  overflow-y: auto;
+}
