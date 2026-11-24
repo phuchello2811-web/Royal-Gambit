@@ -1,6 +1,7 @@
 # <img width="64" height="64" alt="image" src="https://github.com/user-attachments/assets/78f0a244-6b0c-4638-8bcf-cd04c28ed057" />  Royal Gambit
 
-<img width="1774" height="887" alt="image" src="https://github.com/user-attachments/assets/f57a991c-6397-4ca3-bb62-2f321fc01434" />
+<img width="1200" height="630" alt="og-image" src="https://github.com/user-attachments/assets/173c965d-c8b1-4dc3-8f8d-18469d42c338" />
+
 
 Web chơi cờ vua viết bằng HTML, CSS và JavaScript thuần: không cần build. Thư viện duy nhất là [PeerJS](https://peerjs.com/), chỉ được tải khi bạn dùng chế độ Online.
 
