@@ -520,7 +520,6 @@ const Assistant = (() => {
   const aiBusy = () => typeof CloudAI !== 'undefined' && CloudAI.busy();
   const MAX_ROUNDS = 4; // số lượt tra công cụ tối đa cho mỗi câu hỏi
   let hist = [];        // các lượt hỏi đáp gần nhất (chỉ câu hỏi và câu trả lời, không kèm dữ liệu công cụ)
-  const en = () => typeof I18N !== 'undefined' && I18N.lang() === 'en';
 
   const OUT = { win: 'thắng', draw: 'hoà', loss: 'thua' };
   const openingText = vi => (/^(khai cuộc|phòng thủ|gambit|phản|hệ thống|ván)/i.test(vi) ? vi : 'khai cuộc ' + vi);
@@ -811,7 +810,7 @@ const Assistant = (() => {
     renderChat();
     let raf = 0;
     const paint = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderLive(msg); }); };
-    const sys = `Trả lời ${en() ? 'bằng tiếng Anh' : 'bằng tiếng Việt'}. Tên người chơi: ${meName() || 'không rõ'}. Khoảng ${elo()} Elo, có ${d.total} ván trong Nhật ký (${d.analysed} ván đã được Stockfish 19 chấm).`;
+    const sys = `Trả lời bằng ${typeof I18N !== 'undefined' ? I18N.viName() : 'tiếng Việt'}. Tên người chơi: ${meName() || 'không rõ'}. Khoảng ${elo()} Elo, có ${d.total} ván trong Nhật ký (${d.analysed} ván đã được Stockfish 19 chấm).`;
     // Luôn kèm bài liên quan nhất trong Thư viện kiến thức (mô hình đôi khi quên tự tra, định nghĩa phải khớp thư viện)
     const refs = hasKb() ? Knowledge.search(q, 'any', 2).filter(a => !a.id.startsWith('unit:')) : [];
     const userMsg = refs.length ? `${q}\n\n---\nTHAM KHẢO TỪ THƯ VIỆN KIẾN THỨC (có thể không liên quan, chỉ dùng khi đúng chủ đề):\n${refs.map(a => `## ${a.title}\n${snippet(a.body, 900)}`).join('\n\n')}` : q;
@@ -1000,7 +999,7 @@ const Assistant = (() => {
     $('cpGames').innerHTML = `<div class="cp-games">${list.map((g, i) => {
       const [cls, label] = RES[GameHistory.outcome(g)] || ['', '–'];
       return `<div class="cp-game"><span class="cp-res ${cls}">${label}</span>
-        <span class="cp-game-text"><b>${esc(g.opp || g.title || 'Ván cờ')}</b><small>${esc(new Date(g.at).toLocaleDateString(typeof I18N !== 'undefined' && I18N.lang() === 'en' ? 'en-GB' : 'vi-VN'))} · cầm ${g.color === 'w' ? 'Trắng' : 'Đen'} · ${Math.ceil((g.moves || 0) / 2)} nước${Number.isFinite(g.acc) ? ` · chính xác ${Math.round(g.acc)}%` : g.rev ? '' : ' · chưa chấm'}</small></span>
+        <span class="cp-game-text"><b>${esc(g.opp || g.title || 'Ván cờ')}</b><small>${esc(new Date(g.at).toLocaleDateString(typeof I18N !== 'undefined' ? I18N.locale() : 'vi-VN'))} · cầm ${g.color === 'w' ? 'Trắng' : 'Đen'} · ${Math.ceil((g.moves || 0) / 2)} nước${Number.isFinite(g.acc) ? ` · chính xác ${Math.round(g.acc)}%` : g.rev ? '' : ' · chưa chấm'}</small></span>
         <span class="cp-game-btns">${aiOn() ? `<button type="button" class="primary" data-cp-review="${i + 1}"><svg class="ic"><use href="#i-spark"/></svg>Nhận xét</button>` : ''}
         <button type="button" class="ghost" data-cp-replay="${esc(g.id)}">Xem lại</button></span></div>`; }).join('')}</div>`;
   }

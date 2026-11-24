@@ -1,0 +1,53 @@
+{
+  "bots": 250,
+  "created": 250,
+  "minutes": 3,
+  "games": 367,
+  "gamesPerMin": 122.3,
+  "plies": 15042,
+  "matchMs": {
+    "median": 6129,
+    "p95": 56316,
+    "n": 735
+  },
+  "pairGap": {
+    "median": 3,
+    "p95": 25,
+    "max": 1004
+  },
+  "moveLagMs": {
+    "median": 1,
+    "p95": 4,
+    "p99": 22,
+    "n": 14953
+  },
+  "illegalMoves": 0,
+  "boardDesync": 0,
+  "busyReplies": 8,
+  "noStart": 3,
+  "stalledGames": 181,
+  "unmatchedAtEnd": 104,
+  "legitWrites": 3096,
+  "legitRejected": 410,
+  "legitRejectedSample": [
+    "PATCH players 500 {\"error\":\"An internal error occurred\"}",
+    "PUT matchq 503 {\"error\":\"Firebase database instance is inactive\"}",
+    "PUT matchq 503 {\"error\":\"Firebase database instance is inactive\"}",
+    "PUT matchq 503 {\"error\":\"Firebase database instance is inactive\"}",
+    "PUT matchq 503 {\"error\":\"Firebase database instance is inactive\"}"
+  ],
+  "cheatTried": 40,
+  "cheatBlocked": 40,
+  "eloDeltaMean": -0.05,
+  "queueSize": {
+    "median": 73,
+    "max": 183
+  },
+  "requests": 416932,
+  "requestsPerSec": 2316,
+  "MBin": 60.3,
+  "errors": {
+    "relay-500": 3,
+    "relay-503": 383335
+  }
+}

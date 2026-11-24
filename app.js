@@ -3631,17 +3631,59 @@ if (typeof Engine !== 'undefined' && Engine.load) {
 }
 
 // ---------------- Ngôn ngữ (i18n.js) ----------------
+// Tên ngôn ngữ luôn viết bằng chính ngôn ngữ đó (data-raw: bộ dịch bỏ qua)
+function langOptions(sel) {
+  if (!sel || sel.options.length === I18N.LANGS.length) return;
+  sel.innerHTML = '';
+  for (const [code, name] of I18N.LANGS) {
+    const option = document.createElement('option');
+    option.value = option.lang = code;
+    option.dir = I18N.rtl(code) ? 'rtl' : 'ltr';
+    option.textContent = name;
+    sel.appendChild(option);
+  }
+}
 function renderLang() {
   if (typeof I18N === 'undefined') return;
   const l = I18N.lang();
-  if ($('langLabel')) $('langLabel').textContent = l === 'vi' ? 'Tiếng Việt' : 'English';
-  if ($('langSel')) $('langSel').value = l;
-  for (const b of document.querySelectorAll('.auth-lang button')) b.classList.toggle('on', b.dataset.lang === l);
+  const label = $('langLabel');
+  if (label) {
+    label.lang = l;
+    label.dir = I18N.rtl() ? 'rtl' : 'ltr';
+    label.textContent = I18N.name(l);
+  }
+  for (const sel of document.querySelectorAll('#langSel, .auth-lang select')) { langOptions(sel); sel.value = l; }
+}
+// Nút quả địa cầu: mở danh sách ngôn ngữ (21 ngôn ngữ)
+function toggleLangMenu() {
+  const old = $('langMenu');
+  if (old) { old.remove(); return; }
+  const btn = $('langBtn'), m = document.createElement('div');
+  m.id = 'langMenu'; m.className = 'lang-menu'; m.setAttribute('role', 'menu'); m.dataset.raw = '';
+  for (const [code, name] of I18N.LANGS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.lang = code; b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', code === I18N.lang());
+    const label = document.createElement('bdi');
+    label.dir = I18N.rtl(code) ? 'rtl' : 'ltr';
+    label.textContent = name;
+    b.appendChild(label);
+    if (code === I18N.lang()) b.classList.add('on');
+    b.addEventListener('click', () => { m.remove(); I18N.setLang(code); });
+    m.appendChild(b);
+  }
+  document.body.appendChild(m);
+  const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  // Giới hạn toạ độ dọc trong khung nhìn để có thể chọn đủ 21 ngôn ngữ ở cửa sổ thấp
+  const idealTop = r.bottom + 6;
+  const maxTop = window.innerHeight - h - 8;
+  m.style.top = Math.round(Math.max(8, Math.min(idealTop, maxTop))) + 'px';
+  m.style.left = Math.round(Math.max(8, Math.min(window.innerWidth - w - 8, I18N.rtl() ? r.left : r.right - w))) + 'px';
+  const close = e => { if (!m.contains(e.target) && !btn.contains(e.target)) { m.remove(); document.removeEventListener('pointerdown', close, true); } };
+  document.addEventListener('pointerdown', close, true);
 }
 if (typeof I18N !== 'undefined') {
-  on('langBtn', () => I18N.setLang(I18N.lang() === 'vi' ? 'en' : 'vi'));
-  if ($('langSel')) $('langSel').addEventListener('change', e => I18N.setLang(e.target.value));
-  for (const b of document.querySelectorAll('.auth-lang button')) b.addEventListener('click', () => I18N.setLang(b.dataset.lang));
+  on('langBtn', toggleLangMenu);
+  for (const sel of document.querySelectorAll('#langSel, .auth-lang select')) sel.addEventListener('change', e => I18N.setLang(e.target.value));
   I18N.onChange(() => { renderLang(); if (pfView && !$('profilePage').hidden) renderProfilePage(pfView.p, pfView.hist); if (entered && homeVisible()) renderHome(); });
   renderLang();
 }
@@ -4546,7 +4588,7 @@ function exportPlayersCsv() {
   const lines = [head.map(h => cell(I18N.t(h))).join(',')];
   for (const p of adminRows) {
     lines.push([p.name, p.title, p.owner ? 'Chủ web' : p.admin ? 'Admin' : '', Profile.rankOf(p.exp).name, p.exp, p.elo, p.games, p.wins, p.draws, p.losses,
-      p.muted ? 'Có' : '', p.lastGame ? new Date(p.lastGame).toLocaleString(I18N.lang() === 'en' ? 'en-GB' : 'vi-VN') : ''].map(cell).join(','));
+      p.muted ? 'Có' : '', p.lastGame ? new Date(p.lastGame).toLocaleString(I18N.locale()) : ''].map(cell).join(','));
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));

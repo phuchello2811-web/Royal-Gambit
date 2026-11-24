@@ -37,7 +37,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700;900&display=swap">
-  <link rel="stylesheet" href="style.css?v=100">
+  <link rel="stylesheet" href="style.css?v=101">
+  <link rel="stylesheet" href="lang/rtl.css?v=1">
 </head>
 <body data-mode="play" data-board="green" data-pieces="default">
   <!-- Bộ biểu tượng dùng chung -->
@@ -137,7 +138,7 @@
     <div class="topbar-right">
       <button class="icon-btn install-btn" type="button" data-install hidden title="Cài Royal Gambit như một ứng dụng"><svg class="ic"><use href="#i-download"/></svg><span>Cài ứng dụng</span></button>
       <button id="skinBtn" class="icon-btn" type="button" title="Đổi bàn cờ và quân cờ"><svg class="ic"><use href="#i-palette"/></svg><span>Giao diện</span></button>
-      <button id="langBtn" class="icon-btn lang-btn" type="button" title="Ngôn ngữ / Language"><svg class="ic"><use href="#i-globe"/></svg><span id="langLabel">Tiếng Việt</span></button>
+      <button id="langBtn" class="icon-btn lang-btn" type="button" title="Ngôn ngữ / Language"><svg class="ic"><use href="#i-globe"/></svg><span id="langLabel" data-raw>Tiếng Việt</span></button>
       <button id="rankBtn" class="icon-btn header-rank-btn" title="Rank và Elo của bạn">
         <span id="meRankIcon" class="header-rank-icon" aria-hidden="true"><svg class="ic rank-star-ic" viewBox="0 0 24 24"><path fill="currentColor" d="m12 2 3 6.5 7 .9-5.1 4.8 1.3 7-6.2-3.4-6.2 3.4 1.3-7L2 9.4l7-.9L12 2Z"/></svg></span>
         <span>Rank</span>
@@ -677,7 +678,7 @@
           </div>
           <div id="themeChoices"></div>
           <label class="lang-row"><span>Ngôn ngữ / Language</span>
-            <select id="langSel"><option value="vi">Tiếng Việt</option><option value="en">English</option></select>
+            <select id="langSel" data-raw><option value="vi">Tiếng Việt</option><option value="en">English</option></select>
           </label>
           <!-- Một lựa chọn duy nhất cho kiểu bàn (trước là 2 công tắc riêng: tắt nhầm "nổi" mà quên "nghiêng" thì bàn nghiêng mất khung) -->
           <div class="lang-row view-row"><span>Góc nhìn bàn cờ</span>
@@ -787,7 +788,7 @@
         </ul>
       </aside>
       <div class="modal-box auth-box">
-      <div class="auth-lang" role="group" aria-label="Ngôn ngữ / Language"><button type="button" data-lang="vi">Tiếng Việt</button><button type="button" data-lang="en">English</button></div>
+      <div class="auth-lang" data-raw><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg><select aria-label="Ngôn ngữ / Language"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div>
       <div class="auth-brand"><img src="img/logo.svg?v=2" alt=""><h1 class="wordmark wm-logo"><span class="wm-a">Royal</span><span class="wm-b">Gambit</span></h1></div>
       <p id="authWelcome" class="auth-welcome">Chào mừng trở lại! Đăng nhập để tiếp tục.</p>
       <div class="auth-tabs" role="tablist">
@@ -1383,7 +1384,7 @@
       d.textContent = 'Lỗi: ' + e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '');
     });
   </script>
-  <script src="i18n.js?v=63"></script>
+  <script src="i18n.js?v=65"></script>
   <script src="chess.js?v=15"></script>
   <script src="ai.js?v=13"></script>
   <script src="engine.js?v=9"></script>
@@ -1395,16 +1396,16 @@
   <script src="lessons-en.js?v=2"></script>
   <script src="learn.js?v=19"></script>
   <script src="online.js?v=36"></script>
-  <script src="library.js?v=9"></script>
+  <script src="library.js?v=10"></script>
   <script src="coach.js?v=6"></script>
   <script src="puzzles.js?v=11"></script>
   <script src="history.js?v=14"></script>
   <script src="openings.js?v=5"></script>
   <script src="knowledge-en.js?v=1"></script>
-  <script src="knowledge.js?v=5"></script>
+  <script src="knowledge.js?v=6"></script>
   <script src="cloudai.js?v=5"></script>
   <script src="assistant.js?v=11"></script>
   <script src="pwa.js?v=3"></script>
-  <script src="app.js?v=93"></script>
+  <script src="app.js?v=94"></script>
 </body>
 </html>

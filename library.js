@@ -473,7 +473,14 @@ const Library = (() => {
   }
 
   const all = () => OPENINGS.concat(ENDGAMES).map(prepare).filter(o => !o.bad);
-  const matches = o => !query || fold(`${o.nameVi} ${o.name} ${o.moves} ${CAT_NAME[o.cat]}`).includes(fold(query));
+  function matches(o) {
+    if (!query) return true;
+    const term = fold(query);
+    const category = CAT_NAME[o.cat];
+    if (fold(`${o.nameVi} ${o.name} ${o.moves} ${category}`).includes(term)) return true;
+    return typeof I18N !== 'undefined' && I18N.lang() !== 'vi'
+      && fold(`${I18N.t(o.nameVi)} ${I18N.t(category)}`).includes(term);
+  }
 
   function card(o) {
     const el = document.createElement('button');

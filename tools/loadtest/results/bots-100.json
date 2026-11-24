@@ -1,0 +1,44 @@
+{
+  "bots": 100,
+  "created": 100,
+  "minutes": 3,
+  "games": 181,
+  "gamesPerMin": 60.3,
+  "plies": 8729,
+  "matchMs": {
+    "median": 3011,
+    "p95": 36544,
+    "n": 362
+  },
+  "pairGap": {
+    "median": 11,
+    "p95": 72,
+    "max": 1100
+  },
+  "moveLagMs": {
+    "median": 2,
+    "p95": 4,
+    "p99": 30,
+    "n": 8729
+  },
+  "illegalMoves": 0,
+  "boardDesync": 0,
+  "busyReplies": 6,
+  "noStart": 0,
+  "stalledGames": 0,
+  "unmatchedAtEnd": 25,
+  "legitWrites": 1180,
+  "legitRejected": 0,
+  "legitRejectedSample": [],
+  "cheatTried": 40,
+  "cheatBlocked": 40,
+  "eloDeltaMean": 0,
+  "queueSize": {
+    "median": 24,
+    "max": 39
+  },
+  "requests": 15626,
+  "requestsPerSec": 87,
+  "MBin": 6.7,
+  "errors": {}
+}

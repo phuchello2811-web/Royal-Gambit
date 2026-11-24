@@ -1,4 +1,9 @@
-// Đa ngôn ngữ: Tiếng Việt (gốc) / English.
+// Đa ngôn ngữ: Tiếng Việt (gốc), English và 19 ngôn ngữ khác (中文, हिन्दी, Español, العربية, Français, বাংলা, Português,
+// Русский, Bahasa Indonesia, اردو, Deutsch, 日本語, Naijá, मराठी, తెలుగు, Kiswahili, Hausa, Türkçe, پنجابی).
+//
+// Ngôn ngữ khác tiếng Việt / tiếng Anh đi qua tiếng Anh làm trung gian: câu tiếng Việt → bản tiếng Anh (EN, TPL, nội dung)
+// → gói dịch lang/<mã>.js, khoá bằng mã băm FNV-1a của câu tiếng Anh. Gói chỉ được tải khi người dùng chọn ngôn ngữ đó;
+// câu chưa có trong gói thì hiện tiếng Anh. Tiếng Ả Rập, Urdu và Punjabi Shahmukhi viết từ phải sang trái.
 //
 // Cách hoạt động: toàn bộ giao diện viết bằng tiếng Việt như cũ. Khi chọn English, một MutationObserver theo dõi
 // mọi chữ xuất hiện trên trang (kể cả chữ do JavaScript tạo sau này) và đổi sang tiếng Anh theo:
@@ -10,13 +15,43 @@
 
 const I18N = (() => {
   const KEY = 'rg-lang';
-  const LANGS = [['vi', 'Tiếng Việt'], ['en', 'English']];
+  const LANGS = [['vi', 'Tiếng Việt'], ['en', 'English'], ['zh', '中文'], ['hi', 'हिन्दी'], ['es', 'Español'], ['ar', 'العربية'],
+    ['fr', 'Français'], ['bn', 'বাংলা'], ['pt', 'Português'], ['ru', 'Русский'], ['id', 'Bahasa Indonesia'],
+    ['ur', 'اردو'], ['de', 'Deutsch'], ['ja', '日本語'], ['pcm', 'Naijá'], ['mr', 'मराठी'],
+    ['te', 'తెలుగు'], ['sw', 'Kiswahili'], ['ha', 'Hausa'], ['tr', 'Türkçe'], ['pnb', 'پنجابی (شاہ مکھی)']];
+  const CODES = LANGS.map(l => l[0]);
+  const RTL = new Set(['ar', 'ur', 'pnb']);
+  const LOCALE = { vi: 'vi-VN', en: 'en-GB', zh: 'zh-CN', hi: 'hi-IN', es: 'es-ES', ar: 'ar', fr: 'fr-FR', bn: 'bn-BD', pt: 'pt-BR', ru: 'ru-RU', id: 'id-ID',
+    ur: 'ur-PK', de: 'de-DE', ja: 'ja-JP', pcm: 'pcm-NG', mr: 'mr-IN', te: 'te-IN', sw: 'sw-KE', ha: 'ha-Latn-NG', tr: 'tr-TR', pnb: 'pa-Arab-PK' };
+  // Tên ngôn ngữ bằng tiếng Việt, dùng trong lời dặn gửi trợ lý AI ("Trả lời bằng …")
+  const VI_NAME = { vi: 'tiếng Việt', en: 'tiếng Anh', zh: 'tiếng Trung (giản thể)', hi: 'tiếng Hindi', es: 'tiếng Tây Ban Nha', ar: 'tiếng Ả Rập',
+    fr: 'tiếng Pháp', bn: 'tiếng Bengal', pt: 'tiếng Bồ Đào Nha', ru: 'tiếng Nga', id: 'tiếng Indonesia',
+    ur: 'tiếng Urdu', de: 'tiếng Đức', ja: 'tiếng Nhật', pcm: 'tiếng Pidgin Nigeria', mr: 'tiếng Marathi',
+    te: 'tiếng Telugu', sw: 'tiếng Swahili', ha: 'tiếng Hausa (chữ Latinh)', tr: 'tiếng Thổ Nhĩ Kỳ', pnb: 'tiếng Punjabi Tây (chữ Shahmukhi)' };
+  const PACK_V = 3;     // đổi khi sửa các tệp lang/*.js
+  const PACKS = {};     // mã ngôn ngữ → { mã băm câu tiếng Anh: bản dịch }
   let lang = 'vi';
-  try { const s = localStorage.getItem(KEY); if (s === 'en' || s === 'vi') lang = s; } catch {}
+  try { const s = localStorage.getItem(KEY); if (CODES.includes(s)) lang = s; } catch {}
+  try { // ?lang=xx trên địa chỉ trang: mở thẳng bằng ngôn ngữ đó
+    const q = new URLSearchParams(location.search).get('lang');
+    if (CODES.includes(q)) { lang = q; try { localStorage.setItem(KEY, q); } catch {} }
+  } catch {}
+
+  // FNV-1a 32 bit trên từng đơn vị UTF-16 (khớp với công cụ tạo gói dịch)
+  const hkey = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); };
+  // Câu tiếng Anh → ngôn ngữ đang chọn
+  function out(en) {
+    if (lang === 'en' || lang === 'vi' || typeof en !== 'string') return en;
+    const p = PACKS[lang];
+    if (!p) return en;
+    const v = p[hkey(en.normalize('NFC'))];
+    return v != null ? v : en;
+  }
 
   const EN = {
     // ----- Điều hướng & chung -----
     'Chơi': 'Play', 'Học cờ': 'Learn', 'Thư viện': 'Library', 'Câu đố': 'Puzzles', 'Nhật ký': 'History',
+    'Online': 'Online', 'Contest': 'Contest', 'Rank': 'Rank',
     'Xếp hạng': 'Leaderboard', 'Bảng điểm': 'Standings', 'Đóng': 'Close', 'Tải lại': 'Reload',
     'Quay lại': 'Back', 'Hủy': 'Cancel', 'Tạo': 'Create', 'Đồng ý': 'Accept', 'Từ chối': 'Decline',
     'Bạn': 'You', 'Máy': 'Computer', 'Trắng': 'White', 'Đen': 'Black', 'Ngẫu nhiên': 'Random',
@@ -281,7 +316,7 @@ const I18N = (() => {
     'Mỗi bài có 3 tim, đi sai mất 1 tim. Không sai và không dùng gợi ý thì được 3 sao. Học mỗi ngày để giữ chuỗi ngày học. Đã biết chơi? Bấm': 'Each lesson has 3 hearts; a wrong move costs one. No mistakes and no hints earns 3 stars. Study daily to keep your streak. Already know how to play? Press',
     'ở một phần để làm bài kiểm tra và mở khoá luôn phần đó.': 'on a unit to take a test and unlock it straight away.',
     'Chuỗi ngày học liên tiếp': 'Daily streak', 'Tổng điểm kinh nghiệm': 'Total XP', 'Số bài đã xong': 'Lessons completed',
-    'Thoát bài học': 'Leave lesson', 'Số tim còn lại': 'Hearts left', 'Làm lại': 'Retry', 'Kiểm tra': 'Check', 'Tổng XP': 'Total XP',
+    'Thoát bài học': 'Leave lesson', 'Số tim còn lại': 'Hearts left', 'Làm lại': 'Retry', 'Kiểm tra': 'Check answer', 'Tổng XP': 'Total XP',
     'Chính xác': 'Accuracy', 'Tiếp tục': 'Continue', 'Về lộ trình': 'Back to path', 'Tuyệt vời!': 'Awesome!', 'Chính xác!': 'Correct!',
     'Xuất sắc!': 'Excellent!', 'Giỏi lắm!': 'Well done!', 'Hay quá!': 'Great!',
     'Đó chưa phải nhập thành. Bấm vào Vua rồi chọn ô cách 2 ô về phía Xe.': 'That is not castling. Click the king, then the square two steps toward the rook.',
@@ -872,7 +907,7 @@ const I18N = (() => {
     const add = (vi, en) => { const k = flatKey(vi); if (en && !Object.prototype.hasOwnProperty.call(EN, k)) EN[k] = en; };
     const byId = new Map((typeof Library !== 'undefined' ? Library.OPENINGS.concat(Library.ENDGAMES) : []).map(o => [o.id, o]));
     const units = new Map((typeof COURSE !== 'undefined' ? COURSE : []).map(u => ['unit:' + (u.key || u.title), u]));
-    const vi = s => translateCore(String(s).normalize('NFC'));
+    const vi = s => translateCore(String(s).normalize('NFC'), false);
     for (const a of Knowledge.list()) {
       const tr = typeof KNOWLEDGE_EN !== 'undefined' ? KNOWLEDGE_EN[a.id] : null;
       const o = a.lib ? byId.get(a.lib) : null;
@@ -930,40 +965,44 @@ const I18N = (() => {
   }).sort((a, b) => b.literal - a.literal); // mẫu cụ thể (nhiều chữ cố định) được thử trước
   for (const k of Object.keys(EN)) { const n = k.normalize('NFC'); if (n !== k) EN[n] = EN[k]; }
 
-  function lookup(core) {
-    if (Object.prototype.hasOwnProperty.call(EN, core)) return EN[core];
+  function lookup(core, toLang = true) {
+    if (Object.prototype.hasOwnProperty.call(EN, core)) return toLang ? out(EN[core]) : EN[core];
     for (const c of compiled) {
       const m = c.re.exec(core);
       if (!m) continue;
       const vals = [];
       let ok = true;
       c.order.forEach((idx, k) => {
-        const v = c.free[k] ? m[k + 1] : translateCore(m[k + 1]);
-        if (!c.free[k] && VI_ONLY.test(v)) ok = false; // phần biến chưa dịch được: không dịch nửa vời
-        vals[idx] = v;
+        // Kiểm tra trên bản tiếng Anh: chữ Bồ Đào Nha / Pháp (â, ê, ô, ã…) không bị tưởng là tiếng Việt chưa dịch
+        const vEn = c.free[k] ? m[k + 1] : translateCore(m[k + 1], false);
+        if (!c.free[k] && VI_ONLY.test(vEn)) ok = false; // phần biến chưa dịch được: không dịch nửa vời
+        vals[idx] = c.free[k] || !toLang ? vEn : translateCore(m[k + 1], true);
       });
       if (!ok) continue;
-      return c.en.replace(/\{(\d)\}/g, (_, i) => vals[i] != null ? vals[i] : '');
+      return (toLang ? out(c.en) : c.en).replace(/\{(\d)\}/g, (_, i) => vals[i] != null ? vals[i] : '');
     }
     return null;
   }
 
-  function translateCore(core) {
-    if (!/[^\x00-\x7F]/.test(core)) return Object.prototype.hasOwnProperty.call(EN, core) ? EN[core] : core; // chữ không dấu: chỉ tra nguyên câu
-    const hit = lookup(core);
+  // toLang = true: dịch sang ngôn ngữ đang chọn; false: chỉ sang tiếng Anh (dựng nội dung thư viện)
+  function translateCore(core, toLang = true) {
+    if (!/[^\x00-\x7F]/.test(core)) { // chữ không dấu: chỉ tra nguyên câu
+      if (!Object.prototype.hasOwnProperty.call(EN, core)) return core;
+      return toLang ? out(EN[core]) : EN[core];
+    }
+    const hit = lookup(core, toLang);
     if (hit != null) return hit;
     // Câu ghép bằng " · ": dịch từng đoạn
     if (core.includes(' · ')) {
       const parts = core.split(' · ');
-      const out = parts.map(p => { const h = lookup(p.trim()); return h != null ? h : p; });
-      if (out.some((x, i) => x !== parts[i])) return out.join(' · ');
+      const segs = parts.map(p => { const h = lookup(p.trim(), toLang); return h != null ? h : p; });
+      if (segs.some((x, i) => x !== parts[i])) return segs.join(' · ');
     }
     // Tên kèm sao rank: "Vàng ★★☆"
     const star = /^(.*?)(\s+[★☆][★☆\d×]*)$/.exec(core);
-    if (star) { const h = lookup(star[1]); if (h != null) return h + star[2]; }
+    if (star) { const h = lookup(star[1], toLang); if (h != null) return h + star[2]; }
     // Dấu "…" cuối câu
-
-    if (core.endsWith('…')) { const h = lookup(core.slice(0, -1)); if (h != null) return h + '…'; }
+    if (core.endsWith('…')) { const h = lookup(core.slice(0, -1), toLang); if (h != null) return h + '…'; }
     return core;
   }
 
@@ -1060,19 +1099,41 @@ const I18N = (() => {
   function apply() {
     document.documentElement.lang = lang;
     document.documentElement.dataset.lang = lang;
+    document.documentElement.dir = RTL.has(lang) ? 'rtl' : 'ltr';
     if (!document.body) return;
     observe();
-    if (lang === 'vi') restore(document.body);
-    else walk(document.body);
+    // Luôn trả về tiếng Việt gốc trước: đổi thẳng từ ngôn ngữ này sang ngôn ngữ khác (vd. English → 中文) vẫn dịch lại đủ
+    restore(document.body);
+    if (lang !== 'vi') walk(document.body);
     listeners.forEach(f => { try { f(lang); } catch {} });
   }
 
+  // Tải gói dịch lang/<mã>.js (chỉ một lần, chỉ khi cần)
+  const loading = {};
+  function loadPack(l) {
+    if (l === 'vi' || l === 'en' || PACKS[l]) return Promise.resolve();
+    if (!loading[l]) {
+      loading[l] = new Promise(resolve => {
+        const script = document.createElement('script');
+        script.src = `lang/${l}.js?v=${PACK_V}`;
+        script.onload = script.onerror = () => {
+          script.remove();
+          resolve();
+        };
+        document.head.appendChild(script);
+      }).finally(() => { delete loading[l]; });
+    }
+    return loading[l];
+  }
+  function addPack(l, map) { PACKS[l] = map; }
+
   const listeners = [];
   function setLang(l) {
-    if (l !== 'vi' && l !== 'en') return;
+    if (!CODES.includes(l)) return;
     lang = l;
     try { localStorage.setItem(KEY, l); } catch {}
-    apply();
+    apply(); // chưa có gói thì tạm hiện tiếng Anh
+    if (!PACKS[l]) loadPack(l).then(() => { if (lang === l && PACKS[l]) apply(); });
   }
 
   // Hộp thoại gốc của trình duyệt cũng được dịch
@@ -1083,6 +1144,14 @@ const I18N = (() => {
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
   else apply();
+  const initialLang = lang;
+  loadPack(initialLang).then(() => {
+    if (lang === initialLang && PACKS[initialLang] && document.readyState !== 'loading') apply();
+  });
 
-  return { t, setLang, lang: () => lang, LANGS, onChange: f => listeners.push(f), apply };
+  return {
+    t, setLang, lang: () => lang, LANGS, onChange: f => listeners.push(f), apply, addPack,
+    locale: () => LOCALE[lang] || 'vi-VN', viName: () => VI_NAME[lang] || 'tiếng Việt', rtl: (l = lang) => RTL.has(l),
+    name: l => (LANGS.find(x => x[0] === (l || lang)) || LANGS[0])[1],
+  };
 })();
